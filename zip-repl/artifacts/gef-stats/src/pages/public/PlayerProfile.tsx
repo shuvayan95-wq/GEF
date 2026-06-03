@@ -524,6 +524,7 @@ export function PlayerProfile() {
               playerPosition={(stats as any).position}
               teamName={(stats as any).teamName}
               playerName={stats.name}
+              playerStats={stats as any}
             />
 
             {/* Trophy Cabinet */}
@@ -652,16 +653,227 @@ function parseAnalysisSections(text: string): Array<{ key: string; content: stri
   return sections;
 }
 
+// ─── Stat Bar ────────────────────────────────────────────────────────────────
+
+function StatBar({
+  label, value, max, color, suffix = "", icon: Icon,
+}: {
+  label: string; value: number; max: number; color: string; suffix?: string; icon?: any;
+}) {
+  const pct = Math.min(100, max > 0 ? (value / max) * 100 : 0);
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          {Icon && <Icon className={`w-3 h-3 ${color}`} />}
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</span>
+        </div>
+        <span className={`text-xs font-black ${color}`}>{value}{suffix}</span>
+      </div>
+      <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all duration-700`}
+          style={{
+            width: `${pct}%`,
+            background: color.includes("emerald") ? "#10b981"
+              : color.includes("sky") ? "#0ea5e9"
+              : color.includes("amber") ? "#f59e0b"
+              : color.includes("rose") || color.includes("red") ? "#f43f5e"
+              : color.includes("violet") ? "#8b5cf6"
+              : color.includes("primary") ? "hsl(var(--primary))"
+              : "#6b7280",
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function DeltaBar({ label, value, icon: Icon }: { label: string; value: number; icon?: any }) {
+  const isPos = value >= 0;
+  const pct = Math.min(100, (Math.abs(value) / 20) * 100);
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          {Icon && <Icon className="w-3 h-3 text-muted-foreground" />}
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</span>
+        </div>
+        <span className={`text-xs font-black ${isPos ? "text-emerald-400" : "text-rose-400"}`}>
+          {isPos ? "+" : ""}{value}
+        </span>
+      </div>
+      <div className="h-1.5 rounded-full bg-white/5 relative overflow-hidden">
+        <div className="absolute inset-y-0 left-1/2 w-px bg-white/20" />
+        <div
+          className={`absolute top-0 h-full rounded-full transition-all duration-700 ${isPos ? "left-1/2" : "right-1/2"}`}
+          style={{
+            width: `${pct / 2}%`,
+            background: isPos ? "#10b981" : "#f43f5e",
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ─── Rival Comparison ────────────────────────────────────────────────────────
+
+function RivalComparisonSection({
+  playerId, playerStats, theme, teamAccent,
+}: {
+  playerId: number;
+  playerStats: any;
+  theme: typeof ROLE_THEME[keyof typeof ROLE_THEME];
+  teamAccent: { primary: string; muted: string; border: string };
+}) {
+  const [rival, setRival] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/players")
+      .then(r => r.json())
+      .then((all: any[]) => {
+        const candidates = all.filter(
+          p => p.id !== playerId && p.matchesPlayed >= 3 && p.status !== "left"
+        );
+        if (!candidates.length) return;
+        const p = playerStats;
+        const scored = candidates.map(c => {
+          const score =
+            Math.abs((c.goalsPerMatch ?? 0) - (p.goalsPerMatch ?? 0)) * 3 +
+            Math.abs((c.winRate ?? 0) - (p.winRate ?? 0)) / 25 +
+            Math.abs((c.goalsScored ?? 0) - (p.goalsScored ?? 0)) / 8 +
+            Math.abs((c.matchesPlayed ?? 0) - (p.matchesPlayed ?? 0)) / 10;
+          return { ...c, _score: score };
+        });
+        scored.sort((a, b) => a._score - b._score);
+        setRival(scored[0]);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [playerId]);
+
+  if (loading) {
+    return (
+      <div className="rounded-xl border border-white/10 bg-white/3 p-4 flex items-center gap-3 animate-pulse">
+        <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" />
+        <span className="text-xs text-muted-foreground">Finding closest rival…</span>
+      </div>
+    );
+  }
+  if (!rival) return null;
+
+  const p = playerStats;
+  const metrics: Array<{ label: string; pKey: keyof typeof p; rKey: string; max: number; suffix?: string; icon: any; color: string }> = [
+    { label: "Goals",        pKey: "goalsScored",    rKey: "goalsScored",    max: Math.max(p.goalsScored, rival.goalsScored, 1),          icon: Swords,   color: "text-emerald-400" },
+    { label: "Win Rate",     pKey: "winRate",        rKey: "winRate",        max: 100,                                                     icon: TrendingUp, color: "text-sky-400", suffix: "%" },
+    { label: "Goals/Match",  pKey: "goalsPerMatch",  rKey: "goalsPerMatch",  max: Math.max(p.goalsPerMatch, rival.goalsPerMatch, 1),       icon: Target,   color: "text-amber-400" },
+    { label: "MVPs",         pKey: "mvpCount",       rKey: "mvpCount",       max: Math.max(p.mvpCount, rival.mvpCount, 1),                 icon: Star,     color: "text-yellow-400" },
+    { label: "Matches",      pKey: "matchesPlayed",  rKey: "matchesPlayed",  max: Math.max(p.matchesPlayed, rival.matchesPlayed, 1),       icon: Activity, color: "text-violet-400" },
+  ];
+
+  const rivalRole = rival.teamRole === "captain" ? "captain" : rival.teamRole === "vice_captain" ? "vice_captain" : "default";
+  const rivalTheme = ROLE_THEME[rivalRole];
+  const rivalTeamAccent = getTeamAccent(rival.teamName);
+
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/3 overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-white/8 bg-white/3">
+        <Swords className="w-3.5 h-3.5 text-rose-400" />
+        <span className="font-display font-black uppercase text-[11px] tracking-widest text-rose-400">Closest Rival — Head to Head</span>
+      </div>
+
+      {/* Player names row */}
+      <div className="grid grid-cols-2 gap-3 px-4 pt-4 pb-2">
+        <div className="text-center">
+          <div className={`font-display font-black text-base uppercase ${theme.accent}`}>{p.name}</div>
+          <div className={`text-[9px] font-bold uppercase tracking-widest mt-0.5 ${teamAccent.primary}`}>{p.teamName}</div>
+          {p.teamRole && (
+            <span className={`inline-flex items-center gap-0.5 text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded border mt-1 ${theme.badge}`}>
+              {p.teamRole === "captain" ? <Crown className="w-2 h-2" /> : <Star className="w-2 h-2" />}
+              {p.teamRole === "captain" ? "CAP" : "VC"}
+            </span>
+          )}
+        </div>
+        <div className="text-center">
+          <div className={`font-display font-black text-base uppercase ${rivalTheme.accent}`}>{rival.name}</div>
+          <div className={`text-[9px] font-bold uppercase tracking-widest mt-0.5 ${rivalTeamAccent.primary}`}>{rival.teamName}</div>
+          {rival.teamRole && (
+            <span className={`inline-flex items-center gap-0.5 text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded border mt-1 ${rivalTheme.badge}`}>
+              {rival.teamRole === "captain" ? <Crown className="w-2 h-2" /> : <Star className="w-2 h-2" />}
+              {rival.teamRole === "captain" ? "CAP" : "VC"}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Comparison bars */}
+      <div className="px-4 pb-4 space-y-3">
+        {metrics.map(({ label, pKey, rKey, max, suffix = "", icon: Icon, color }) => {
+          const pVal = Number(p[pKey] ?? 0);
+          const rVal = Number(rival[rKey] ?? 0);
+          const pPct = Math.min(100, max > 0 ? (pVal / max) * 100 : 0);
+          const rPct = Math.min(100, max > 0 ? (rVal / max) * 100 : 0);
+          const pWins = pVal > rVal;
+          const rWins = rVal > pVal;
+          const barColor = color.includes("emerald") ? "#10b981"
+            : color.includes("sky") ? "#0ea5e9"
+            : color.includes("amber") ? "#f59e0b"
+            : color.includes("violet") ? "#8b5cf6"
+            : color.includes("yellow") ? "#eab308"
+            : "hsl(var(--primary))";
+          return (
+            <div key={label}>
+              <div className="flex items-center justify-between mb-1">
+                <span className={`text-xs font-black ${pWins ? color : "text-muted-foreground"}`}>
+                  {typeof pVal === "number" && label === "Win Rate" ? pVal.toFixed(1) : pVal}{suffix}
+                  {pWins && <span className="ml-1 text-[8px]">▲</span>}
+                </span>
+                <div className="flex items-center gap-1">
+                  <Icon className={`w-2.5 h-2.5 ${color}`} />
+                  <span className={`text-[9px] font-bold uppercase tracking-wider ${color}`}>{label}</span>
+                </div>
+                <span className={`text-xs font-black ${rWins ? color : "text-muted-foreground"}`}>
+                  {rWins && <span className="mr-1 text-[8px]">▲</span>}
+                  {typeof rVal === "number" && label === "Win Rate" ? rVal.toFixed(1) : rVal}{suffix}
+                </span>
+              </div>
+              <div className="flex gap-0.5 h-2 rounded-full overflow-hidden bg-white/5">
+                <div className="flex-1 flex justify-end">
+                  <div
+                    className="h-full rounded-l-full transition-all duration-700"
+                    style={{ width: `${pPct}%`, background: pWins ? barColor : `${barColor}55` }}
+                  />
+                </div>
+                <div className="w-px bg-white/20 shrink-0" />
+                <div className="flex-1">
+                  <div
+                    className="h-full rounded-r-full transition-all duration-700"
+                    style={{ width: `${rPct}%`, background: rWins ? barColor : `${barColor}55` }}
+                  />
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── Player AI Analysis Component ───────────────────────────────────────────
 
 function PlayerAIAnalysis({
-  playerId, playerRole, playerPosition, teamName, playerName,
+  playerId, playerRole, playerPosition, teamName, playerName, playerStats,
 }: {
   playerId: number;
   playerRole?: string;
   playerPosition?: string;
   teamName?: string;
   playerName?: string;
+  playerStats?: any;
 }) {
   const [analysis, setAnalysis] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -689,12 +901,14 @@ function PlayerAIAnalysis({
   const teamAccent = getTeamAccent(teamName);
   const RoleIcon = theme.icon;
 
+  const iconBg = role === "captain" ? "bg-yellow-500/20" : role === "vice_captain" ? "bg-blue-500/20" : "bg-primary/10";
+
   if (!generated && !loading) {
     return (
       <div className={`bg-card border ${theme.border} rounded-xl overflow-hidden shadow-lg ${theme.glow}`}>
         <div className={`px-5 py-4 ${theme.headerBg} border-b ${theme.headerBorder}`}>
           <div className="flex items-center gap-3">
-            <div className={`w-9 h-9 rounded-lg ${role === "captain" ? "bg-yellow-500/20" : role === "vice_captain" ? "bg-blue-500/20" : "bg-primary/10"} flex items-center justify-center`}>
+            <div className={`w-9 h-9 rounded-lg ${iconBg} flex items-center justify-center`}>
               <Cpu className={`w-4.5 h-4.5 ${theme.accent}`} />
             </div>
             <div>
@@ -734,7 +948,7 @@ function PlayerAIAnalysis({
   if (loading) {
     return (
       <div className={`bg-card border ${theme.border} rounded-xl p-8 text-center shadow-lg`}>
-        <div className={`w-12 h-12 rounded-xl ${role === "captain" ? "bg-yellow-500/10" : role === "vice_captain" ? "bg-blue-500/10" : "bg-primary/10"} flex items-center justify-center mx-auto mb-3`}>
+        <div className={`w-12 h-12 rounded-xl ${iconBg} flex items-center justify-center mx-auto mb-3`}>
           <Loader2 className={`w-6 h-6 animate-spin ${theme.accent}`} />
         </div>
         <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Analysing player data</p>
@@ -753,6 +967,8 @@ function PlayerAIAnalysis({
   }
 
   const sections = analysis ? parseAnalysisSections(analysis) : [];
+  const ps = playerStats ?? {};
+  const maxGPM = 5;
 
   return (
     <div className={`bg-card border ${theme.border} rounded-xl overflow-hidden shadow-xl ${theme.glow}`}>
@@ -760,7 +976,7 @@ function PlayerAIAnalysis({
       <div className={`px-5 py-4 ${theme.headerBg} border-b ${theme.headerBorder}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className={`w-9 h-9 rounded-lg ${role === "captain" ? "bg-yellow-500/20" : role === "vice_captain" ? "bg-blue-500/20" : "bg-primary/10"} flex items-center justify-center`}>
+            <div className={`w-9 h-9 rounded-lg ${iconBg} flex items-center justify-center`}>
               <Cpu className={`w-4.5 h-4.5 ${theme.accent}`} />
             </div>
             <div>
@@ -791,7 +1007,45 @@ function PlayerAIAnalysis({
         </div>
       </div>
 
-      {/* Sections */}
+      {/* ── Stat Bars Panel ── */}
+      {ps.matchesPlayed > 0 && (
+        <div className={`px-5 py-4 border-b ${theme.headerBorder} ${theme.headerBg} grid grid-cols-2 gap-x-6 gap-y-3`}>
+          <StatBar
+            label="Win Rate"
+            value={Number((ps.winRate ?? 0).toFixed(1))}
+            max={100}
+            suffix="%"
+            color="text-sky-400"
+            icon={TrendingUp}
+          />
+          <StatBar
+            label="Goals / Match"
+            value={Number((ps.goalsPerMatch ?? 0).toFixed(2))}
+            max={maxGPM}
+            color="text-emerald-400"
+            icon={Target}
+          />
+          <StatBar
+            label="Goals Scored"
+            value={ps.goalsScored ?? 0}
+            max={Math.max(ps.goalsScored ?? 0, 30)}
+            color="text-amber-400"
+            icon={Swords}
+          />
+          <StatBar
+            label="MVP Awards"
+            value={ps.mvpCount ?? 0}
+            max={Math.max(ps.mvpCount ?? 0, 10)}
+            color="text-violet-400"
+            icon={Star}
+          />
+          <div className="col-span-2">
+            <DeltaBar label="Goal Differential" value={ps.goalDiff ?? 0} icon={BarChart2} />
+          </div>
+        </div>
+      )}
+
+      {/* ── Analysis Sections ── */}
       <div className="p-4 grid gap-3">
         {sections.map(({ key, content }) => {
           const cfg = Object.entries(SECTION_CONFIGS).find(([k]) => key.includes(k))?.[1];
@@ -823,6 +1077,16 @@ function PlayerAIAnalysis({
             </div>
           );
         })}
+
+        {/* ── Rival Comparison ── */}
+        {playerStats && (
+          <RivalComparisonSection
+            playerId={playerId}
+            playerStats={playerStats}
+            theme={theme}
+            teamAccent={teamAccent}
+          />
+        )}
       </div>
 
       {/* Footer badge */}

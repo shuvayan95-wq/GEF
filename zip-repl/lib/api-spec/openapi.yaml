@@ -1,0 +1,1094 @@
+openapi: 3.1.0
+info:
+  title: Api
+  version: 0.1.0
+  description: GEF Player Statistics API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: auth
+    description: Authentication
+  - name: players
+    description: Player management
+  - name: teams
+    description: Team management
+  - name: matches
+    description: Match management
+  - name: awards
+    description: Awards management
+  - name: upload
+    description: File upload
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /auth/login:
+    post:
+      operationId: adminLogin
+      tags: [auth]
+      summary: Admin login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/logout:
+    post:
+      operationId: adminLogout
+      tags: [auth]
+      summary: Admin logout
+      responses:
+        "200":
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /auth/me:
+    get:
+      operationId: getAuthMe
+      tags: [auth]
+      summary: Get current session
+      responses:
+        "200":
+          description: Session info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthMeResponse"
+
+  /players:
+    get:
+      operationId: listPlayers
+      tags: [players]
+      summary: List all players
+      responses:
+        "200":
+          description: List of players
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Player"
+    post:
+      operationId: createPlayer
+      tags: [players]
+      summary: Create a new player
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePlayerRequest"
+      responses:
+        "201":
+          description: Player created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Player"
+
+  /players/{id}:
+    get:
+      operationId: getPlayer
+      tags: [players]
+      summary: Get player by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Player
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Player"
+    put:
+      operationId: updatePlayer
+      tags: [players]
+      summary: Update player
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePlayerRequest"
+      responses:
+        "200":
+          description: Updated player
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Player"
+    delete:
+      operationId: deletePlayer
+      tags: [players]
+      summary: Delete player
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /players/{id}/stats:
+    get:
+      operationId: getPlayerStats
+      tags: [players]
+      summary: Get detailed player stats
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Player stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerStats"
+
+  /teams:
+    get:
+      operationId: listTeams
+      tags: [teams]
+      summary: List all teams
+      responses:
+        "200":
+          description: List of teams
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Team"
+    post:
+      operationId: createTeam
+      tags: [teams]
+      summary: Create a new team
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTeamRequest"
+      responses:
+        "201":
+          description: Team created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Team"
+
+  /teams/{id}:
+    get:
+      operationId: getTeam
+      tags: [teams]
+      summary: Get team by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Team
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Team"
+    put:
+      operationId: updateTeam
+      tags: [teams]
+      summary: Update team
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTeamRequest"
+      responses:
+        "200":
+          description: Updated team
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Team"
+    delete:
+      operationId: deleteTeam
+      tags: [teams]
+      summary: Delete team
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /matches:
+    get:
+      operationId: listMatches
+      tags: [matches]
+      summary: List all matches
+      responses:
+        "200":
+          description: List of matches
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Match"
+    post:
+      operationId: createMatch
+      tags: [matches]
+      summary: Create a new match
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMatchRequest"
+      responses:
+        "201":
+          description: Match created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Match"
+
+  /matches/{id}:
+    get:
+      operationId: getMatch
+      tags: [matches]
+      summary: Get match by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Match
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Match"
+    put:
+      operationId: updateMatch
+      tags: [matches]
+      summary: Update match
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMatchRequest"
+      responses:
+        "200":
+          description: Updated match
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Match"
+    delete:
+      operationId: deleteMatch
+      tags: [matches]
+      summary: Delete match
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /h2h:
+    get:
+      operationId: listH2H
+      tags: [matches]
+      summary: Get all H2H records
+      responses:
+        "200":
+          description: H2H records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/H2HRecord"
+
+  /h2h/player:
+    get:
+      operationId: getPlayerH2H
+      tags: [matches]
+      summary: Get H2H for two players
+      parameters:
+        - name: player1Id
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: player2Id
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: H2H stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerH2HStats"
+
+  /awards:
+    get:
+      operationId: listAwards
+      tags: [awards]
+      summary: List all awards
+      responses:
+        "200":
+          description: List of awards
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Award"
+    post:
+      operationId: createAward
+      tags: [awards]
+      summary: Create award
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAwardRequest"
+      responses:
+        "201":
+          description: Award created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Award"
+
+  /awards/{id}:
+    delete:
+      operationId: deleteAward
+      tags: [awards]
+      summary: Delete award
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /upload/image:
+    post:
+      operationId: uploadImage
+      tags: [upload]
+      summary: Upload player image
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: Image uploaded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadResponse"
+
+  /leaderboard:
+    get:
+      operationId: getLeaderboard
+      tags: [players]
+      summary: Get leaderboard with OVR ratings
+      responses:
+        "200":
+          description: Leaderboard
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LeaderboardEntry"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+      required:
+        - success
+
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+      required:
+        - email
+        - password
+
+    LoginResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        isAdmin:
+          type: boolean
+      required:
+        - success
+        - isAdmin
+
+    AuthMeResponse:
+      type: object
+      properties:
+        isAdmin:
+          type: boolean
+      required:
+        - isAdmin
+
+    UploadResponse:
+      type: object
+      properties:
+        url:
+          type: string
+      required:
+        - url
+
+    Player:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        imageUrl:
+          type: string
+          nullable: true
+        position:
+          type: string
+          nullable: true
+        teamId:
+          type: integer
+          nullable: true
+        teamName:
+          type: string
+          nullable: true
+        nationality:
+          type: string
+          nullable: true
+        marketValue:
+          type: number
+          nullable: true
+        salary:
+          type: number
+          nullable: true
+        matchesPlayed:
+          type: integer
+        wins:
+          type: integer
+        losses:
+          type: integer
+        draws:
+          type: integer
+        goalsScored:
+          type: integer
+        goalsConceded:
+          type: integer
+        mvpCount:
+          type: integer
+        overallRating:
+          type: number
+        createdAt:
+          type: string
+      required:
+        - id
+        - name
+        - matchesPlayed
+        - wins
+        - losses
+        - draws
+        - goalsScored
+        - goalsConceded
+        - mvpCount
+        - overallRating
+        - createdAt
+
+    CreatePlayerRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        imageUrl:
+          type: string
+          nullable: true
+        position:
+          type: string
+          nullable: true
+        teamId:
+          type: integer
+          nullable: true
+        nationality:
+          type: string
+          nullable: true
+        marketValue:
+          type: number
+          nullable: true
+        salary:
+          type: number
+          nullable: true
+      required:
+        - name
+
+    UpdatePlayerRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        imageUrl:
+          type: string
+          nullable: true
+        position:
+          type: string
+          nullable: true
+        teamId:
+          type: integer
+          nullable: true
+        nationality:
+          type: string
+          nullable: true
+        marketValue:
+          type: number
+          nullable: true
+        salary:
+          type: number
+          nullable: true
+
+    PlayerStats:
+      type: object
+      properties:
+        playerId:
+          type: integer
+        name:
+          type: string
+        matchesPlayed:
+          type: integer
+        wins:
+          type: integer
+        losses:
+          type: integer
+        draws:
+          type: integer
+        winRate:
+          type: number
+        goalsScored:
+          type: integer
+        goalsConceded:
+          type: integer
+        goalDiff:
+          type: integer
+        goalsPerMatch:
+          type: number
+        goalsConcededPerMatch:
+          type: number
+        mvpCount:
+          type: integer
+        overallRating:
+          type: number
+        recentMatches:
+          type: array
+          items:
+            $ref: "#/components/schemas/MatchSummary"
+        awards:
+          type: array
+          items:
+            $ref: "#/components/schemas/Award"
+      required:
+        - playerId
+        - name
+        - matchesPlayed
+        - wins
+        - losses
+        - draws
+        - winRate
+        - goalsScored
+        - goalsConceded
+        - goalDiff
+        - goalsPerMatch
+        - goalsConcededPerMatch
+        - mvpCount
+        - overallRating
+        - recentMatches
+        - awards
+
+    MatchSummary:
+      type: object
+      properties:
+        matchId:
+          type: integer
+        date:
+          type: string
+        opponentName:
+          type: string
+        playerGoals:
+          type: integer
+        opponentGoals:
+          type: integer
+        result:
+          type: string
+      required:
+        - matchId
+        - date
+        - opponentName
+        - playerGoals
+        - opponentGoals
+        - result
+
+    Team:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        logoUrl:
+          type: string
+          nullable: true
+        players:
+          type: array
+          items:
+            $ref: "#/components/schemas/Player"
+        createdAt:
+          type: string
+      required:
+        - id
+        - name
+        - players
+        - createdAt
+
+    CreateTeamRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        logoUrl:
+          type: string
+          nullable: true
+      required:
+        - name
+
+    UpdateTeamRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        logoUrl:
+          type: string
+          nullable: true
+
+    Match:
+      type: object
+      properties:
+        id:
+          type: integer
+        date:
+          type: string
+        team1Id:
+          type: integer
+        team2Id:
+          type: integer
+        team1Name:
+          type: string
+        team2Name:
+          type: string
+        team1Score:
+          type: integer
+        team2Score:
+          type: integer
+        playerMatchups:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlayerMatchup"
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+      required:
+        - id
+        - date
+        - team1Id
+        - team2Id
+        - team1Name
+        - team2Name
+        - team1Score
+        - team2Score
+        - playerMatchups
+        - createdAt
+
+    PlayerMatchup:
+      type: object
+      properties:
+        id:
+          type: integer
+        matchId:
+          type: integer
+        player1Id:
+          type: integer
+        player2Id:
+          type: integer
+        player1Name:
+          type: string
+        player2Name:
+          type: string
+        player1Goals:
+          type: integer
+        player2Goals:
+          type: integer
+        mvpPlayerId:
+          type: integer
+          nullable: true
+      required:
+        - id
+        - matchId
+        - player1Id
+        - player2Id
+        - player1Name
+        - player2Name
+        - player1Goals
+        - player2Goals
+
+    CreateMatchRequest:
+      type: object
+      properties:
+        date:
+          type: string
+        team1Id:
+          type: integer
+        team2Id:
+          type: integer
+        team1Score:
+          type: integer
+        team2Score:
+          type: integer
+        playerMatchups:
+          type: array
+          items:
+            $ref: "#/components/schemas/CreatePlayerMatchupRequest"
+        notes:
+          type: string
+          nullable: true
+      required:
+        - date
+        - team1Id
+        - team2Id
+        - team1Score
+        - team2Score
+        - playerMatchups
+
+    CreatePlayerMatchupRequest:
+      type: object
+      properties:
+        player1Id:
+          type: integer
+        player2Id:
+          type: integer
+        player1Goals:
+          type: integer
+        player2Goals:
+          type: integer
+        mvpPlayerId:
+          type: integer
+          nullable: true
+      required:
+        - player1Id
+        - player2Id
+        - player1Goals
+        - player2Goals
+
+    UpdateMatchRequest:
+      type: object
+      properties:
+        date:
+          type: string
+        team1Score:
+          type: integer
+        team2Score:
+          type: integer
+        playerMatchups:
+          type: array
+          items:
+            $ref: "#/components/schemas/CreatePlayerMatchupRequest"
+        notes:
+          type: string
+          nullable: true
+
+    H2HRecord:
+      type: object
+      properties:
+        player1Id:
+          type: integer
+        player2Id:
+          type: integer
+        player1Name:
+          type: string
+        player2Name:
+          type: string
+        player1ImageUrl:
+          type: string
+          nullable: true
+        player2ImageUrl:
+          type: string
+          nullable: true
+        totalGames:
+          type: integer
+        player1Wins:
+          type: integer
+        player2Wins:
+          type: integer
+        draws:
+          type: integer
+        player1Goals:
+          type: integer
+        player2Goals:
+          type: integer
+        rivalryScore:
+          type: number
+      required:
+        - player1Id
+        - player2Id
+        - player1Name
+        - player2Name
+        - totalGames
+        - player1Wins
+        - player2Wins
+        - draws
+        - player1Goals
+        - player2Goals
+        - rivalryScore
+
+    PlayerH2HStats:
+      type: object
+      properties:
+        player1:
+          $ref: "#/components/schemas/Player"
+        player2:
+          $ref: "#/components/schemas/Player"
+        h2h:
+          $ref: "#/components/schemas/H2HRecord"
+        matches:
+          type: array
+          items:
+            $ref: "#/components/schemas/Match"
+      required:
+        - player1
+        - player2
+        - h2h
+        - matches
+
+    Award:
+      type: object
+      properties:
+        id:
+          type: integer
+        playerId:
+          type: integer
+        playerName:
+          type: string
+          nullable: true
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        awardedAt:
+          type: string
+      required:
+        - id
+        - playerId
+        - title
+        - awardedAt
+
+    CreateAwardRequest:
+      type: object
+      properties:
+        playerId:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        awardedAt:
+          type: string
+      required:
+        - playerId
+        - title
+        - awardedAt
+
+    LeaderboardEntry:
+      type: object
+      properties:
+        rank:
+          type: integer
+        playerId:
+          type: integer
+        name:
+          type: string
+        imageUrl:
+          type: string
+          nullable: true
+        teamName:
+          type: string
+          nullable: true
+        matchesPlayed:
+          type: integer
+        wins:
+          type: integer
+        losses:
+          type: integer
+        draws:
+          type: integer
+        goalsScored:
+          type: integer
+        goalsConceded:
+          type: integer
+        winRate:
+          type: number
+        goalsPerMatch:
+          type: number
+        mvpCount:
+          type: integer
+        overallRating:
+          type: number
+      required:
+        - rank
+        - playerId
+        - name
+        - matchesPlayed
+        - wins
+        - losses
+        - draws
+        - goalsScored
+        - goalsConceded
+        - winRate
+        - goalsPerMatch
+        - mvpCount
+        - overallRating

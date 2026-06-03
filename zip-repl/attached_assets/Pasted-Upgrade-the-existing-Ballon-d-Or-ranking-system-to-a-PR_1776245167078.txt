@@ -1,0 +1,210 @@
+Upgrade the existing Ballon d’Or ranking system to a PROFESSIONAL, REALISTIC, MULTI-FACTOR SCORING ENGINE.
+
+DO NOT use simple logic like goals + wins + rating only.
+
+The ranking must be based on a WEIGHTED POINT SYSTEM that considers:
+
+* Individual performance
+* Team success
+* Player role (position-based logic)
+* Match impact
+* Efficiency
+
+---
+
+1. CORE REQUIREMENT
+
+---
+
+Each player must have a FINAL SCORE calculated using a detailed formula.
+
+Example:
+
+score =
+(goals * weight_goals) +
+(assists * weight_assists) +
+(team_trophies * weight_trophies) +
+(avg_rating * weight_rating) +
+(mvp_awards * weight_mvp) +
+(clean_sheets * weight_clean_sheets) +
+(defensive_actions * weight_defense) +
+(big_match_performance * weight_big_match)
+
+Weights must be configurable from admin panel.
+
+---
+
+2. POSITION-BASED SCORING (VERY IMPORTANT)
+
+---
+
+Different positions must be scored differently.
+
+IF Forward:
+
+* goals (HIGH weight)
+* assists (MEDIUM)
+* match-winning goals (HIGH)
+* big match performance (HIGH)
+
+IF Midfielder:
+
+* assists (HIGH)
+* key passes (HIGH)
+* pass accuracy (MEDIUM)
+* goals (MEDIUM)
+
+IF Defender:
+
+* tackles (HIGH)
+* interceptions (HIGH)
+* clean sheets (HIGH)
+* goals (LOW)
+
+IF Goalkeeper:
+
+* saves (HIGH)
+* clean sheets (VERY HIGH)
+* goals conceded (NEGATIVE weight)
+* penalty saves (HIGH)
+
+---
+
+3. TEAM PERFORMANCE IMPACT
+
+---
+
+Players must gain extra points based on team success:
+
+* League Winner → +X points
+* Tournament Winner → +X points
+* Runner-up → +X points
+* Team win rate → multiplier
+
+Example:
+teamMultiplier = 1 + (teamWinRate * 0.5)
+
+Final score:
+finalScore = baseScore * teamMultiplier
+
+---
+
+4. EFFICIENCY SYSTEM
+
+---
+
+Reward efficiency, not just totals:
+
+* goals per match
+* assists per match
+* saves per match
+
+Example:
+efficiencyBonus = (goals / matches) * weight_efficiency
+
+---
+
+5. BIG MATCH PERFORMANCE
+
+---
+
+Extra weight for performance in:
+
+* Finals
+* Knockouts
+* Top teams
+
+Example:
+bigMatchScore = bigMatchGoals * 2 + bigMatchAssists * 2
+
+---
+
+6. NEGATIVE FACTORS
+
+---
+
+Include penalties:
+
+* Yellow cards → small negative
+* Red cards → big negative
+* Own goals → negative
+* Errors leading to goals → negative
+
+---
+
+7. FINAL OUTPUT
+
+---
+
+Each player object must include:
+
+{
+name: "",
+team: "",
+position: "",
+stats: {},
+baseScore: number,
+teamMultiplier: number,
+efficiencyBonus: number,
+finalScore: number,
+rank: number
+}
+
+Players must be sorted by finalScore DESC.
+
+---
+
+8. ADMIN CONTROL
+
+---
+
+Admin must be able to:
+
+* Adjust all weights dynamically
+* Toggle certain factors ON/OFF
+* Recalculate rankings instantly
+
+---
+
+9. UI DISPLAY REQUIREMENTS
+
+---
+
+When revealing rankings, show:
+
+* Player name + image
+* Team
+* Position
+* Key stats
+* Final points (finalScore)
+
+Top 10 must show detailed breakdown:
+
+* Base score
+* Team bonus
+* Efficiency bonus
+
+---
+
+10. IMPORTANT RULES
+
+---
+
+* DO NOT hardcode values
+* DO NOT use only goals or rating
+* MUST support all positions fairly
+* MUST be scalable for multiple seasons
+
+---
+
+## END GOAL
+
+A realistic Ballon d’Or ranking system where:
+
+* Team success matters
+* Position matters
+* Efficiency matters
+* Big moments matter
+* Not just raw stats
+
+## Make the system feel like a real football award ranking engine.

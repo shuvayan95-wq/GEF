@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "GEF Player Statistics"
+version = "1.0.0"
+id = "artifacts/gef-stats"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25343
+
+[services.development]
+run = "pnpm --filter @workspace/gef-stats run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/gef-stats", "run", "build" ]
+publicDir = "artifacts/gef-stats/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25343"
+BASE_PATH = "/"

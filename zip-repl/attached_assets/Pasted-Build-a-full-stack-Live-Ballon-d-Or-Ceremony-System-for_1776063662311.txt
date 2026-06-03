@@ -1,0 +1,267 @@
+Build a full-stack "Live Ballon d’Or Ceremony System" for my website using Node.js (Express) + frontend (HTML/CSS/JS or React) + a real-time database (Supabase or Firebase preferred).
+
+This system must have TWO main parts:
+
+1. Admin Control Panel
+2. Live Viewer Ceremony Page
+
+---
+
+## CORE FEATURES OVERVIEW
+
+This is a LIVE, real-time, interactive award ceremony system where:
+
+* Admin controls the entire flow of the ceremony
+* Users join with a name and watch live
+* Users can comment in real-time
+* Rankings and awards are revealed step-by-step with animations
+
+---
+
+1. USER ENTRY SYSTEM
+
+---
+
+* When users open the Ballon d’Or page:
+
+  * Show a screen: "Enter Ceremony"
+  * Input field: user name
+  * Button: "Join Ceremony"
+
+* On submit:
+
+  * Save user name in database
+  * Redirect to "/ceremony-live"
+
+---
+
+2. REAL-TIME SYSTEM (CRITICAL)
+
+---
+
+Use real-time updates (Supabase Realtime / Firebase / WebSockets).
+
+Create a GLOBAL CEREMONY STATE object:
+
+ceremonyState = {
+status: "waiting",
+phase: "intro",
+currentStep: 0,
+revealIndex: 0,
+isPaused: false,
+
+data: {
+intro: {
+title: "",
+message: ""
+},
+
+```
+awards: [
+  {
+    name: "Phenomenal Finisher",
+    description: "Most goals in season",
+    winner: {},
+  }
+],
+
+rankings: [
+  {
+    playerId: "",
+    name: "",
+    team: "",
+    stats: {
+      goals: 0,
+      assists: 0,
+      trophies: 0,
+      rating: 0
+    },
+    points: 0,
+    rank: 1,
+    image: ""
+  }
+],
+
+winner: {}
+```
+
+}
+}
+
+* Any change from admin panel must instantly update all users
+
+---
+
+3. ADMIN PANEL (CONTROL SYSTEM)
+
+---
+
+Create a secure admin panel with buttons:
+
+* Start Ceremony
+* Next Step
+* Previous Step (optional)
+* Pause / Resume Reveal
+* Reveal Next Player
+* Reveal Top 10 manually
+* Reveal Top 2
+* Reveal Winner
+* End Ceremony
+
+Admin can EDIT:
+
+* Intro text (title + message)
+* Awards (name, description, winner, stats)
+* Player rankings (top 50 list)
+* Player stats, points, images
+* Winner data
+* Animation speed
+
+---
+
+4. CEREMONY FLOW
+
+---
+
+PHASE 1: INTRO
+
+* Show cinematic animation
+* Show title + message
+* Controlled by admin "Next Step"
+
+PHASE 2: AWARDS
+Display one-by-one:
+
+* Phenomenal Finisher (most goals)
+* Sweeper Keeper (least conceded)
+* Best Team
+* Best Captain
+* Best Admin
+
+Each award:
+
+* Animated card
+* Winner name, image, stats
+
+PHASE 3: BALLON D’OR RANKINGS
+
+TOP 50 → 11:
+
+* Automatically reveal players one-by-one
+* Show:
+
+  * Rank number
+  * Name
+  * Team
+  * Stats
+  * Points
+* Smooth animation (fade/slide)
+
+TOP 10:
+
+* STOP automatic reveal
+* Admin manually reveals each rank using button
+* Dramatic delay and animation
+
+TOP 2:
+
+* Show ONLY:
+
+  * 2 players
+  * Name + image
+* NO stats, NO points
+* Classic Ballon d’Or style UI
+
+WINNER REVEAL:
+
+* Admin clicks "Reveal Winner"
+* Trigger:
+
+  * Big animation (confetti / spotlight)
+  * Show:
+
+    * Winner name
+    * Team
+    * Full stats
+    * Points
+    * Trophy visual
+
+FINAL SCREEN:
+
+* Show full summary of all awards and rankings
+
+---
+
+5. LIVE COMMENT SYSTEM
+
+---
+
+* Users can send messages during ceremony
+* Show chat panel on side
+* Messages update in real-time
+* Admin can also see messages
+
+Message format:
+{
+user: "Rahul",
+message: "Messi deserved it!",
+time: timestamp
+}
+
+---
+
+6. UI / UX REQUIREMENTS
+
+---
+
+* Dark theme (black + gold theme preferred)
+* Smooth animations (fade, zoom, spotlight)
+* Responsive design
+* Cards for players and awards
+* Use modern UI styling
+
+---
+
+7. DATABASE STRUCTURE
+
+---
+
+Collections / Tables:
+
+* users
+* ceremonyState
+* messages
+* players
+* awards
+
+---
+
+8. BONUS (IF POSSIBLE)
+
+---
+
+* Sound effects on reveal
+* Countdown timer before winner
+* Admin preview mode
+
+---
+
+## IMPORTANT
+
+* Code must be clean and modular
+* Separate frontend and backend properly
+* Ensure real-time sync works perfectly
+* No UI freezing or lag
+* Handle multiple users simultaneously
+
+---
+
+## END GOAL
+
+A fully working LIVE Ballon d’Or ceremony system where:
+
+* Admin controls everything like a show director
+* Users join, watch, and interact in real-time
+* Rankings and winner reveal feel cinematic and professional
+
+---

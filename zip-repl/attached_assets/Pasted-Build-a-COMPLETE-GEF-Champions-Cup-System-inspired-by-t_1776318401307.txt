@@ -1,0 +1,345 @@
+Build a COMPLETE "GEF Champions Cup System" inspired by the modern UEFA Champions League (Swiss format), including POT DRAWS, LIVE DRAW ANIMATIONS, LEAGUE PHASE, and KNOCKOUT STAGES.
+
+The system must be FULLY DYNAMIC, REAL-TIME, and support ANY number of teams (minimum 8, no fixed limit).
+
+---
+
+## CORE OBJECTIVE
+
+Create a professional tournament engine where:
+
+* Admin controls setup and flow
+* System automatically generates fixtures
+* Pot-based draw ensures fairness
+* No duplicate matches occur
+* League standings update live
+* Tournament progresses automatically into knockouts
+* UI feels like a REAL Champions League night experience
+
+---
+
+1. TEAM SYSTEM
+
+---
+
+Each team must have:
+
+{
+id,
+name,
+logo,
+pot (optional),
+stats: {
+matchesPlayed,
+wins,
+draws,
+losses,
+goalsFor,
+goalsAgainst,
+goalDifference,
+points
+}
+}
+
+Admin can:
+
+* Add/edit/remove teams
+* Assign teams to pots manually OR auto-assign based on ranking
+
+---
+
+2. POT SYSTEM (FULLY CONFIGURABLE)
+
+---
+
+Admin must be able to:
+
+* Define number of pots (2, 3, 4, etc.)
+* Assign teams into pots
+* Configure match rules:
+
+Example:
+{
+vsPot1: 2,
+vsPot2: 2,
+vsPot3: 2,
+vsPot4: 2
+}
+
+System must:
+
+* Validate configuration
+* Ensure each team plays required number of opponents from each pot
+
+---
+
+3. LIVE DRAW SYSTEM (IMPORTANT)
+
+---
+
+Create a LIVE DRAW interface:
+
+* Show pots visually
+* Draw teams one-by-one
+* Assign opponents live
+* Show animations (ball draw style)
+
+Draw logic must:
+
+* Prevent duplicate matches
+* Prevent invalid pairings
+* Retry or backtrack if conflicts occur
+
+Steps:
+
+1. Select team
+2. Show valid opponents
+3. Randomly assign opponent
+4. Display pairing with animation
+
+---
+
+4. FIXTURE GENERATION ENGINE
+
+---
+
+After draw:
+
+* Generate full match schedule
+* Assign:
+
+  * home team
+  * away team
+  * round number
+
+Rules:
+
+* No team plays same opponent twice
+* Balanced home/away distribution
+* Respect pot match rules strictly
+
+---
+
+5. LEAGUE PHASE (SWISS SYSTEM)
+
+---
+
+* Single table (no groups)
+* Each team plays fixed number of matches
+* Matches come from pot-based draw
+
+Standings update automatically after each match.
+
+---
+
+6. STANDINGS SYSTEM
+
+---
+
+Sort table by:
+
+1. Points
+2. Goal Difference
+3. Goals Scored
+4. Head-to-head (optional)
+
+Display:
+
+* Rank
+* Team
+* Matches
+* Wins/Draws/Losses
+* Goals
+* Points
+
+---
+
+7. RESULT SYSTEM
+
+---
+
+Admin can:
+
+* Enter results manually OR simulate
+
+System updates:
+
+* stats
+* standings
+* progression
+
+---
+
+8. QUALIFICATION SYSTEM (DYNAMIC)
+
+---
+
+After league phase:
+
+System automatically determines:
+
+* Top X → Direct Round of 16
+* Next Y → Playoffs
+* Remaining → Eliminated
+
+X and Y must adapt based on total teams.
+
+---
+
+9. PLAYOFF ROUND
+
+---
+
+* Two-leg matches
+* Aggregate scoring
+* Winners go to knockout stage
+
+---
+
+10. KNOCKOUT STAGE
+
+---
+
+* Round of 16
+* Quarterfinals
+* Semifinals
+* Final
+
+Features:
+
+* Automatic bracket generation
+* Random or seeded draw (admin choice)
+* Two-leg matches (except final)
+
+---
+
+11. REAL-TIME SYSTEM
+
+---
+
+Use real-time technology (Supabase / Firebase / WebSockets)
+
+* All updates sync instantly:
+
+  * draw
+  * matches
+  * standings
+  * progression
+
+---
+
+12. ADMIN PANEL CONTROLS
+
+---
+
+Admin must be able to:
+
+* Create tournament
+* Configure pots
+* Start live draw
+* Generate fixtures
+* Enter/simulate results
+* Advance rounds
+* Reset tournament
+
+---
+
+13. UI / VISUAL DESIGN (VERY IMPORTANT)
+
+---
+
+Design must follow a PREMIUM Champions League style:
+
+THEME:
+
+* Dark background (black / deep navy)
+* Neon blue accents (UCL style)
+* Gradient lighting effects
+* Glow effects on cards
+
+VISUAL ELEMENTS:
+
+* Glassmorphism cards
+* Smooth transitions
+* Spotlight animations
+* Clean typography
+
+PAGES:
+
+1. Live Draw Screen
+
+   * Animated pot draw
+   * Team balls / cards
+   * Reveal animations
+
+2. League Table
+
+   * Clean modern table
+   * Highlight top ranks
+
+3. Fixtures Page
+
+   * Match cards
+   * Score display
+
+4. Knockout Bracket
+
+   * Visual bracket tree
+
+5. Team Page
+
+   * Stats + performance
+
+---
+
+14. ANIMATIONS
+
+---
+
+Include:
+
+* Draw animations (ball reveal)
+* Match result transitions
+* Table updates (smooth)
+* Knockout progression animations
+
+---
+
+15. DATABASE STRUCTURE
+
+---
+
+Tables:
+
+* teams
+* matches
+* standings
+* pots
+* tournamentState
+
+---
+
+16. IMPORTANT RULES
+
+---
+
+* NO hardcoded team limits
+* NO duplicate matches
+* MUST handle edge cases
+* MUST be scalable
+* MUST keep logic separate from UI
+
+---
+
+## END GOAL
+
+A COMPLETE, PROFESSIONAL tournament system where:
+
+* Pot draw feels real
+* League phase feels competitive
+* Knockouts feel dramatic
+* UI feels like Champions League night
+
+This should feel like a real football tournament platform, not a basic app.
+
+---

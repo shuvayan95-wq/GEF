@@ -1,0 +1,25 @@
+packages:
+  "framer-motion": "For page transitions and gaming-style animations"
+  "recharts": "For player comparison radar and bar charts"
+  "lucide-react": "For UI icons"
+  "clsx": "For conditional class merging"
+  "tailwind-merge": "For class merging in components"
+  "date-fns": "For formatting match dates"
+  "@hookform/resolvers": "For form validation if needed, though we can use simple state for speed"
+  "zod": "For client-side validation"
+
+images:
+  - path: "artifacts/gef-stats/public/images/hero-bg.png"
+    description: "Dark moody esports stadium background with subtle neon green and deep blue lighting, abstract geometric patterns, 4k, professional gaming vibe"
+    aspect_ratio: "16:9"
+  - path: "artifacts/gef-stats/public/images/default-avatar.png"
+    description: "Sleek dark futuristic silhouette of a soccer player head and shoulders, glowing neon green edges on a black background"
+    aspect_ratio: "1:1"
+  - path: "artifacts/gef-stats/public/images/logo-icon.png"
+    description: "Minimalist modern esports logo letter G E F combined with a soccer ball element, neon green and white on transparent dark background"
+    aspect_ratio: "1:1"
+
+notes:
+  - Expecting /api/auth/me to return 401 or { isAdmin: true/false }
+  - Image upload expects multipart/form-data with 'file' field returning { url: string }
+  - App is fully client-side rendered using React 19 + Vite

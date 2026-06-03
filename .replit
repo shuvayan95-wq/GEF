@@ -1,0 +1,91 @@
+modules = ["nodejs-24"]
+[nix]
+channel = "stable-25_05"
+
+[agent]
+expertMode = true
+integrations = ["javascript_openai_ai_integrations:2.0.0"]
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Backend API"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start application"
+
+[[workflows.workflow]]
+name = "Backend API"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd zip-repl && PORT=3000 pnpm --filter @workspace/api-server run dev"
+waitForPort = 3000
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow]]
+name = "Start application"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd zip-repl && PORT=5000 BASE_PATH=/ pnpm --filter @workspace/gef-stats run dev"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[ports]]
+localPort = 3000
+externalPort = 3000
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[[ports]]
+localPort = 5001
+externalPort = 3002
+
+[[ports]]
+localPort = 8080
+externalPort = 8080
+
+[[ports]]
+localPort = 8081
+externalPort = 8081
+
+[[ports]]
+localPort = 8082
+externalPort = 4200
+
+[[ports]]
+localPort = 25343
+externalPort = 3001
+
+[[ports]]
+localPort = 25344
+externalPort = 3003
+
+[userenv]
+
+[userenv.shared]
+SUPABASE_URL = "https://vnidzmtmjyoncpvecact.supabase.co"
+VITE_SUPABASE_URL = "https://vnidzmtmjyoncpvecact.supabase.co"
+VITE_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_RICkyWtA8x_m6Wqqeiufcw_e9jBDGgx"
+
+[deployment]
+deploymentTarget = "autoscale"
+run = ["bash", "-c", "cd zip-repl && PORT=5000 pnpm --filter @workspace/api-server run start"]
+build = ["bash", "-c", "cd zip-repl && PORT=5000 BASE_PATH=/ pnpm --filter @workspace/gef-stats run build && pnpm --filter @workspace/api-server run build"]

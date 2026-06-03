@@ -1,0 +1,166 @@
+Create a CINEMATIC BALLON D’OR CEREMONY INTRO + LIVE STAGE ANIMATION SYSTEM using HTML, CSS, and JavaScript (or React).
+
+I will provide:
+
+1. A custom GEF Ballon d’Or TROPHY IMAGE
+2. A STAGE BACKGROUND IMAGE (final stage design)
+
+You MUST use these assets and animate them professionally.
+
+---
+
+## CORE OBJECTIVE
+
+Build a FULLSCREEN animated experience that:
+
+* Starts with a 5-second logo/trophy formation intro
+* Transitions into a dynamic camera “whoosh” movement
+* Lands into the final stage scene
+* Activates LIVE stage lighting and animations
+
+This should feel like a real award ceremony broadcast intro.
+
+---
+
+## PHASE 1: LOGO INTRO (0s – 5s)
+
+* Screen starts completely DARK
+* Subtle particle sparks appear
+* Light streaks begin forming from edges
+
+Then:
+
+* The GEF Ballon d’Or TROPHY forms gradually:
+
+  * Pieces assemble (fade/slide/glow)
+  * Neon ring lights up (blue + green)
+  * Gold elements shine in sequence
+
+* Add glow pulse and slight rotation
+
+End of phase:
+
+* Trophy fully formed at center
+* Bright light flash transition
+
+---
+
+## PHASE 2: WHOOSH TRANSITION (5s – 8s)
+
+* Camera rapidly zooms forward into the trophy
+* Motion blur effect
+* Light streaks rush past (speed effect)
+
+Then:
+
+* Transition into the STAGE BACKGROUND
+* Smooth cinematic camera movement:
+
+  * slight pan
+  * slight zoom out
+
+---
+
+## PHASE 3: STAGE REVEAL (8s – 12s)
+
+* Stage fades in from darkness
+* Lights gradually turn on:
+
+Sequence:
+
+1. Floor glow activates (gold ring)
+2. Side light panels illuminate
+3. Back LED wall lights up
+4. Overhead spotlights turn on one-by-one
+
+* Trophy appears at center podium (from below or fade in)
+
+---
+
+## PHASE 4: LIVE STAGE LOOP (CONTINUOUS)
+
+After reveal, keep subtle animations running:
+
+LIGHTING:
+
+* Moving spotlights (slow rotation)
+* Gold + blue beams sweeping across stage
+
+ENVIRONMENT:
+
+* Floating particles (slow, elegant)
+* Soft glow pulses from floor ring
+
+TROPHY:
+
+* Very slow rotation
+* Subtle floating effect
+* Glow breathing animation
+
+---
+
+## VISUAL STYLE REQUIREMENTS
+
+* EXACT Ballon d’Or ceremony style
+* Premium black + gold environment
+* Neon blue/green accents (matching logo)
+
+IMPORTANT BRAND DETAIL:
+
+* The "E" symbol (eFootball-style) must be used:
+
+  * In trophy design
+  * In BALLON D’OR text (replace O with stylized E form)
+  * In top logo display
+
+---
+
+## ANIMATION REQUIREMENTS
+
+* Use smooth easing (no jerky motion)
+* Use CSS animations + JS transitions
+* Optional: requestAnimationFrame for performance
+
+---
+
+## SOUND (OPTIONAL)
+
+Support adding:
+
+* cinematic whoosh sound
+* deep bass hit on reveal
+* ambient stage hum
+
+---
+
+## STRUCTURE
+
+Create components:
+
+* IntroAnimation
+* TransitionEffect
+* StageScene
+* TrophyDisplay
+
+---
+
+## PERFORMANCE RULES
+
+* Must run smoothly in browser
+* No heavy libraries
+* Optimize animations
+
+---
+
+## END GOAL
+
+A cinematic intro + live stage system where:
+
+* The ceremony begins with a powerful 5-second logo build
+* Transitions into a dramatic camera move
+* Reveals a fully alive Ballon d’Or stage
+* Continues running as a live animated environment
+
+This must feel like a real-world award show broadcast intro.
+
+---

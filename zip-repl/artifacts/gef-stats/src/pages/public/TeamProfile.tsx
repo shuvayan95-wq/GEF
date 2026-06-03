@@ -8,6 +8,7 @@ import {
   CheckCircle, AlertTriangle, XCircle, ShieldAlert,
   ArrowUpRight, ArrowDownLeft, Gavel, Repeat2, CalendarDays,
   Loader2, Crown, Star, LogOut, Cpu, ChevronDown,
+  Zap, Eye, BarChart2, Swords, Trophy, Activity, RefreshCw, CheckCircle2, Target,
 } from "lucide-react";
 
 function fmt(v: number) {
@@ -64,7 +65,69 @@ function RoleBadge({ role }: { role: string | null }) {
   return null;
 }
 
-function AIAnalysisSection({ teamId }: { teamId: number }) {
+// ─── Team section configs ────────────────────────────────────────────────────
+
+const TEAM_SECTION_CONFIGS: Record<string, { icon: any; color: string; bg: string; border: string; label: string }> = {
+  "club overview":       { icon: Eye,      color: "text-violet-400",  bg: "bg-violet-500/10",  border: "border-violet-500/30", label: "Club Overview" },
+  "overview":            { icon: Eye,      color: "text-violet-400",  bg: "bg-violet-500/10",  border: "border-violet-500/30", label: "Overview" },
+  "attack":              { icon: Swords,   color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/30", label: "Attack & Scoring" },
+  "attacking":           { icon: Swords,   color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/30", label: "Attack" },
+  "defensive":           { icon: Shield,   color: "text-sky-400",     bg: "bg-sky-500/10",     border: "border-sky-500/30",    label: "Defensive Record" },
+  "defense":             { icon: Shield,   color: "text-sky-400",     bg: "bg-sky-500/10",     border: "border-sky-500/30",    label: "Defence" },
+  "form":                { icon: BarChart2, color: "text-cyan-400",   bg: "bg-cyan-500/10",    border: "border-cyan-500/30",   label: "Form & Consistency" },
+  "consistency":         { icon: BarChart2, color: "text-cyan-400",   bg: "bg-cyan-500/10",    border: "border-cyan-500/30",   label: "Consistency" },
+  "squad":               { icon: Users,    color: "text-indigo-400",  bg: "bg-indigo-500/10",  border: "border-indigo-500/30", label: "Squad Strength" },
+  "strengths":           { icon: Zap,      color: "text-amber-400",   bg: "bg-amber-500/10",   border: "border-amber-500/30",  label: "Strengths" },
+  "areas to watch":      { icon: AlertTriangle, color: "text-orange-400", bg: "bg-orange-500/10", border: "border-orange-500/30", label: "Areas to Watch" },
+  "key players":         { icon: Star,     color: "text-yellow-400",  bg: "bg-yellow-500/10",  border: "border-yellow-500/30", label: "Key Players" },
+  "verdict":             { icon: Trophy,   color: "text-yellow-400",  bg: "bg-yellow-500/10",  border: "border-yellow-500/30", label: "Verdict" },
+  "tactical":            { icon: Target,   color: "text-rose-400",    bg: "bg-rose-500/10",    border: "border-rose-500/30",   label: "Tactical Analysis" },
+};
+
+const TEAM_COLOR_MAP: Record<string, { accent: string; border: string; headerBg: string; headerBorder: string; glow: string }> = {
+  "PALTAN FC":           { accent: "text-orange-400",  border: "border-orange-500/40",  headerBg: "bg-gradient-to-r from-orange-500/15 to-amber-500/10",   headerBorder: "border-orange-500/30",  glow: "shadow-orange-500/10" },
+  "MONEYBALL FC":        { accent: "text-emerald-400", border: "border-emerald-500/40", headerBg: "bg-gradient-to-r from-emerald-500/15 to-green-500/10",   headerBorder: "border-emerald-500/30", glow: "shadow-emerald-500/10" },
+  "NEXUS FC":            { accent: "text-cyan-400",    border: "border-cyan-500/40",    headerBg: "bg-gradient-to-r from-cyan-500/15 to-sky-500/10",        headerBorder: "border-cyan-500/30",    glow: "shadow-cyan-500/10" },
+  "RED DRAGONS FC":      { accent: "text-red-400",     border: "border-red-500/40",     headerBg: "bg-gradient-to-r from-red-500/15 to-rose-500/10",        headerBorder: "border-red-500/30",     glow: "shadow-red-500/10" },
+  "INVICTUS FC":         { accent: "text-violet-400",  border: "border-violet-500/40",  headerBg: "bg-gradient-to-r from-violet-500/15 to-purple-500/10",   headerBorder: "border-violet-500/30",  glow: "shadow-violet-500/10" },
+  "EXPENDABLES FC":      { accent: "text-amber-400",   border: "border-amber-500/40",   headerBg: "bg-gradient-to-r from-amber-500/15 to-yellow-500/10",    headerBorder: "border-amber-500/30",   glow: "shadow-amber-500/10" },
+  "STORM FC":            { accent: "text-sky-400",     border: "border-sky-500/40",     headerBg: "bg-gradient-to-r from-sky-500/15 to-blue-500/10",        headerBorder: "border-sky-500/30",     glow: "shadow-sky-500/10" },
+  "DARK REIGN FC":       { accent: "text-rose-400",    border: "border-rose-500/40",    headerBg: "bg-gradient-to-r from-rose-500/15 to-red-500/10",        headerBorder: "border-rose-500/30",    glow: "shadow-rose-500/10" },
+  "APEX FC":             { accent: "text-yellow-400",  border: "border-yellow-500/40",  headerBg: "bg-gradient-to-r from-yellow-500/15 to-amber-500/10",    headerBorder: "border-yellow-500/30",  glow: "shadow-yellow-500/10" },
+  "ROMA AQUILAE FC":     { accent: "text-lime-400",    border: "border-lime-500/40",    headerBg: "bg-gradient-to-r from-lime-500/15 to-green-500/10",      headerBorder: "border-lime-500/30",    glow: "shadow-lime-500/10" },
+  "DHURANDHAR WARRIORS": { accent: "text-fuchsia-400", border: "border-fuchsia-500/40", headerBg: "bg-gradient-to-r from-fuchsia-500/15 to-purple-500/10",  headerBorder: "border-fuchsia-500/30", glow: "shadow-fuchsia-500/10" },
+};
+
+function getTeamTheme(name?: string) {
+  if (!name) return { accent: "text-primary", border: "border-primary/30", headerBg: "bg-primary/5", headerBorder: "border-primary/20", glow: "" };
+  const upper = name.toUpperCase();
+  for (const key of Object.keys(TEAM_COLOR_MAP)) {
+    if (upper.includes(key.toUpperCase())) return TEAM_COLOR_MAP[key];
+  }
+  const hash = [...name].reduce((a, c) => a + c.charCodeAt(0), 0) % Object.keys(TEAM_COLOR_MAP).length;
+  return Object.values(TEAM_COLOR_MAP)[hash];
+}
+
+function parseTeamSections(text: string): Array<{ key: string; content: string }> {
+  const sections: Array<{ key: string; content: string }> = [];
+  const regex = /\*\*([^*]+?):\*\*\s*/g;
+  const parts = text.split(regex);
+  for (let i = 1; i < parts.length; i += 2) {
+    const label = parts[i].trim().toLowerCase();
+    const content = (parts[i + 1] || "").trim();
+    if (content) sections.push({ key: label, content });
+  }
+  if (sections.length === 0) {
+    text.split("\n\n").forEach((para, idx) => {
+      if (para.trim()) sections.push({ key: `section-${idx}`, content: para.trim() });
+    });
+  }
+  return sections;
+}
+
+// ─── AIAnalysisSection Component ────────────────────────────────────────────
+
+function AIAnalysisSection({ teamId, teamName }: { teamId: number; teamName?: string }) {
   const [analysis, setAnalysis] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [generated, setGenerated] = useState(false);
@@ -79,51 +142,54 @@ function AIAnalysisSection({ teamId }: { teamId: number }) {
       const data = await r.json();
       setAnalysis(data.analysis);
       setGenerated(true);
-    } catch (err: any) {
+    } catch {
       setError("Failed to generate analysis. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  const renderAnalysis = (text: string) => {
-    return text.split("\n\n").map((paragraph, i) => {
-      const withBold = paragraph.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-      return (
-        <p
-          key={i}
-          className="text-sm text-muted-foreground leading-relaxed"
-          dangerouslySetInnerHTML={{ __html: withBold }}
-        />
-      );
-    });
-  };
+  const theme = getTeamTheme(teamName);
 
   if (!generated && !loading) {
     return (
-      <div className="bg-card border border-border rounded-xl p-8 text-center">
-        <div className="w-14 h-14 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-4">
-          <Cpu className="w-7 h-7 text-primary" />
+      <div className={`bg-card border ${theme.border} rounded-xl overflow-hidden shadow-lg`}>
+        <div className={`px-6 py-5 ${theme.headerBg} border-b ${theme.headerBorder}`}>
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-xl bg-white/5 border ${theme.border} flex items-center justify-center`}>
+              <Cpu className={`w-5 h-5 ${theme.accent}`} />
+            </div>
+            <div>
+              <div className="font-display font-black uppercase text-sm tracking-widest">AI Club Report</div>
+              {teamName && <div className={`text-[10px] font-bold uppercase tracking-wider mt-0.5 ${theme.accent}`}>{teamName}</div>}
+            </div>
+          </div>
         </div>
-        <h3 className="font-display font-bold uppercase text-lg mb-2">AI Team Analysis</h3>
-        <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
-          Generate an AI-powered scouting report for this club based on their performance data, results, and squad composition.
-        </p>
-        <button
-          onClick={generate}
-          className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-sm hover:bg-primary/90 transition-colors"
-        >
-          <Cpu className="w-4 h-4" /> Generate Report
-        </button>
+        <div className="p-8 text-center">
+          <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
+            Generate an AI-powered scouting report for{" "}
+            <span className={`font-bold ${theme.accent}`}>{teamName ?? "this club"}</span>{" "}
+            based on performance data, match results, and squad composition.
+          </p>
+          <button
+            onClick={generate}
+            className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-all border ${theme.border} ${theme.headerBg} ${theme.accent} hover:opacity-90`}
+          >
+            <Cpu className="w-4 h-4" /> Generate Report
+          </button>
+        </div>
       </div>
     );
   }
 
   if (loading) {
     return (
-      <div className="bg-card border border-border rounded-xl p-12 text-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
-        <p className="text-sm text-muted-foreground">Analysing performance data...</p>
+      <div className={`bg-card border ${theme.border} rounded-xl p-12 text-center shadow-lg`}>
+        <div className={`w-14 h-14 rounded-xl bg-white/5 border ${theme.border} flex items-center justify-center mx-auto mb-4`}>
+          <Loader2 className={`w-7 h-7 animate-spin ${theme.accent}`} />
+        </div>
+        <p className={`text-sm font-bold uppercase tracking-wider ${theme.accent}`}>Analysing club data</p>
+        <p className="text-xs text-muted-foreground mt-1">Building report for {teamName ?? "club"}…</p>
       </div>
     );
   }
@@ -137,23 +203,78 @@ function AIAnalysisSection({ teamId }: { teamId: number }) {
     );
   }
 
+  const sections = analysis ? parseTeamSections(analysis) : [];
+
   return (
-    <div className="bg-card border border-primary/20 rounded-xl overflow-hidden">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-primary/5">
-        <div className="flex items-center gap-2">
-          <Cpu className="w-5 h-5 text-primary" />
-          <span className="font-display font-bold uppercase text-sm">AI Club Report</span>
+    <div className={`bg-card border ${theme.border} rounded-xl overflow-hidden shadow-xl ${theme.glow}`}>
+      {/* Header */}
+      <div className={`px-6 py-4 ${theme.headerBg} border-b ${theme.headerBorder}`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-xl bg-white/5 border ${theme.border} flex items-center justify-center`}>
+              <Cpu className={`w-5 h-5 ${theme.accent}`} />
+            </div>
+            <div>
+              <div className="font-display font-black uppercase text-sm tracking-widest">AI Club Report</div>
+              {teamName && (
+                <div className={`text-[10px] font-bold uppercase tracking-wider mt-0.5 ${theme.accent}`}>
+                  {teamName}
+                </div>
+              )}
+            </div>
+          </div>
+          <button
+            onClick={generate}
+            disabled={loading}
+            className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors px-2 py-1.5 rounded hover:bg-white/5"
+          >
+            <RefreshCw className="w-3 h-3" /> Regenerate
+          </button>
         </div>
-        <button
-          onClick={generate}
-          disabled={loading}
-          className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
-        >
-          {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : null} Regenerate
-        </button>
       </div>
-      <div className="p-6 space-y-4">
-        {analysis && renderAnalysis(analysis)}
+
+      {/* Sections grid */}
+      <div className="p-4 grid gap-3 md:grid-cols-2">
+        {sections.map(({ key, content }) => {
+          const cfgKey = Object.keys(TEAM_SECTION_CONFIGS).find(k => key.includes(k));
+          const cfg = cfgKey ? TEAM_SECTION_CONFIGS[cfgKey] : null;
+
+          if (!cfg) {
+            return (
+              <div key={key} className="text-sm text-muted-foreground leading-relaxed px-1 md:col-span-2">
+                {content}
+              </div>
+            );
+          }
+          const SectionIcon = cfg.icon;
+          const isVerdict = key.includes("verdict");
+          return (
+            <div
+              key={key}
+              className={`rounded-xl border ${cfg.border} ${cfg.bg} overflow-hidden ${isVerdict ? "md:col-span-2" : ""}`}
+            >
+              <div className={`flex items-center gap-2.5 px-4 py-2.5 border-b ${cfg.border}`}>
+                <div className={`w-6 h-6 rounded-md ${cfg.bg} flex items-center justify-center`}>
+                  <SectionIcon className={`w-3.5 h-3.5 ${cfg.color}`} />
+                </div>
+                <span className={`font-display font-black uppercase text-[11px] tracking-widest ${cfg.color}`}>
+                  {cfg.label}
+                </span>
+              </div>
+              <div className="px-4 py-3">
+                <p className="text-sm text-foreground/80 leading-relaxed">{content}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Footer */}
+      <div className={`px-6 py-2.5 border-t ${theme.headerBorder} ${theme.headerBg} flex items-center gap-2`}>
+        <CheckCircle2 className={`w-3 h-3 ${theme.accent}`} />
+        <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
+          Powered by Groq · llama-3.3-70b · GEF AI Engine
+        </span>
       </div>
     </div>
   );
@@ -587,7 +708,7 @@ export function TeamProfile() {
 
         {tab === "analysis" && (
           <motion.div key="analysis" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <AIAnalysisSection teamId={teamId} />
+            <AIAnalysisSection teamId={teamId} teamName={team?.name} />
           </motion.div>
         )}
       </main>

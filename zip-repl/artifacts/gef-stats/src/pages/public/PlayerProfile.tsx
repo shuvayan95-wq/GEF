@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Navbar } from "@/components/layout/Navbar";
 import { formatOvr, getOvrColorClass } from "@/lib/utils";
-import { Trophy, Activity, Target, ShieldAlert, Award as AwardIcon, TrendingUp, TrendingDown, Repeat2, DollarSign, Layers, Cpu, Loader2, Crown, Star } from "lucide-react"; // eslint-disable-line
+import { Trophy, Activity, Target, ShieldAlert, Award as AwardIcon, TrendingUp, TrendingDown, Repeat2, DollarSign, Layers, Cpu, Loader2, Crown, Star, Zap, AlertTriangle, Eye, BarChart2, Swords, CheckCircle2, RefreshCw } from "lucide-react"; // eslint-disable-line
 import { PlayerCard } from "@/components/PlayerCard";
 import { format } from "date-fns";
 import {
@@ -518,7 +518,13 @@ export function PlayerProfile() {
             )}
 
             {/* AI Analysis */}
-            <PlayerAIAnalysis playerId={id} />
+            <PlayerAIAnalysis
+              playerId={id}
+              playerRole={(stats as any).teamRole}
+              playerPosition={(stats as any).position}
+              teamName={(stats as any).teamName}
+              playerName={stats.name}
+            />
 
             {/* Trophy Cabinet */}
             <div className="bg-card border border-border rounded-xl p-6 shadow-lg">
@@ -561,7 +567,102 @@ export function PlayerProfile() {
   );
 }
 
-function PlayerAIAnalysis({ playerId }: { playerId: number }) {
+// ─── AI Analysis Helpers ────────────────────────────────────────────────────
+
+const SECTION_CONFIGS: Record<string, { icon: any; color: string; bg: string; border: string; label: string }> = {
+  "overview":            { icon: Eye,           color: "text-violet-400",  bg: "bg-violet-500/10",  border: "border-violet-500/30", label: "Overview" },
+  "attacking output":    { icon: Swords,        color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/30", label: "Attacking Output" },
+  "consistency & form":  { icon: BarChart2,     color: "text-sky-400",     bg: "bg-sky-500/10",     border: "border-sky-500/30",    label: "Consistency & Form" },
+  "strengths":           { icon: Zap,           color: "text-amber-400",   bg: "bg-amber-500/10",   border: "border-amber-500/30",  label: "Strengths" },
+  "areas to watch":      { icon: AlertTriangle, color: "text-orange-400",  bg: "bg-orange-500/10",  border: "border-orange-500/30", label: "Areas to Watch" },
+  "verdict":             { icon: Trophy,        color: "text-yellow-400",  bg: "bg-yellow-500/10",  border: "border-yellow-500/30", label: "Verdict" },
+};
+
+const ROLE_THEME = {
+  captain: {
+    accent: "text-yellow-400",
+    border: "border-yellow-500/40",
+    headerBg: "bg-gradient-to-r from-yellow-500/15 to-amber-500/10",
+    headerBorder: "border-yellow-500/30",
+    badge: "bg-yellow-500/20 text-yellow-400 border-yellow-500/40",
+    icon: Crown,
+    label: "CAPTAIN",
+    glow: "shadow-yellow-500/10",
+  },
+  vice_captain: {
+    accent: "text-blue-400",
+    border: "border-blue-500/40",
+    headerBg: "bg-gradient-to-r from-blue-500/15 to-cyan-500/10",
+    headerBorder: "border-blue-500/30",
+    badge: "bg-blue-500/20 text-blue-400 border-blue-500/40",
+    icon: Star,
+    label: "VICE CAPTAIN",
+    glow: "shadow-blue-500/10",
+  },
+  default: {
+    accent: "text-primary",
+    border: "border-primary/25",
+    headerBg: "bg-gradient-to-r from-primary/10 to-primary/5",
+    headerBorder: "border-primary/20",
+    badge: "bg-primary/20 text-primary border-primary/30",
+    icon: Activity,
+    label: "PLAYER",
+    glow: "shadow-primary/10",
+  },
+};
+
+const TEAM_ACCENTS: Record<string, { primary: string; muted: string; border: string }> = {
+  "PALTAN FC":         { primary: "text-orange-400",  muted: "text-orange-300/70",  border: "border-orange-500/30" },
+  "MONEYBALL FC":      { primary: "text-emerald-400", muted: "text-emerald-300/70", border: "border-emerald-500/30" },
+  "NEXUS FC":          { primary: "text-cyan-400",    muted: "text-cyan-300/70",    border: "border-cyan-500/30" },
+  "RED DRAGONS FC":    { primary: "text-red-400",     muted: "text-red-300/70",     border: "border-red-500/30" },
+  "INVICTUS FC":       { primary: "text-violet-400",  muted: "text-violet-300/70",  border: "border-violet-500/30" },
+  "EXPENDABLES FC":    { primary: "text-amber-400",   muted: "text-amber-300/70",   border: "border-amber-500/30" },
+  "STORM FC":          { primary: "text-sky-400",     muted: "text-sky-300/70",     border: "border-sky-500/30" },
+  "DARK REIGN FC":     { primary: "text-rose-400",    muted: "text-rose-300/70",    border: "border-rose-500/30" },
+  "APEX FC":           { primary: "text-yellow-400",  muted: "text-yellow-300/70",  border: "border-yellow-500/30" },
+  "ROMA AQUILAE FC":   { primary: "text-lime-400",    muted: "text-lime-300/70",    border: "border-lime-500/30" },
+  "DHURANDHAR WARRIORS": { primary: "text-fuchsia-400", muted: "text-fuchsia-300/70", border: "border-fuchsia-500/30" },
+};
+
+function getTeamAccent(name?: string) {
+  if (!name) return { primary: "text-primary", muted: "text-muted-foreground", border: "border-primary/20" };
+  const upper = name.toUpperCase();
+  for (const key of Object.keys(TEAM_ACCENTS)) {
+    if (upper.includes(key)) return TEAM_ACCENTS[key];
+  }
+  const hash = [...name].reduce((a, c) => a + c.charCodeAt(0), 0) % 5;
+  return Object.values(TEAM_ACCENTS)[hash];
+}
+
+function parseAnalysisSections(text: string): Array<{ key: string; content: string }> {
+  const sections: Array<{ key: string; content: string }> = [];
+  const regex = /\*\*([^*]+?):\*\*\s*/g;
+  const parts = text.split(regex);
+  for (let i = 1; i < parts.length; i += 2) {
+    const label = parts[i].trim().toLowerCase();
+    const content = (parts[i + 1] || "").trim();
+    if (content) sections.push({ key: label, content });
+  }
+  if (sections.length === 0) {
+    text.split("\n\n").forEach((para, idx) => {
+      if (para.trim()) sections.push({ key: `section-${idx}`, content: para.trim() });
+    });
+  }
+  return sections;
+}
+
+// ─── Player AI Analysis Component ───────────────────────────────────────────
+
+function PlayerAIAnalysis({
+  playerId, playerRole, playerPosition, teamName, playerName,
+}: {
+  playerId: number;
+  playerRole?: string;
+  playerPosition?: string;
+  teamName?: string;
+  playerName?: string;
+}) {
   const [analysis, setAnalysis] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [generated, setGenerated] = useState(false);
@@ -583,38 +684,61 @@ function PlayerAIAnalysis({ playerId }: { playerId: number }) {
     }
   };
 
-  const renderAnalysis = (text: string) => {
-    return text.split("\n\n").map((para, i) => {
-      const html = para.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-      return (
-        <p key={i} className="text-sm text-muted-foreground leading-relaxed" dangerouslySetInnerHTML={{ __html: html }} />
-      );
-    });
-  };
+  const role = playerRole === "captain" ? "captain" : playerRole === "vice_captain" ? "vice_captain" : "default";
+  const theme = ROLE_THEME[role];
+  const teamAccent = getTeamAccent(teamName);
+  const RoleIcon = theme.icon;
 
   if (!generated && !loading) {
     return (
-      <div className="bg-card border border-border rounded-xl p-5 shadow-lg text-center">
-        <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-3">
-          <Cpu className="w-5 h-5 text-primary" />
+      <div className={`bg-card border ${theme.border} rounded-xl overflow-hidden shadow-lg ${theme.glow}`}>
+        <div className={`px-5 py-4 ${theme.headerBg} border-b ${theme.headerBorder}`}>
+          <div className="flex items-center gap-3">
+            <div className={`w-9 h-9 rounded-lg ${role === "captain" ? "bg-yellow-500/20" : role === "vice_captain" ? "bg-blue-500/20" : "bg-primary/10"} flex items-center justify-center`}>
+              <Cpu className={`w-4.5 h-4.5 ${theme.accent}`} />
+            </div>
+            <div>
+              <div className="font-display font-black uppercase text-sm tracking-widest">AI Scouting Report</div>
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">
+                {teamName && <span className={`${teamAccent.primary} font-bold`}>{teamName}</span>}
+                {teamName && playerPosition && <span className="text-muted-foreground"> · </span>}
+                {playerPosition && <span>{playerPosition}</span>}
+              </div>
+            </div>
+            {role !== "default" && (
+              <span className={`ml-auto inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded border ${theme.badge}`}>
+                <RoleIcon className="w-2.5 h-2.5" /> {theme.label}
+              </span>
+            )}
+          </div>
         </div>
-        <h3 className="font-display font-bold uppercase text-base mb-1">AI Scouting Report</h3>
-        <p className="text-xs text-muted-foreground mb-4">AI-generated performance analysis based on match data.</p>
-        <button
-          onClick={generate}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground font-bold text-xs hover:bg-primary/90 transition-colors"
-        >
-          <Cpu className="w-3.5 h-3.5" /> Generate Analysis
-        </button>
+        <div className="p-6 text-center">
+          <p className="text-xs text-muted-foreground mb-4">Generate an AI-powered scouting report for <span className={`font-bold ${theme.accent}`}>{playerName ?? "this player"}</span> based on their match statistics.</p>
+          <button
+            onClick={generate}
+            className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-bold text-xs uppercase tracking-wider transition-all ${
+              role === "captain"
+                ? "bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 border border-yellow-500/40"
+                : role === "vice_captain"
+                ? "bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/40"
+                : "bg-primary/20 hover:bg-primary/30 text-primary border border-primary/30"
+            }`}
+          >
+            <Cpu className="w-3.5 h-3.5" /> Generate Report
+          </button>
+        </div>
       </div>
     );
   }
 
   if (loading) {
     return (
-      <div className="bg-card border border-border rounded-xl p-8 text-center shadow-lg">
-        <Loader2 className="w-6 h-6 animate-spin text-primary mx-auto mb-3" />
-        <p className="text-xs text-muted-foreground">Analysing player data...</p>
+      <div className={`bg-card border ${theme.border} rounded-xl p-8 text-center shadow-lg`}>
+        <div className={`w-12 h-12 rounded-xl ${role === "captain" ? "bg-yellow-500/10" : role === "vice_captain" ? "bg-blue-500/10" : "bg-primary/10"} flex items-center justify-center mx-auto mb-3`}>
+          <Loader2 className={`w-6 h-6 animate-spin ${theme.accent}`} />
+        </div>
+        <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Analysing player data</p>
+        <p className="text-[10px] text-muted-foreground mt-1">Building scouting report for {playerName ?? "player"}…</p>
       </div>
     );
   }
@@ -628,23 +752,85 @@ function PlayerAIAnalysis({ playerId }: { playerId: number }) {
     );
   }
 
+  const sections = analysis ? parseAnalysisSections(analysis) : [];
+
   return (
-    <div className="bg-card border border-primary/20 rounded-xl overflow-hidden shadow-lg">
-      <div className="flex items-center justify-between px-5 py-3.5 border-b border-border bg-primary/5">
-        <div className="flex items-center gap-2">
-          <Cpu className="w-4 h-4 text-primary" />
-          <span className="font-display font-bold uppercase text-sm">AI Scouting Report</span>
+    <div className={`bg-card border ${theme.border} rounded-xl overflow-hidden shadow-xl ${theme.glow}`}>
+      {/* Header */}
+      <div className={`px-5 py-4 ${theme.headerBg} border-b ${theme.headerBorder}`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`w-9 h-9 rounded-lg ${role === "captain" ? "bg-yellow-500/20" : role === "vice_captain" ? "bg-blue-500/20" : "bg-primary/10"} flex items-center justify-center`}>
+              <Cpu className={`w-4.5 h-4.5 ${theme.accent}`} />
+            </div>
+            <div>
+              <div className="font-display font-black uppercase text-sm tracking-widest flex items-center gap-2">
+                AI Scouting Report
+                {role !== "default" && (
+                  <span className={`inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded border ${theme.badge}`}>
+                    <RoleIcon className="w-2.5 h-2.5" /> {theme.label}
+                  </span>
+                )}
+              </div>
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5 flex items-center gap-1.5">
+                {playerName && <span className={`font-bold ${theme.accent}`}>{playerName}</span>}
+                {teamName && <span className="text-muted-foreground/50">·</span>}
+                {teamName && <span className={`${teamAccent.primary} font-semibold`}>{teamName}</span>}
+                {playerPosition && <span className="text-muted-foreground/50">·</span>}
+                {playerPosition && <span className="text-muted-foreground">{playerPosition}</span>}
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={generate}
+            disabled={loading}
+            className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors px-2 py-1.5 rounded hover:bg-white/5"
+          >
+            <RefreshCw className="w-3 h-3" /> Regenerate
+          </button>
         </div>
-        <button
-          onClick={generate}
-          disabled={loading}
-          className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:text-primary transition-colors"
-        >
-          Regenerate
-        </button>
       </div>
-      <div className="p-5 space-y-3">
-        {analysis && renderAnalysis(analysis)}
+
+      {/* Sections */}
+      <div className="p-4 grid gap-3">
+        {sections.map(({ key, content }) => {
+          const cfg = Object.entries(SECTION_CONFIGS).find(([k]) => key.includes(k))?.[1];
+          if (!cfg) {
+            return (
+              <div key={key} className="text-sm text-muted-foreground leading-relaxed px-1">
+                {content}
+              </div>
+            );
+          }
+          const SectionIcon = cfg.icon;
+          const isVerdict = key.includes("verdict");
+          return (
+            <div
+              key={key}
+              className={`rounded-xl border ${cfg.border} ${cfg.bg} overflow-hidden ${isVerdict ? "ring-1 ring-inset " + cfg.border : ""}`}
+            >
+              <div className={`flex items-center gap-2.5 px-4 py-2.5 border-b ${cfg.border}`}>
+                <div className={`w-6 h-6 rounded-md ${cfg.bg} flex items-center justify-center`}>
+                  <SectionIcon className={`w-3.5 h-3.5 ${cfg.color}`} />
+                </div>
+                <span className={`font-display font-black uppercase text-[11px] tracking-widest ${cfg.color}`}>
+                  {cfg.label}
+                </span>
+              </div>
+              <div className="px-4 py-3">
+                <p className="text-sm text-foreground/80 leading-relaxed">{content}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Footer badge */}
+      <div className={`px-5 py-2.5 border-t ${theme.headerBorder} ${theme.headerBg} flex items-center gap-2`}>
+        <CheckCircle2 className={`w-3 h-3 ${theme.accent}`} />
+        <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
+          Powered by Groq · llama-3.3-70b · GEF AI Engine
+        </span>
       </div>
     </div>
   );

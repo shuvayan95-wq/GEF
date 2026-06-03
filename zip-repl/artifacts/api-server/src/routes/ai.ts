@@ -15,11 +15,19 @@ function requireAdmin(req: any, res: any, next: any) {
 }
 
 async function getOpenAI() {
+  // Use Groq (free, OpenAI-compatible) if key is available
+  if (process.env.GROQ_API_KEY) {
+    const { default: OpenAI } = await import("openai");
+    return new OpenAI({
+      apiKey: process.env.GROQ_API_KEY,
+      baseURL: "https://api.groq.com/openai/v1",
+    });
+  }
+  // Fall back to Replit AI integration
   try {
     const mod = await import("@workspace/integrations-openai-ai-server");
     return mod.openai;
   } catch {
-    // Fall back to direct OpenAI with OPENAI_API_KEY
     if (process.env.OPENAI_API_KEY) {
       const { default: OpenAI } = await import("openai");
       return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -127,8 +135,8 @@ router.post("/ai/player-commentary", async (req, res) => {
     const userPrompt = buildBroadcasterPrompt(player, allPlayers, "rankings");
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4.1-mini",
-      max_completion_tokens: 300,
+      model: "llama-3.3-70b-versatile",
+      max_tokens: 300,
       messages: [
         { role: "system", content: BROADCASTER_SYSTEM },
         { role: "user", content: userPrompt },
@@ -166,8 +174,8 @@ router.post("/ai/generate-all-commentary", requireAdmin, async (req, res) => {
         const userPrompt = buildBroadcasterPrompt(player, players, "rankings");
 
         const response = await openai.chat.completions.create({
-          model: "gpt-4.1-mini",
-          max_completion_tokens: 300,
+          model: "llama-3.3-70b-versatile",
+          max_tokens: 300,
           messages: [
             { role: "system", content: BROADCASTER_SYSTEM },
             { role: "user", content: userPrompt },
@@ -568,8 +576,8 @@ CATEGORY: "Player Spotlight" | "Team Report" | "League Coverage" | "Champions Cu
 Distribution: at least 2 ROASTs, 1 PRAISE, 1 RIVALRY, 1 ANALYSIS, rest varies.`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4.1",
-      max_completion_tokens: 5000,
+      model: "llama-3.3-70b-versatile",
+      max_tokens: 5000,
       response_format: { type: "json_object" },
       messages: [{ role: "user", content: prompt }],
     });
@@ -684,8 +692,8 @@ Rules:
 - Total length: 300-450 words.`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4.1-mini",
-      max_completion_tokens: 700,
+      model: "llama-3.3-70b-versatile",
+      max_tokens: 700,
       messages: [{ role: "user", content: prompt }],
     });
 
@@ -781,8 +789,8 @@ Rules:
 - Total length: 300-450 words.`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4.1-mini",
-      max_completion_tokens: 700,
+      model: "llama-3.3-70b-versatile",
+      max_tokens: 700,
       messages: [{ role: "user", content: prompt }],
     });
 

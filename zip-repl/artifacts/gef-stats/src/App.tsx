@@ -47,6 +47,7 @@ import { ManageHallOfFame } from "@/pages/admin/ManageHallOfFame";
 import { EfootballWorld } from "@/pages/public/EfootballWorld";
 import { ManageEfootballWorld } from "@/pages/admin/ManageEfootballWorld";
 import { ManageSportsDesk } from "@/pages/admin/ManageSportsDesk";
+import { ManagePredictions } from "@/pages/admin/ManagePredictions";
 import { ManageContracts } from "@/pages/admin/ManageContracts";
 import { TeamProfile } from "@/pages/public/TeamProfile";
 import { GCCHub } from "@/pages/public/GCCHub";
@@ -57,6 +58,7 @@ import { GCCFixtures } from "@/pages/public/GCCFixtures";
 import { GCCBracket } from "@/pages/public/GCCBracket";
 import { PartnerDetail } from "@/pages/public/PartnerDetail";
 import { AISportsDesk } from "@/pages/public/AISportsDesk";
+import { AIPredictions } from "@/pages/public/AIPredictions";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -94,6 +96,7 @@ function Router() {
       <Route path="/ceremony/live" component={CeremonyLive} />
 
       <Route path="/ai-news" component={AISportsDesk} />
+      <Route path="/predictions" component={AIPredictions} />
 
       {/* GEF Champions Cup */}
       <Route path="/gcc" component={GCCHub} />
@@ -125,6 +128,7 @@ function Router() {
       <Route path="/admin/hall-of-fame" component={ManageHallOfFame} />
       <Route path="/admin/efootball-world" component={ManageEfootballWorld} />
       <Route path="/admin/sports-desk" component={ManageSportsDesk} />
+      <Route path="/admin/predictions" component={ManagePredictions} />
       <Route path="/admin/contracts" component={ManageContracts} />
 
       <Route component={NotFound} />

@@ -22,6 +22,7 @@ import {
   Tag,
   Zap,
   FileText,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -56,6 +57,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     { href: "/admin/cards", icon: Layers, label: "eFootball Cards" },
     { href: "/admin/contracts", icon: FileText, label: "Contracts" },
     { href: "/admin/sports-desk", icon: Zap, label: "AI Sports Desk" },
+    { href: "/admin/predictions", icon: Sparkles, label: "AI Predictions" },
     { href: "/admin/import", icon: DatabaseZap, label: "Import Data" },
   ];
 

@@ -78,6 +78,15 @@ export const aiSportsDeskTable = pgTable("ai_sports_desk", {
   notes: text("notes"),
 });
 
+export const aiPredictionsTable = pgTable("ai_predictions", {
+  id: serial("id").primaryKey(),
+  predictions: jsonb("predictions").notNull().default("[]"),
+  generatedAt: timestamp("generated_at").defaultNow().notNull(),
+  isPublished: boolean("is_published").notNull().default(false),
+});
+
+export type AiPrediction = typeof aiPredictionsTable.$inferSelect;
+
 export type CmsSetting = typeof cmsSettingsTable.$inferSelect;
 export type CmsPost = typeof cmsPostsTable.$inferSelect;
 export type CmsEvent = typeof cmsEventsTable.$inferSelect;

@@ -24,6 +24,7 @@ const NAV_LINKS = [
   { href: "/h2h", label: "H2H" },
   { href: "/compare", label: "Compare" },
   { href: "/ai-news", label: "Sports Desk" },
+  { href: "/predictions", label: "🔮 Predictions" },
 ];
 
 export function Navbar() {

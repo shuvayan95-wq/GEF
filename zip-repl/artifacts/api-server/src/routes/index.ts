@@ -25,6 +25,7 @@ import teamRecordsRouter from "./teamrecords";
 import efcardsRouter from "./efcards";
 import efworldRouter from "./efworld";
 import contractsRouter from "./contracts";
+import predictionsRouter from "./predictions";
 
 const router: IRouter = Router();
 
@@ -54,5 +55,6 @@ router.use(teamRecordsRouter);
 router.use(efcardsRouter);
 router.use(efworldRouter);
 router.use(contractsRouter);
+router.use(predictionsRouter);
 
 export default router;

@@ -88,5 +88,5 @@ NODE_ENV = "development"
 
 [deployment]
 deploymentTarget = "autoscale"
-run = ["bash", "-c", "cd zip-repl && PORT=3000 pnpm --filter @workspace/api-server run start & PORT=5000 BASE_PATH=/ pnpm --filter @workspace/gef-stats run preview --host 0.0.0.0 --port 5000"]
-build = ["bash", "-c", "cd zip-repl && pnpm --filter @workspace/gef-stats run build && pnpm --filter @workspace/api-server run build"]
+run = ["bash", "-c", "cd zip-repl && pnpm --filter @workspace/api-server run start"]
+build = ["bash", "-c", "cd zip-repl && BASE_PATH=/ pnpm --filter @workspace/gef-stats run build && pnpm --filter @workspace/api-server run build"]

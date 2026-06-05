@@ -191,6 +191,21 @@ export function PlayerProfile() {
                 </div>
               )}
 
+              {/* Salary Card */}
+              <div className="bg-background border border-yellow-500/30 rounded-xl p-4 text-center min-w-[130px] shadow-lg shadow-yellow-500/10">
+                <div className="text-xs uppercase text-muted-foreground font-bold mb-1 tracking-widest flex items-center justify-center gap-1">
+                  <DollarSign className="w-3 h-3 text-yellow-400" /> Salary
+                </div>
+                <div className="text-2xl font-display font-black text-yellow-400 leading-tight">
+                  {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(
+                    (stats as any).salary ?? 10000
+                  )}
+                </div>
+                <div className="text-[10px] text-muted-foreground mt-1 font-bold uppercase tracking-wider">
+                  {(stats as any).salary ? "per season" : "base rate"}
+                </div>
+              </div>
+
               {/* OVR Card */}
               <div className="bg-background border border-border rounded-xl p-4 text-center min-w-[120px] shadow-lg shadow-primary/5">
                 <div className="text-xs uppercase text-muted-foreground font-bold mb-1 tracking-widest">OVR Rating</div>

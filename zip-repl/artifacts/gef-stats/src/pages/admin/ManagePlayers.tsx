@@ -128,6 +128,7 @@ function PlayerForm({ initialData, teams, onSuccess }: { initialData: any, teams
     efootballId: initialData?.efootballId || "",
     rank: initialData?.rank || "",
     crewName: initialData?.crewName || "",
+    salary: initialData?.salary != null ? String(initialData.salary) : "",
   });
 
   const [file, setFile] = useState<File | null>(null);
@@ -166,6 +167,7 @@ function PlayerForm({ initialData, teams, onSuccess }: { initialData: any, teams
         efootballId: formData.efootballId || null,
         rank: formData.rank || null,
         crewName: formData.crewName || null,
+        salary: formData.salary ? Number(formData.salary) : null,
       };
 
       if (initialData) {
@@ -238,6 +240,22 @@ function PlayerForm({ initialData, teams, onSuccess }: { initialData: any, teams
               <Input value={formData.crewName} onChange={set("crewName")} placeholder="Alpha FC…" />
             </div>
           </div>
+        </div>
+      </div>
+
+      <div className="border-t border-border pt-3">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-primary mb-3">Salary</p>
+        <div className="space-y-2">
+          <label className="text-xs font-bold text-muted-foreground uppercase">Salary (USD)</label>
+          <Input
+            type="number"
+            value={formData.salary}
+            onChange={set("salary")}
+            placeholder="10000 (default base)"
+            min={0}
+            step={500}
+          />
+          <p className="text-[10px] text-muted-foreground">Leave blank to use base $10,000. Use Salary Management page to auto-calculate from performance.</p>
         </div>
       </div>
 

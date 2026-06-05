@@ -50,6 +50,7 @@ import { ManageSportsDesk } from "@/pages/admin/ManageSportsDesk";
 import { ManagePredictions } from "@/pages/admin/ManagePredictions";
 import { ManagePotw } from "@/pages/admin/ManagePotw";
 import { ManagePowerRankings } from "@/pages/admin/ManagePowerRankings";
+import { ManageSalaries } from "@/pages/admin/ManageSalaries";
 import { ManageContracts } from "@/pages/admin/ManageContracts";
 import { TeamProfile } from "@/pages/public/TeamProfile";
 import { GCCHub } from "@/pages/public/GCCHub";
@@ -140,6 +141,7 @@ function Router() {
       <Route path="/admin/potw" component={ManagePotw} />
       <Route path="/admin/power-rankings" component={ManagePowerRankings} />
       <Route path="/admin/contracts" component={ManageContracts} />
+      <Route path="/admin/salaries" component={ManageSalaries} />
 
       <Route component={NotFound} />
     </Switch>

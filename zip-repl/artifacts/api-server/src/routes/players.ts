@@ -363,6 +363,99 @@ router.patch("/players/:id/identity", requireAdmin, async (req, res) => {
   }
 });
 
+// PATCH /api/players/:id/salary — admin: manually set salary
+router.patch("/players/:id/salary", requireAdmin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { salary } = req.body as { salary: number };
+    if (salary === undefined || salary === null || isNaN(Number(salary))) {
+      return res.status(400).json({ error: "salary is required" });
+    }
+    const [player] = await db
+      .update(playersTable)
+      .set({ salary: String(Math.round(Number(salary))) })
+      .where(eq(playersTable.id, id))
+      .returning();
+    if (!player) return res.status(404).json({ error: "Player not found" });
+    res.json({ id: player.id, salary: player.salary ? Number(player.salary) : null });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message });
+  }
+});
+
+// POST /api/admin/salaries/recalculate — bulk auto-calculate salaries from performance
+router.post("/admin/salaries/recalculate", requireAdmin, async (req, res) => {
+  try {
+    const { playerIds } = req.body as { playerIds?: number[] };
+    const allPlayers = await db.select().from(playersTable);
+    const allMatchups = await db.select().from(playerMatchupsTable);
+    const allAwards = await db.select().from(awardsTable);
+
+    const targets = playerIds
+      ? allPlayers.filter(p => playerIds.includes(p.id))
+      : allPlayers;
+
+    const updated: { id: number; name: string; salary: number }[] = [];
+
+    for (const player of targets) {
+      const stats = aggregatePlayerStats(player.id, allMatchups);
+      const mvpCount = allAwards.filter(a => a.playerId === player.id && a.awardType === "mvp").length;
+      const ovr = calcOVR(player) ?? 70;
+
+      // Base: 10,000 | win rate bonus | goals bonus | MVP bonus | OVR bonus
+      const base = 10000;
+      const winRateBonus = stats.games > 0 ? Math.round((stats.wins / stats.games) * 5000) : 0;
+      const goalsBonus = (stats.goalsScored ?? 0) * 80;
+      const mvpBonus = mvpCount * 400;
+      const ovrBonus = Math.max(0, ovr - 70) * 80;
+
+      const rawSalary = base + winRateBonus + goalsBonus + mvpBonus + ovrBonus;
+      // Round to nearest 500
+      const salary = Math.round(rawSalary / 500) * 500;
+
+      await db.update(playersTable)
+        .set({ salary: String(salary) })
+        .where(eq(playersTable.id, player.id));
+
+      updated.push({ id: player.id, name: player.name, salary });
+    }
+
+    res.json({ updated, count: updated.length });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message });
+  }
+});
+
+// GET /api/admin/salaries — all players with salary info
+router.get("/admin/salaries", requireAdmin, async (_req, res) => {
+  try {
+    const players = await db.select().from(playersTable).orderBy(sql`name ASC`);
+    const teams = await db.select().from(teamsTable);
+    const allMatchups = await db.select().from(playerMatchupsTable);
+    const teamMap = new Map(teams.map(t => [t.id, t.name]));
+
+    const result = players.map(p => {
+      const stats = aggregatePlayerStats(p.id, allMatchups);
+      return {
+        id: p.id,
+        name: p.name,
+        imageUrl: p.imageUrl,
+        teamName: p.teamId ? (teamMap.get(p.teamId) ?? "Free Agent") : "Free Agent",
+        status: p.status,
+        cardOvr: p.cardOvr,
+        salary: p.salary ? Number(p.salary) : null,
+        games: stats.games,
+        wins: stats.wins,
+        goals: stats.goalsScored,
+      };
+    });
+
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message });
+  }
+});
+
 router.delete("/players/:id", requireAdmin, async (req, res) => {
   const id = parseInt(req.params.id);
   await db.delete(playersTable).where(eq(playersTable.id, id));

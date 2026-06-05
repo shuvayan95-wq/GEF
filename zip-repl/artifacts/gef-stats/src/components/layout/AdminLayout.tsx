@@ -24,6 +24,7 @@ import {
   FileText,
   Sparkles,
   BarChart2,
+  DollarSign,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -57,6 +58,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     { href: "/admin/efootball-world", icon: Globe, label: "eFootball World" },
     { href: "/admin/cards", icon: Layers, label: "eFootball Cards" },
     { href: "/admin/contracts", icon: FileText, label: "Contracts" },
+    { href: "/admin/salaries", icon: DollarSign, label: "Salary Management" },
     { href: "/admin/sports-desk", icon: Zap, label: "AI Sports Desk" },
     { href: "/admin/predictions", icon: Sparkles, label: "AI Predictions" },
     { href: "/admin/potw", icon: Star, label: "Player of the Week" },

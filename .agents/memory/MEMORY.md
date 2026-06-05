@@ -1,0 +1,1 @@
+- [Express route ordering](express-route-ordering.md) — `/players/:id` catches `/players/list`; new list endpoints must use distinct paths like `/players-dropdown`.

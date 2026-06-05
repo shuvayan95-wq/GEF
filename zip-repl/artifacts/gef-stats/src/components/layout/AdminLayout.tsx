@@ -23,6 +23,7 @@ import {
   Zap,
   FileText,
   Sparkles,
+  BarChart2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -58,6 +59,8 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     { href: "/admin/contracts", icon: FileText, label: "Contracts" },
     { href: "/admin/sports-desk", icon: Zap, label: "AI Sports Desk" },
     { href: "/admin/predictions", icon: Sparkles, label: "AI Predictions" },
+    { href: "/admin/potw", icon: Star, label: "Player of the Week" },
+    { href: "/admin/power-rankings", icon: BarChart2, label: "Power Rankings" },
     { href: "/admin/import", icon: DatabaseZap, label: "Import Data" },
   ];
 

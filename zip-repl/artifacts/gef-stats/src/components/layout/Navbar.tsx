@@ -25,6 +25,9 @@ const NAV_LINKS = [
   { href: "/compare", label: "Compare" },
   { href: "/ai-news", label: "Sports Desk" },
   { href: "/predictions", label: "🔮 Predictions" },
+  { href: "/player-of-the-week", label: "⭐ POTW" },
+  { href: "/rivalry", label: "⚔️ Rivalry" },
+  { href: "/power-rankings", label: "📊 Power Rankings" },
 ];
 
 export function Navbar() {

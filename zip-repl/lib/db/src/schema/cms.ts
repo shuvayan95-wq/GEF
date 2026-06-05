@@ -87,6 +87,40 @@ export const aiPredictionsTable = pgTable("ai_predictions", {
 
 export type AiPrediction = typeof aiPredictionsTable.$inferSelect;
 
+// ─── Player of the Week ───────────────────────────────────────────────────────
+export const potwRoundsTable = pgTable("potw_rounds", {
+  id: serial("id").primaryKey(),
+  weekLabel: text("week_label").notNull(), // e.g. "Week 12 · Season 3"
+  nomineeIds: jsonb("nominee_ids").notNull().default("[]"), // int[]
+  isActive: boolean("is_active").notNull().default(true),
+  winnerId: integer("winner_id"), // player id, set when closed
+  closedAt: timestamp("closed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const potwVotesTable = pgTable("potw_votes", {
+  id: serial("id").primaryKey(),
+  roundId: integer("round_id").notNull(),
+  playerId: integer("player_id").notNull(),
+  voterIp: text("voter_ip").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type PotwRound = typeof potwRoundsTable.$inferSelect;
+export type PotwVote = typeof potwVotesTable.$inferSelect;
+
+// ─── Power Rankings ───────────────────────────────────────────────────────────
+export const powerRankingsTable = pgTable("power_rankings", {
+  id: serial("id").primaryKey(),
+  weekLabel: text("week_label").notNull(),
+  rankings: jsonb("rankings").notNull().default("[]"),
+  previousRankings: jsonb("previous_rankings").notNull().default("[]"),
+  generatedAt: timestamp("generated_at").defaultNow().notNull(),
+  isPublished: boolean("is_published").notNull().default(false),
+});
+
+export type PowerRanking = typeof powerRankingsTable.$inferSelect;
+
 export type CmsSetting = typeof cmsSettingsTable.$inferSelect;
 export type CmsPost = typeof cmsPostsTable.$inferSelect;
 export type CmsEvent = typeof cmsEventsTable.$inferSelect;

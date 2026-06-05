@@ -48,6 +48,8 @@ import { EfootballWorld } from "@/pages/public/EfootballWorld";
 import { ManageEfootballWorld } from "@/pages/admin/ManageEfootballWorld";
 import { ManageSportsDesk } from "@/pages/admin/ManageSportsDesk";
 import { ManagePredictions } from "@/pages/admin/ManagePredictions";
+import { ManagePotw } from "@/pages/admin/ManagePotw";
+import { ManagePowerRankings } from "@/pages/admin/ManagePowerRankings";
 import { ManageContracts } from "@/pages/admin/ManageContracts";
 import { TeamProfile } from "@/pages/public/TeamProfile";
 import { GCCHub } from "@/pages/public/GCCHub";
@@ -59,6 +61,9 @@ import { GCCBracket } from "@/pages/public/GCCBracket";
 import { PartnerDetail } from "@/pages/public/PartnerDetail";
 import { AISportsDesk } from "@/pages/public/AISportsDesk";
 import { AIPredictions } from "@/pages/public/AIPredictions";
+import { PlayerOfTheWeek } from "@/pages/public/PlayerOfTheWeek";
+import { RivalryGenerator } from "@/pages/public/RivalryGenerator";
+import { PowerRankings } from "@/pages/public/PowerRankings";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -97,6 +102,9 @@ function Router() {
 
       <Route path="/ai-news" component={AISportsDesk} />
       <Route path="/predictions" component={AIPredictions} />
+      <Route path="/player-of-the-week" component={PlayerOfTheWeek} />
+      <Route path="/rivalry" component={RivalryGenerator} />
+      <Route path="/power-rankings" component={PowerRankings} />
 
       {/* GEF Champions Cup */}
       <Route path="/gcc" component={GCCHub} />
@@ -129,6 +137,8 @@ function Router() {
       <Route path="/admin/efootball-world" component={ManageEfootballWorld} />
       <Route path="/admin/sports-desk" component={ManageSportsDesk} />
       <Route path="/admin/predictions" component={ManagePredictions} />
+      <Route path="/admin/potw" component={ManagePotw} />
+      <Route path="/admin/power-rankings" component={ManagePowerRankings} />
       <Route path="/admin/contracts" component={ManageContracts} />
 
       <Route component={NotFound} />

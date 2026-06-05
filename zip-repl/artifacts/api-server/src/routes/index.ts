@@ -26,6 +26,9 @@ import efcardsRouter from "./efcards";
 import efworldRouter from "./efworld";
 import contractsRouter from "./contracts";
 import predictionsRouter from "./predictions";
+import potwRouter from "./potw";
+import rivalryRouter from "./rivalry";
+import powerRankingsRouter from "./powerrankings";
 
 const router: IRouter = Router();
 
@@ -56,5 +59,8 @@ router.use(efcardsRouter);
 router.use(efworldRouter);
 router.use(contractsRouter);
 router.use(predictionsRouter);
+router.use(potwRouter);
+router.use(rivalryRouter);
+router.use(powerRankingsRouter);
 
 export default router;

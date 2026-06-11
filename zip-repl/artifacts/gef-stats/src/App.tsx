@@ -68,6 +68,8 @@ import { AIPredictions } from "@/pages/public/AIPredictions";
 import { PlayerOfTheWeek } from "@/pages/public/PlayerOfTheWeek";
 import { RivalryGenerator } from "@/pages/public/RivalryGenerator";
 import { PowerRankings } from "@/pages/public/PowerRankings";
+import { ManageMatchAnalysis } from "@/pages/admin/ManageMatchAnalysis";
+import { MatchAnalysis } from "@/pages/public/MatchAnalysis";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -148,6 +150,8 @@ function Router() {
       <Route path="/admin/cups" component={ManageCups} />
       <Route path="/cups" component={Cups} />
       <Route path="/cups/:id" component={CupDetail} />
+      <Route path="/admin/match-analysis" component={ManageMatchAnalysis} />
+      <Route path="/match-analysis/:matchId" component={MatchAnalysis} />
 
       <Route component={NotFound} />
     </Switch>

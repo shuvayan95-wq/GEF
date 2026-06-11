@@ -4,6 +4,7 @@ import {
   playersTable, teamsTable, matchesTable, playerMatchupsTable,
   awardsTable, ballonDorTable, trophiesTable, aiSportsDeskTable,
   leaguesTable, gccTournamentsTable, gccFixturesTable, gccEntriesTable,
+  matchAnalysisTable,
 } from "@workspace/db";
 import { desc, eq, isNotNull } from "drizzle-orm";
 
@@ -798,6 +799,244 @@ Rules:
     res.json({ teamId, teamName: team.name, analysis, generatedAt: new Date().toISOString() });
   } catch (err: any) {
     console.error("AI team analysis error:", err?.message);
+    res.status(500).json({ error: err?.message ?? "Failed to generate analysis" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AI MATCH ANALYSIS
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function getVisionAI(): Promise<{ client: any; model: string; supportsVision: boolean }> {
+  // Prefer Replit OpenAI integration (GPT-4o, supports vision)
+  try {
+    const mod = await import("@workspace/integrations-openai-ai-server");
+    if (mod.openai) return { client: mod.openai, model: "gpt-4o", supportsVision: true };
+  } catch {}
+  // OPENAI_API_KEY direct (vision supported)
+  if (process.env.OPENAI_API_KEY) {
+    const { default: OpenAI } = await import("openai");
+    return { client: new OpenAI({ apiKey: process.env.OPENAI_API_KEY }), model: "gpt-4o", supportsVision: true };
+  }
+  // Groq fallback (no vision)
+  if (process.env.GROQ_API_KEY) {
+    const { default: OpenAI } = await import("openai");
+    return {
+      client: new OpenAI({ apiKey: process.env.GROQ_API_KEY, baseURL: "https://api.groq.com/openai/v1" }),
+      model: "llama-3.3-70b-versatile",
+      supportsVision: false,
+    };
+  }
+  return { client: null, model: "", supportsVision: false };
+}
+
+// GET /api/ai/match-analysis — list all analyses
+router.get("/ai/match-analysis", async (req, res) => {
+  try {
+    const analyses = await db
+      .select()
+      .from(matchAnalysisTable)
+      .where(eq(matchAnalysisTable.isPublished, true))
+      .orderBy(desc(matchAnalysisTable.generatedAt));
+    res.json(analyses);
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message });
+  }
+});
+
+// GET /api/ai/match-analysis/:matchId — get analysis for a specific match
+router.get("/ai/match-analysis/:matchId", async (req, res) => {
+  try {
+    const matchId = parseInt(req.params.matchId);
+    const [analysis] = await db
+      .select()
+      .from(matchAnalysisTable)
+      .where(eq(matchAnalysisTable.matchId, matchId));
+    if (!analysis) return res.status(404).json({ error: "No analysis found for this match" });
+    res.json(analysis);
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message });
+  }
+});
+
+// POST /api/ai/match-analysis/generate — generate analysis for a match
+router.post("/ai/match-analysis/generate", requireAdmin, async (req, res) => {
+  try {
+    const { matchId, contextNotes, matchups: matchupInputs = [] } = req.body;
+    if (!matchId) return res.status(400).json({ error: "matchId required" });
+
+    const { client, model, supportsVision } = await getVisionAI();
+    if (!client) return res.status(503).json({ error: "AI integration not configured" });
+
+    // Fetch match
+    const [match] = await db.select().from(matchesTable).where(eq(matchesTable.id, matchId));
+    if (!match) return res.status(404).json({ error: "Match not found" });
+
+    // Fetch teams, players, matchups
+    const [team1, team2] = await Promise.all([
+      db.select().from(teamsTable).where(eq(teamsTable.id, match.team1Id)),
+      db.select().from(teamsTable).where(eq(teamsTable.id, match.team2Id)),
+    ]);
+    const t1 = team1[0], t2 = team2[0];
+
+    const dbMatchups = await db.select().from(playerMatchupsTable).where(eq(playerMatchupsTable.matchId, matchId));
+    const matchupsEnriched = await Promise.all(
+      dbMatchups.map(async (m) => {
+        const [[p1], [p2]] = await Promise.all([
+          db.select().from(playersTable).where(eq(playersTable.id, m.player1Id)),
+          db.select().from(playersTable).where(eq(playersTable.id, m.player2Id)),
+        ]);
+        return {
+          ...m,
+          player1Name: p1?.name ?? "Unknown",
+          player2Name: p2?.name ?? "Unknown",
+          mvpName: m.mvpPlayerId === m.player1Id ? (p1?.name ?? null) : m.mvpPlayerId === m.player2Id ? (p2?.name ?? null) : null,
+        };
+      })
+    );
+
+    const matchTypeLabel = match.matchType === "supercup"
+      ? `Super Cup Leg ${match.superCupLeg ?? "?"}`
+      : match.matchType === "friendly" ? "Friendly" : "League";
+
+    const matchupsText = matchupsEnriched.map((m, i) => {
+      const note = matchupInputs[i]?.notes ?? "";
+      return `  Game ${i + 1}: ${m.player1Name} ${m.player1Goals}-${m.player2Goals} ${m.player2Name}${m.mvpName ? ` (MVP: ${m.mvpName})` : ""}${note ? `\n    Notes: "${note}"` : ""}`;
+    }).join("\n");
+
+    const textPrompt = `You are the GEF MATCH ANALYST — a ruthlessly honest, data-driven sports analyst covering the Global eFootball Federation. Your voice is equal parts Roy Keane, Gary Neville, and a forensic data journalist. You are entertaining, specific, and never diplomatic.
+
+MATCH DATA:
+Date: ${match.date ? new Date(match.date).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "Unknown"}
+Competition: ${matchTypeLabel}
+${t1?.name ?? "Team 1"} ${match.team1Score} — ${match.team2Score} ${t2?.name ?? "Team 2"}
+Result: ${match.team1Score > match.team2Score ? `${t1?.name} WIN` : match.team2Score > match.team1Score ? `${t2?.name} WIN` : "DRAW"}
+
+INDIVIDUAL GAME MATCHUPS (5 games, each player controls one player):
+${matchupsText}
+
+${contextNotes ? `ADMIN CONTEXT & LORE:\n${contextNotes}` : ""}
+
+Generate a comprehensive post-match analysis report. Return ONLY valid JSON (no markdown, no code fences):
+
+{
+  "title": "Short match title",
+  "headline": "ALL CAPS PUNCHY NEWSPAPER-STYLE HEADLINE",
+  "tone": "DOMINANT_WIN|TIGHT_BATTLE|SHOCK_UPSET|ROUTINE",
+  "openingStatement": "2-3 sentence punchy opening about what this match meant",
+  "team1Report": {
+    "name": "${t1?.name ?? "Team 1"}",
+    "overallRating": 0,
+    "verdict": "2-3 sentence team performance verdict",
+    "highlights": ["strength 1", "strength 2"],
+    "concerns": ["concern 1"]
+  },
+  "team2Report": {
+    "name": "${t2?.name ?? "Team 2"}",
+    "overallRating": 0,
+    "verdict": "2-3 sentence team performance verdict",
+    "highlights": [],
+    "concerns": []
+  },
+  "matchupBreakdowns": [
+    {
+      "game": 1,
+      "player1Name": "${matchupsEnriched[0]?.player1Name ?? "P1"}",
+      "player2Name": "${matchupsEnriched[0]?.player2Name ?? "P2"}",
+      "score": "X-Y",
+      "winnerName": "name of winner or DRAW",
+      "analysis": "2-3 sentence breakdown of this individual matchup",
+      "keyInsight": "one punchy tactical or technical insight",
+      "player1Rating": 0,
+      "player2Rating": 0,
+      "possessionTeam1": 50,
+      "possessionTeam2": 50,
+      "shotsTeam1": 0,
+      "shotsTeam2": 0
+    }
+  ],
+  "keyTurningPoints": ["turning point 1", "turning point 2"],
+  "verdict": "3-4 sentence overall verdict on the match",
+  "roast": "A devastating, specific, stats-backed roast of whoever performed poorly",
+  "mvpOfTheMatch": "player name",
+  "finalCall": "One punchy final sentence — the definitive verdict",
+  "nextMatchAdvice": {
+    "team1": ["tactical advice 1", "player advice 2"],
+    "team2": ["tactical advice 1", "player advice 2"]
+  },
+  "chartData": {
+    "goalsPerGame": [
+      {"game": "G1", "player1": "name", "player2": "name", "team1Goals": 0, "team2Goals": 0}
+    ],
+    "playerRatings": [
+      {"name": "player", "rating": 0, "goals": 0, "side": "team1"}
+    ]
+  }
+}
+
+RULES:
+- ALL numbers must come from the match data provided. Never invent scores.
+- matchupBreakdowns must cover ALL ${matchupsEnriched.length} games.
+- chartData.goalsPerGame must have exactly ${matchupsEnriched.length} entries matching the matchups.
+- If screenshot notes describe possession/shots data, extract those exact numbers into possessionTeam1/2 and shotsTeam1/2.
+- Ratings 1-10. A perfect performance = 10. An embarrassing performance = 1-3.
+- The roast must cite specific stats and be genuinely devastating — not diplomatic.
+- Be entertaining but grounded in the actual match data.`;
+
+    // Build message content (add images if vision is supported)
+    const messageContent: any[] = supportsVision ? [] : [{ type: "text", text: textPrompt }];
+
+    if (supportsVision) {
+      messageContent.push({ type: "text", text: textPrompt });
+      for (let i = 0; i < matchupsEnriched.length; i++) {
+        const input = matchupInputs[i] ?? {};
+        if (input.imageBase64) {
+          const mimeType = input.imageMime ?? "image/jpeg";
+          messageContent.push({
+            type: "text",
+            text: `\n--- Screenshot for Game ${i + 1}: ${matchupsEnriched[i].player1Name} vs ${matchupsEnriched[i].player2Name} ---`,
+          });
+          messageContent.push({
+            type: "image_url",
+            image_url: { url: `data:${mimeType};base64,${input.imageBase64}`, detail: "auto" },
+          });
+        }
+      }
+    }
+
+    const response = await client.chat.completions.create({
+      model,
+      max_tokens: 4000,
+      response_format: { type: "json_object" },
+      messages: [{ role: "user", content: supportsVision ? messageContent : textPrompt }],
+    });
+
+    const raw = response.choices[0]?.message?.content ?? "{}";
+    let report: any;
+    try { report = JSON.parse(raw); } catch { report = { error: "Failed to parse AI response", raw }; }
+
+    // Store notes only (not images) for each matchup
+    const notesToStore = matchupInputs.map((m: any) => ({
+      notes: m.notes ?? "",
+      hadImage: !!m.imageBase64,
+    }));
+
+    // Upsert (update if exists, insert if not)
+    const existing = await db.select().from(matchAnalysisTable).where(eq(matchAnalysisTable.matchId, matchId));
+    if (existing.length > 0) {
+      await db.update(matchAnalysisTable)
+        .set({ report, contextNotes: contextNotes ?? null, matchupNotes: notesToStore, generatedAt: new Date(), isPublished: true })
+        .where(eq(matchAnalysisTable.matchId, matchId));
+    } else {
+      await db.insert(matchAnalysisTable).values({
+        matchId, report, contextNotes: contextNotes ?? null,
+        matchupNotes: notesToStore, generatedAt: new Date(), isPublished: true,
+      });
+    }
+
+    res.json({ success: true, report, supportsVision, model });
+  } catch (err: any) {
+    console.error("AI match analysis error:", err?.message);
     res.status(500).json({ error: err?.message ?? "Failed to generate analysis" });
   }
 });

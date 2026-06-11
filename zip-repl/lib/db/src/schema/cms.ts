@@ -121,6 +121,20 @@ export const powerRankingsTable = pgTable("power_rankings", {
 
 export type PowerRanking = typeof powerRankingsTable.$inferSelect;
 
+// ─── Match Analysis ───────────────────────────────────────────────────────────
+export const matchAnalysisTable = pgTable("match_analysis", {
+  id: serial("id").primaryKey(),
+  matchId: integer("match_id").notNull().unique(),
+  contextNotes: text("context_notes"),
+  matchupNotes: jsonb("matchup_notes").notNull().default("[]"),
+  report: jsonb("report"),
+  isPublished: boolean("is_published").notNull().default(true),
+  generatedAt: timestamp("generated_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type MatchAnalysis = typeof matchAnalysisTable.$inferSelect;
+
 export type CmsSetting = typeof cmsSettingsTable.$inferSelect;
 export type CmsPost = typeof cmsPostsTable.$inferSelect;
 export type CmsEvent = typeof cmsEventsTable.$inferSelect;

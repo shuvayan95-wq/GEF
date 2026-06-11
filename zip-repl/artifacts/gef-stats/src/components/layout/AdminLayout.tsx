@@ -62,6 +62,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     { href: "/admin/cups", icon: Trophy, label: "Knockout Cups" },
     { href: "/admin/sports-desk", icon: Zap, label: "AI Sports Desk" },
     { href: "/admin/predictions", icon: Sparkles, label: "AI Predictions" },
+    { href: "/admin/match-analysis", icon: BarChart2, label: "AI Match Analysis" },
     { href: "/admin/potw", icon: Star, label: "Player of the Week" },
     { href: "/admin/power-rankings", icon: BarChart2, label: "Power Rankings" },
     { href: "/admin/import", icon: DatabaseZap, label: "Import Data" },

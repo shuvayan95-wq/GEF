@@ -81,6 +81,8 @@ async function buildMatch(match: any) {
     team2Score: match.team2Score,
     leagueId: match.leagueId ?? null,
     leagueName,
+    matchType: match.matchType ?? "league",
+    superCupLeg: match.superCupLeg ?? null,
     playerMatchups: matchupsWithNames,
     notes: match.notes ?? null,
     createdAt: match.createdAt.toISOString(),
@@ -137,6 +139,8 @@ router.get("/matches", async (req, res) => {
         team2Score: match.team2Score,
         leagueId: match.leagueId ?? null,
         leagueName: league?.name ?? null,
+        matchType: match.matchType ?? "league",
+        superCupLeg: match.superCupLeg ?? null,
         playerMatchups: matchupsWithNames,
         notes: match.notes ?? null,
         createdAt: match.createdAt.toISOString(),
@@ -173,19 +177,21 @@ router.post("/matches", requireAdmin, async (req, res) => {
       playerMatchups,
       notes,
       leagueId,
+      matchType,
+      superCupLeg,
     } = req.body;
 
-    if (!leagueId) {
+    const resolvedType = matchType ?? "league";
+
+    if (resolvedType === "league" && !leagueId) {
       return res.status(400).json({ error: "League is required" });
     }
 
-    const [league] = await db
-      .select()
-      .from(leaguesTable)
-      .where(eq(leaguesTable.id, Number(leagueId)));
-
-    if (!league) {
-      return res.status(400).json({ error: "Invalid league — league not found" });
+    let league = null;
+    if (leagueId) {
+      const rows = await db.select().from(leaguesTable).where(eq(leaguesTable.id, Number(leagueId)));
+      league = rows[0] ?? null;
+      if (!league) return res.status(400).json({ error: "Invalid league — league not found" });
     }
 
     const [match] = await db
@@ -197,8 +203,10 @@ router.post("/matches", requireAdmin, async (req, res) => {
         team1Score: Number(team1Score),
         team2Score: Number(team2Score),
         notes: notes ?? null,
-        leagueId: Number(leagueId),
-        season: league.season ?? null,
+        leagueId: leagueId ? Number(leagueId) : null,
+        season: league?.season ?? null,
+        matchType: resolvedType,
+        superCupLeg: superCupLeg ? Number(superCupLeg) : null,
       })
       .returning();
 

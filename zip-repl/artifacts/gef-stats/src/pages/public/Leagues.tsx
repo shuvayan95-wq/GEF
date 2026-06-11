@@ -109,6 +109,23 @@ function useLeagueFixtures(id: number | null) {
   });
 }
 
+interface SuperCupMatchData {
+  id: number; date: string; superCupLeg: number | null;
+  team1Id: number; team2Id: number;
+  team1Name: string; team1LogoUrl: string | null;
+  team2Name: string; team2LogoUrl: string | null;
+  team1Score: number; team2Score: number;
+  matchups: FixtureMatchup[];
+}
+
+function useLeagueSupercup(id: number | null) {
+  return useQuery<SuperCupMatchData[]>({
+    queryKey: ["/api/leagues", id, "supercup"],
+    queryFn: () => fetch(getApiUrl(`/api/leagues/${id}/supercup`), { credentials: "include" }).then(r => r.json()),
+    enabled: id !== null,
+  });
+}
+
 // ── Standings Tab ─────────────────────────────────────────────────────────────
 
 function StandingsTab({ standings }: { standings: StandingRow[] }) {
@@ -319,6 +336,181 @@ function FixturesTab({ leagueId }: { leagueId: number }) {
   );
 }
 
+// ── Super Cup Tab ─────────────────────────────────────────────────────────────
+
+function SuperCupMatchCard({ match }: { match: SuperCupMatchData }) {
+  const [expanded, setExpanded] = useState(false);
+  const t1Win = match.team1Score > match.team2Score;
+  const t2Win = match.team2Score > match.team1Score;
+  const isDraw = match.team1Score === match.team2Score;
+
+  return (
+    <div className="bg-card border border-border rounded-xl overflow-hidden">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full px-6 py-4 flex items-center gap-4 hover:bg-secondary/20 transition-colors text-left"
+      >
+        <div className="shrink-0 w-16 text-center">
+          <div className="text-[10px] font-bold text-yellow-500 uppercase tracking-widest">
+            Leg {match.superCupLeg}
+          </div>
+          <div className="text-[10px] text-muted-foreground">{format(new Date(match.date), "MMM d, yyyy")}</div>
+        </div>
+
+        <div className="flex-1 flex items-center justify-end gap-3 min-w-0">
+          <span className={cn("font-display font-bold uppercase text-sm truncate", t1Win ? "text-foreground" : "text-muted-foreground")}>
+            {match.team1Name}
+          </span>
+          <TeamLogo url={match.team1LogoUrl} name={match.team1Name} size={7} />
+        </div>
+
+        <div className="shrink-0 flex items-center gap-2">
+          <span className={cn("font-display font-black text-2xl w-8 text-right tabular-nums", t1Win ? "text-primary" : isDraw ? "text-yellow-400" : "text-muted-foreground")}>
+            {match.team1Score}
+          </span>
+          <span className="text-muted-foreground/40 font-bold text-lg">—</span>
+          <span className={cn("font-display font-black text-2xl w-8 text-left tabular-nums", t2Win ? "text-primary" : isDraw ? "text-yellow-400" : "text-muted-foreground")}>
+            {match.team2Score}
+          </span>
+        </div>
+
+        <div className="flex-1 flex items-center gap-3 min-w-0">
+          <TeamLogo url={match.team2LogoUrl} name={match.team2Name} size={7} />
+          <span className={cn("font-display font-bold uppercase text-sm truncate", t2Win ? "text-foreground" : "text-muted-foreground")}>
+            {match.team2Name}
+          </span>
+        </div>
+
+        <ChevronRight className={cn("w-4 h-4 text-muted-foreground shrink-0 transition-transform duration-200", expanded && "rotate-90")} />
+      </button>
+
+      <AnimatePresence>
+        {expanded && match.matchups.length > 0 && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden bg-secondary/10 border-t border-border/40"
+          >
+            <div className="px-6 py-4">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
+                <Swords className="w-3 h-3" /> Player Matchups
+              </div>
+              <div className="space-y-2">
+                {match.matchups.map((mu, idx) => {
+                  const p1Win = mu.player1Goals > mu.player2Goals;
+                  const p2Win = mu.player2Goals > mu.player1Goals;
+                  const isMvp1 = mu.mvpPlayerId === mu.player1Id;
+                  const isMvp2 = mu.mvpPlayerId === mu.player2Id;
+                  return (
+                    <div key={idx} className="flex items-center gap-3 py-1.5">
+                      <Link href={`/players/${mu.player1Id}`} className="flex items-center gap-2 flex-1 min-w-0 justify-end group">
+                        {isMvp1 && <Star className="w-3 h-3 text-yellow-400 shrink-0" />}
+                        <span className={cn("text-sm font-bold uppercase truncate group-hover:text-primary transition-colors", p1Win ? "text-foreground" : "text-muted-foreground")}>
+                          {mu.player1Name}
+                        </span>
+                        <img src={mu.player1ImageUrl || `${import.meta.env.BASE_URL}images/default-avatar.png`} className="w-7 h-7 rounded-full object-cover border border-border shrink-0" />
+                      </Link>
+                      <div className="shrink-0 flex items-center gap-1.5 min-w-[80px] justify-center">
+                        <span className={cn("font-display font-black text-lg tabular-nums w-5 text-right", p1Win ? "text-primary" : "text-muted-foreground")}>{mu.player1Goals}</span>
+                        <span className="text-muted-foreground/40">-</span>
+                        <span className={cn("font-display font-black text-lg tabular-nums w-5 text-left", p2Win ? "text-primary" : "text-muted-foreground")}>{mu.player2Goals}</span>
+                      </div>
+                      <Link href={`/players/${mu.player2Id}`} className="flex items-center gap-2 flex-1 min-w-0 group">
+                        <img src={mu.player2ImageUrl || `${import.meta.env.BASE_URL}images/default-avatar.png`} className="w-7 h-7 rounded-full object-cover border border-border shrink-0" />
+                        <span className={cn("text-sm font-bold uppercase truncate group-hover:text-primary transition-colors", p2Win ? "text-foreground" : "text-muted-foreground")}>
+                          {mu.player2Name}
+                        </span>
+                        {isMvp2 && <Star className="w-3 h-3 text-yellow-400 shrink-0" />}
+                      </Link>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function SuperCupTab({ leagueId }: { leagueId: number }) {
+  const { data: matches = [], isLoading } = useLeagueSupercup(leagueId);
+
+  if (isLoading) {
+    return (
+      <div className="p-8 space-y-3">
+        {[1, 2].map(i => <div key={i} className="h-20 bg-secondary/30 rounded-xl animate-pulse" />)}
+      </div>
+    );
+  }
+
+  if (matches.length === 0) {
+    return (
+      <div className="py-16 text-center text-muted-foreground">
+        <Star className="w-10 h-10 mx-auto mb-3 opacity-20" />
+        <p className="font-display uppercase">No Super Cup yet</p>
+        <p className="text-sm mt-1">Super Cup matches will appear here at the end of the season.</p>
+      </div>
+    );
+  }
+
+  const leg1 = matches.find(m => m.superCupLeg === 1);
+  const leg2 = matches.find(m => m.superCupLeg === 2);
+
+  let agg1 = 0, agg2 = 0;
+  let aggReady = false;
+  if (leg1 && leg2) {
+    agg1 = leg1.team1Score + (leg2.team1Id === leg1.team1Id ? leg2.team1Score : leg2.team2Score);
+    agg2 = leg1.team2Score + (leg2.team2Id === leg1.team2Id ? leg2.team2Score : leg2.team1Score);
+    aggReady = true;
+  }
+
+  return (
+    <div className="divide-y divide-border/60">
+      {/* Aggregate banner */}
+      {aggReady && (
+        <div className="px-6 py-5 bg-yellow-500/5 border-b border-yellow-500/20">
+          <div className="text-[10px] font-bold uppercase tracking-widest text-yellow-500 mb-3 flex items-center gap-2">
+            <Star className="w-3 h-3" /> Super Cup Aggregate
+          </div>
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-3 flex-1 justify-end">
+              <TeamLogo url={leg1!.team1LogoUrl} name={leg1!.team1Name} size={10} />
+              <span className={cn("font-display font-bold uppercase text-lg", agg1 > agg2 ? "text-foreground" : "text-muted-foreground")}>
+                {leg1!.team1Name}
+              </span>
+            </div>
+            <div className="shrink-0 text-center">
+              <div className="font-display font-black text-3xl text-yellow-400">{agg1} – {agg2}</div>
+              {agg1 !== agg2 && (
+                <div className="text-xs text-green-400 font-bold mt-1 flex items-center justify-center gap-1">
+                  <Trophy className="w-3 h-3" />
+                  {agg1 > agg2 ? leg1!.team1Name : leg1!.team2Name} wins
+                </div>
+              )}
+              {agg1 === agg2 && <div className="text-xs text-yellow-400 font-bold mt-1">Draw on aggregate</div>}
+            </div>
+            <div className="flex items-center gap-3 flex-1">
+              <TeamLogo url={leg1!.team2LogoUrl} name={leg1!.team2Name} size={10} />
+              <span className={cn("font-display font-bold uppercase text-lg", agg2 > agg1 ? "text-foreground" : "text-muted-foreground")}>
+                {leg1!.team2Name}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Individual legs */}
+      <div className="p-6 space-y-4">
+        {matches.map(m => <SuperCupMatchCard key={m.id} match={m} />)}
+      </div>
+    </div>
+  );
+}
+
 // ── Players Tab ───────────────────────────────────────────────────────────────
 
 function PlayersTab({ playerStats }: { playerStats: PlayerStatRow[] }) {
@@ -384,7 +576,7 @@ function PlayersTab({ playerStats }: { playerStats: PlayerStatRow[] }) {
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 
-type DetailTab = "standings" | "fixtures" | "players";
+type DetailTab = "standings" | "fixtures" | "players" | "supercup";
 
 export function Leagues() {
   const { data: leagues, isLoading } = useLeagues();
@@ -418,6 +610,7 @@ export function Leagues() {
     { key: "standings", label: "Standings", icon: Trophy },
     { key: "fixtures",  label: "Fixtures",  icon: Swords },
     { key: "players",   label: "Players",   icon: Users  },
+    { key: "supercup",  label: "Super Cup", icon: Star   },
   ];
 
   return (
@@ -632,6 +825,7 @@ export function Leagues() {
                         {tab === "standings" && <StandingsTab standings={detail?.standings ?? []} />}
                         {tab === "fixtures"  && <FixturesTab  leagueId={selectedId} />}
                         {tab === "players"   && <PlayersTab   playerStats={detail?.playerStats ?? []} />}
+                        {tab === "supercup"  && <SuperCupTab  leagueId={selectedId} />}
                       </motion.div>
                     )}
                   </AnimatePresence>

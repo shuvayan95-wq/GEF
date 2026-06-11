@@ -14,6 +14,8 @@ export const matchesTable = pgTable("matches", {
   gccTournamentId: integer("gcc_tournament_id"),
   season: text("season"),
   notes: text("notes"),
+  matchType: text("match_type").notNull().default("league"),
+  superCupLeg: integer("super_cup_leg"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

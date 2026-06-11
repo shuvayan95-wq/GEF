@@ -14,6 +14,7 @@ const NAV_LINKS = [
   { href: "/efootball-world", label: "eFootball World" },
   { href: "/matches", label: "Matches" },
   { href: "/leagues", label: "Leagues" },
+  { href: "/cups", label: "Cups" },
   { href: "/trophies", label: "Trophies" },
   { href: "/gcc", label: "Champions Cup" },
   { href: "/ballon-dor", label: "Ballon d'Or" },

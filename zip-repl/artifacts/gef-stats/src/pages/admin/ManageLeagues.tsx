@@ -4,12 +4,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getApiUrl } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import {
   Edit, Trash2, Plus, Loader2, Trophy, Users,
   Lock, Unlock, EyeOff, ChevronRight, Calendar, PlusCircle,
-  Shield, CheckSquare, Square, UserX,
+  Shield, CheckSquare, Square, UserX, Star, X, Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -78,6 +79,15 @@ interface DialogState {
   prefill?: { name: string; leagueType: string; logoUrl: string | null };
 }
 
+interface SuperCupMatch {
+  id: number; date: string; superCupLeg: number | null;
+  team1Id: number; team2Id: number;
+  team1Name: string; team1LogoUrl: string | null;
+  team2Name: string; team2LogoUrl: string | null;
+  team1Score: number; team2Score: number;
+  playerMatchups: any[];
+}
+
 export function ManageLeagues() {
   const { data: leagues, isLoading } = useLeagues();
   const queryClient = useQueryClient();
@@ -85,6 +95,7 @@ export function ManageLeagues() {
 
   const [dialogState, setDialogState] = useState<DialogState | null>(null);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [superCupSeason, setSuperCupSeason] = useState<LeagueItem | null>(null);
 
   const groups = useMemo(() => groupLeagues(leagues ?? []), [leagues]);
 
@@ -260,6 +271,15 @@ export function ManageLeagues() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          onClick={() => setSuperCupSeason(season)}
+                          title="Manage Super Cup for this season"
+                          className="text-yellow-500 hover:text-yellow-400 hover:bg-yellow-500/10"
+                        >
+                          <Star className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           onClick={() => setDialogState({ mode: "edit", editing: season })}
                           title="Edit season & teams"
                         >
@@ -324,7 +344,358 @@ export function ManageLeagues() {
           )}
         </DialogContent>
       </Dialog>
+
+      <SuperCupDialog
+        season={superCupSeason}
+        onClose={() => setSuperCupSeason(null)}
+        onSaved={() => queryClient.invalidateQueries({ queryKey: ["/api/matches"] })}
+      />
     </AdminLayout>
+  );
+}
+
+// ─── SuperCupDialog ────────────────────────────────────────────────────────────
+function SuperCupDialog({ season, onClose, onSaved }: {
+  season: LeagueItem | null; onClose: () => void; onSaved: () => void;
+}) {
+  const { toast } = useToast();
+  const { data: allTeams = [] } = useAllTeams();
+  const { data: allPlayers = [] } = useQuery<any[]>({
+    queryKey: ["/api/players-dropdown"],
+    queryFn: async () => {
+      const r = await fetch(getApiUrl("/api/players-dropdown"), { credentials: "include" });
+      return r.json();
+    },
+  });
+
+  const { data: detail } = useQuery<any>({
+    queryKey: ["/api/leagues", season?.id],
+    queryFn: async () => {
+      const r = await fetch(getApiUrl(`/api/leagues/${season!.id}`), { credentials: "include" });
+      return r.json();
+    },
+    enabled: season !== null,
+  });
+
+  const { data: supercupMatches = [], refetch } = useQuery<SuperCupMatch[]>({
+    queryKey: ["/api/leagues", season?.id, "supercup"],
+    queryFn: async () => {
+      const r = await fetch(getApiUrl(`/api/leagues/${season!.id}/supercup`), { credentials: "include" });
+      return r.json();
+    },
+    enabled: season !== null,
+  });
+
+  const [showForm, setShowForm] = useState<number | null>(null); // leg number being created/edited
+  const [editingMatch, setEditingMatch] = useState<SuperCupMatch | null>(null);
+
+  const standings = detail?.standings ?? [];
+  const top1 = standings[0] ?? null;
+  const top2 = standings[1] ?? null;
+
+  const handleDeleteMatch = async (id: number) => {
+    if (!confirm("Delete this Super Cup match?")) return;
+    try {
+      const res = await fetch(getApiUrl(`/api/matches/${id}`), { method: "DELETE", credentials: "include" });
+      if (!res.ok) throw new Error();
+      toast({ title: "Match deleted" });
+      refetch();
+      onSaved();
+    } catch {
+      toast({ variant: "destructive", title: "Failed to delete" });
+    }
+  };
+
+  if (!season) return null;
+
+  return (
+    <Dialog open={season !== null} onOpenChange={open => { if (!open) { onClose(); setShowForm(null); setEditingMatch(null); } }}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Star className="w-5 h-5 text-yellow-400" />
+            Super Cup — {season.name} {season.season ?? ""}
+          </DialogTitle>
+        </DialogHeader>
+
+        {/* Top 2 info */}
+        <div className="bg-secondary/30 rounded-lg p-3 mb-2">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Top 2 from Standings</p>
+          <div className="flex gap-3">
+            {[top1, top2].map((t, i) => t ? (
+              <div key={t.teamId} className="flex items-center gap-2 bg-card border border-border rounded-lg px-3 py-2">
+                <span className={`w-5 h-5 rounded-full text-xs font-black flex items-center justify-center ${i === 0 ? "bg-yellow-500 text-black" : "bg-slate-400 text-black"}`}>{i + 1}</span>
+                {t.teamLogoUrl && <img src={t.teamLogoUrl} className="w-5 h-5 rounded object-contain" />}
+                <span className="font-bold text-sm">{t.teamName}</span>
+              </div>
+            ) : (
+              <div key={i} className="text-xs text-muted-foreground italic px-3 py-2">No team {i + 1} yet</div>
+            ))}
+          </div>
+        </div>
+
+        {/* Existing super cup matches */}
+        <div className="space-y-3">
+          {[1, 2].map(leg => {
+            const match = supercupMatches.find(m => m.superCupLeg === leg);
+            return (
+              <div key={leg} className="bg-card border border-border rounded-xl overflow-hidden">
+                <div className="flex items-center gap-3 p-3">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-primary border border-primary/30 px-2 py-0.5 rounded shrink-0">Leg {leg}</span>
+                  {match ? (
+                    <>
+                      <div className="flex items-center gap-2 flex-1 justify-end min-w-0">
+                        {match.team1LogoUrl && <img src={match.team1LogoUrl} className="w-5 h-5 rounded object-contain" />}
+                        <span className="font-bold text-sm truncate">{match.team1Name}</span>
+                      </div>
+                      <span className="font-display font-black text-lg text-primary shrink-0">{match.team1Score} – {match.team2Score}</span>
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <span className="font-bold text-sm truncate">{match.team2Name}</span>
+                        {match.team2LogoUrl && <img src={match.team2LogoUrl} className="w-5 h-5 rounded object-contain" />}
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        <Button variant="ghost" size="icon" className="w-7 h-7"
+                          onClick={() => { setEditingMatch(match); setShowForm(leg); }}>
+                          <Edit className="w-3 h-3" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="w-7 h-7 text-destructive"
+                          onClick={() => handleDeleteMatch(match.id)}>
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-sm text-muted-foreground italic flex-1">No result yet</span>
+                      <Button variant="outline" size="sm" className="gap-1 h-7 text-xs shrink-0"
+                        onClick={() => { setEditingMatch(null); setShowForm(leg); }}>
+                        <Plus className="w-3 h-3" /> Add Leg {leg}
+                      </Button>
+                    </>
+                  )}
+                </div>
+
+                {showForm === leg && (
+                  <div className="border-t border-border bg-background/50">
+                    <SuperCupMatchForm
+                      leagueId={season.id}
+                      leg={leg}
+                      teams={allTeams}
+                      players={allPlayers}
+                      defaultTeam1Id={top1?.teamId ? String(top1.teamId) : ""}
+                      defaultTeam2Id={top2?.teamId ? String(top2.teamId) : ""}
+                      editingMatch={editingMatch?.superCupLeg === leg ? editingMatch : null}
+                      onClose={() => { setShowForm(null); setEditingMatch(null); }}
+                      onSuccess={() => { setShowForm(null); setEditingMatch(null); refetch(); onSaved(); }}
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Aggregate */}
+        {supercupMatches.length === 2 && (() => {
+          const leg1 = supercupMatches.find(m => m.superCupLeg === 1);
+          const leg2 = supercupMatches.find(m => m.superCupLeg === 2);
+          if (!leg1 || !leg2) return null;
+          const agg1 = leg1.team1Score + (leg2.team1Id === leg1.team1Id ? leg2.team1Score : leg2.team2Score);
+          const agg2 = leg1.team2Score + (leg2.team2Id === leg1.team2Id ? leg2.team2Score : leg2.team1Score);
+          return (
+            <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-xl p-4 text-center">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-yellow-500 mb-2">Super Cup Aggregate</p>
+              <div className="flex items-center justify-center gap-4">
+                <span className="font-display font-bold uppercase text-sm">{leg1.team1Name}</span>
+                <span className="font-display font-black text-2xl text-yellow-400">{agg1} – {agg2}</span>
+                <span className="font-display font-bold uppercase text-sm">{leg1.team2Name}</span>
+              </div>
+              {agg1 !== agg2 && (
+                <p className="text-green-400 text-xs font-bold mt-1">
+                  🏆 {agg1 > agg2 ? leg1.team1Name : leg1.team2Name} wins the Super Cup
+                </p>
+              )}
+              {agg1 === agg2 && <p className="text-yellow-400 text-xs font-bold mt-1">Draw on aggregate</p>}
+            </div>
+          );
+        })()}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Super Cup Match Form ───────────────────────────────────────────────────────
+function SuperCupMatchForm({ leagueId, leg, teams, players, defaultTeam1Id, defaultTeam2Id, editingMatch, onClose, onSuccess }: {
+  leagueId: number; leg: number;
+  teams: TeamItem[]; players: any[];
+  defaultTeam1Id: string; defaultTeam2Id: string;
+  editingMatch: SuperCupMatch | null;
+  onClose: () => void; onSuccess: () => void;
+}) {
+  const { toast } = useToast();
+  const [saving, setSaving] = useState(false);
+  const [date, setDate] = useState(editingMatch ? new Date(editingMatch.date).toISOString().split("T")[0] : new Date().toISOString().split("T")[0]);
+  const [t1Id, setT1Id] = useState(editingMatch ? String(editingMatch.team1Id) : defaultTeam1Id);
+  const [t2Id, setT2Id] = useState(editingMatch ? String(editingMatch.team2Id) : defaultTeam2Id);
+  const [matchups, setMatchups] = useState<any[]>(
+    editingMatch?.playerMatchups?.map((mu: any) => ({
+      p1: String(mu.player1Id), p2: String(mu.player2Id),
+      s1: mu.player1Goals, s2: mu.player2Goals,
+      mvp: mu.mvpPlayerId ? String(mu.mvpPlayerId) : "",
+    })) ?? []
+  );
+
+  const teamOptions = [{ label: "— Select team —", value: "" }, ...teams.map(t => ({ label: t.name, value: t.id }))];
+  const t1Players = players.filter((p: any) => t1Id && p.teamId === Number(t1Id));
+  const t2Players = players.filter((p: any) => t2Id && p.teamId === Number(t2Id));
+  const t1POpts = [{ label: "— Select player —", value: "" }, ...t1Players.map((p: any) => ({ label: p.name, value: p.id }))];
+  const t2POpts = [{ label: "— Select player —", value: "" }, ...t2Players.map((p: any) => ({ label: p.name, value: p.id }))];
+  const team1Name = teams.find(t => t.id === Number(t1Id))?.name ?? "Team 1";
+  const team2Name = teams.find(t => t.id === Number(t2Id))?.name ?? "Team 2";
+
+  const totalT1 = matchups.reduce((s, m) => s + (Number(m.s1) || 0), 0);
+  const totalT2 = matchups.reduce((s, m) => s + (Number(m.s2) || 0), 0);
+
+  const addMatchup = () => {
+    if (matchups.length >= 5) return;
+    setMatchups(p => [...p, { p1: "", p2: "", s1: 0, s2: 0, mvp: "" }]);
+  };
+
+  const updateM = (idx: number, field: string, val: any) => {
+    setMatchups(prev => { const n = [...prev]; n[idx] = { ...n[idx], [field]: val }; return n; });
+  };
+
+  const handleTeamChange = (which: 1 | 2, val: string) => {
+    if (which === 1) setT1Id(val);
+    else setT2Id(val);
+    setMatchups(prev => prev.map(m => ({
+      ...m, ...(which === 1 ? { p1: "", mvp: "" } : { p2: "", mvp: "" }),
+    })));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!t1Id || !t2Id) { toast({ variant: "destructive", title: "Select both teams" }); return; }
+    setSaving(true);
+    try {
+      const payload = {
+        date: new Date(date).toISOString(),
+        team1Id: Number(t1Id), team2Id: Number(t2Id),
+        team1Score: totalT1, team2Score: totalT2,
+        leagueId, matchType: "supercup", superCupLeg: leg,
+        playerMatchups: matchups.map(m => ({
+          player1Id: Number(m.p1), player2Id: Number(m.p2),
+          player1Goals: Number(m.s1), player2Goals: Number(m.s2),
+          mvpPlayerId: m.mvp ? Number(m.mvp) : null,
+        })),
+      };
+
+      if (editingMatch) {
+        const res = await fetch(getApiUrl(`/api/matches/${editingMatch.id}`), {
+          method: "PUT", headers: { "Content-Type": "application/json" }, credentials: "include",
+          body: JSON.stringify({ date: new Date(date).toISOString(), team1Score: totalT1, team2Score: totalT2, playerMatchups: payload.playerMatchups }),
+        });
+        if (!res.ok) throw new Error(await res.text());
+        toast({ title: "Super Cup leg updated" });
+      } else {
+        const res = await fetch(getApiUrl("/api/matches"), {
+          method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error(await res.text());
+        toast({ title: `Super Cup Leg ${leg} recorded` });
+      }
+      onSuccess();
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Error saving", description: err?.message });
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="p-4 space-y-4">
+      <p className="text-xs font-bold uppercase tracking-widest text-yellow-500">
+        {editingMatch ? "Edit" : "Add"} Super Cup Leg {leg}
+      </p>
+
+      <div>
+        <label className="text-xs font-bold uppercase text-muted-foreground mb-1 block">Date</label>
+        <Input type="date" value={date} onChange={e => setDate(e.target.value)} />
+      </div>
+
+      <div className="grid grid-cols-[1fr_auto_1fr] gap-4 items-center bg-secondary/30 p-3 rounded-lg border border-border">
+        <div>
+          <label className="text-xs font-bold text-primary uppercase mb-1 block">Team 1</label>
+          <Select required value={t1Id} onChange={e => handleTeamChange(1, e.target.value)} options={teamOptions} />
+        </div>
+        <div className="font-display font-bold text-muted-foreground px-2">VS</div>
+        <div>
+          <label className="text-xs font-bold text-accent uppercase mb-1 block">Team 2</label>
+          <Select required value={t2Id} onChange={e => handleTeamChange(2, e.target.value)} options={teamOptions} />
+        </div>
+      </div>
+
+      {matchups.length > 0 && (
+        <div className="text-center">
+          <span className="text-xs text-muted-foreground">Auto Score: </span>
+          <span className="font-display font-black text-primary">{totalT1} – {totalT2}</span>
+        </div>
+      )}
+
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <label className="text-xs font-bold uppercase text-foreground">Player Matchups ({matchups.length}/5)</label>
+          <Button type="button" variant="outline" size="sm" onClick={addMatchup}
+            disabled={matchups.length >= 5 || !t1Id || !t2Id}>
+            + Add Game
+          </Button>
+        </div>
+        {(!t1Id || !t2Id) && (
+          <p className="text-xs text-amber-500 italic p-2 bg-amber-500/10 rounded border border-amber-500/20">Select both teams first.</p>
+        )}
+        <div className="space-y-2">
+          {matchups.map((m, i) => (
+            <div key={i} className="flex flex-col md:flex-row gap-2 items-center bg-secondary/30 p-2 rounded border border-border text-sm">
+              <div className="flex-1 w-full">
+                <label className="text-[10px] text-primary font-bold uppercase mb-0.5 block">{team1Name}</label>
+                <Select required value={m.p1} onChange={e => updateM(i, "p1", e.target.value)} options={t1POpts} />
+              </div>
+              <div className="flex flex-col items-center gap-0.5 shrink-0">
+                <Input type="number" required min={0} value={m.s1} onChange={e => updateM(i, "s1", e.target.value)} className="w-14 text-center h-8" />
+                <span className="text-muted-foreground text-[10px]">—</span>
+                <Input type="number" required min={0} value={m.s2} onChange={e => updateM(i, "s2", e.target.value)} className="w-14 text-center h-8" />
+              </div>
+              <div className="flex-1 w-full">
+                <label className="text-[10px] text-accent font-bold uppercase mb-0.5 block">{team2Name}</label>
+                <Select required value={m.p2} onChange={e => updateM(i, "p2", e.target.value)} options={t2POpts} />
+              </div>
+              <div className="w-full md:w-24 shrink-0">
+                <label className="text-[10px] text-muted-foreground font-bold uppercase mb-0.5 block">MVP</label>
+                <Select value={m.mvp} onChange={e => updateM(i, "mvp", e.target.value)}
+                  options={[
+                    { label: "None", value: "" },
+                    { label: players.find((p: any) => p.id === Number(m.p1))?.name ?? "P1", value: m.p1 || "" },
+                    { label: players.find((p: any) => p.id === Number(m.p2))?.name ?? "P2", value: m.p2 || "" },
+                  ]} />
+              </div>
+              <button type="button" onClick={() => setMatchups(prev => prev.filter((_, j) => j !== i))}
+                className="text-destructive p-1 hover:bg-destructive/10 rounded shrink-0">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex gap-2">
+        <Button type="button" variant="ghost" size="sm" onClick={onClose} className="gap-1">
+          <X className="w-3.5 h-3.5" /> Cancel
+        </Button>
+        <Button type="submit" variant="gaming" size="sm" className="flex-1 gap-1" disabled={saving}>
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+          {editingMatch ? "Save Changes" : `Record Leg ${leg}`}
+        </Button>
+      </div>
+    </form>
   );
 }
 

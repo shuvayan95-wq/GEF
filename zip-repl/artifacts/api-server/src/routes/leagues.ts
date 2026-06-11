@@ -297,4 +297,59 @@ router.delete("/leagues/:id", requireAdmin, async (req, res) => {
   res.json({ success: true });
 });
 
+// GET /leagues/:id/supercup — fetch supercup matches for this league
+router.get("/leagues/:id/supercup", async (req, res) => {
+  try {
+    const leagueId = parseInt(req.params.id);
+    const [allMatches, allMatchups, allTeams, allPlayers] = await Promise.all([
+      db.select().from(matchesTable).where(
+        sql`${matchesTable.leagueId} = ${leagueId} AND ${matchesTable.matchType} = 'supercup'`
+      ),
+      db.select().from(playerMatchupsTable),
+      db.select().from(teamsTable),
+      db.select().from(playersTable),
+    ]);
+
+    const teamMap = new Map(allTeams.map(t => [t.id, t]));
+    const playerMap = new Map(allPlayers.map(p => [p.id, p]));
+    const matchupsByMatch = new Map<number, any[]>();
+    for (const mu of allMatchups) {
+      if (!matchupsByMatch.has(mu.matchId)) matchupsByMatch.set(mu.matchId, []);
+      matchupsByMatch.get(mu.matchId)!.push({
+        id: mu.id,
+        player1Id: mu.player1Id,
+        player2Id: mu.player2Id,
+        player1Goals: mu.player1Goals,
+        player2Goals: mu.player2Goals,
+        mvpPlayerId: mu.mvpPlayerId ?? null,
+        player1Name: playerMap.get(mu.player1Id)?.name ?? "?",
+        player1ImageUrl: playerMap.get(mu.player1Id)?.imageUrl ?? null,
+        player2Name: playerMap.get(mu.player2Id)?.name ?? "?",
+        player2ImageUrl: playerMap.get(mu.player2Id)?.imageUrl ?? null,
+      });
+    }
+
+    const result = allMatches.map(m => ({
+      id: m.id,
+      date: m.date,
+      team1Id: m.team1Id,
+      team2Id: m.team2Id,
+      team1Name: teamMap.get(m.team1Id)?.name ?? "?",
+      team1LogoUrl: teamMap.get(m.team1Id)?.logoUrl ?? null,
+      team2Name: teamMap.get(m.team2Id)?.name ?? "?",
+      team2LogoUrl: teamMap.get(m.team2Id)?.logoUrl ?? null,
+      team1Score: m.team1Score,
+      team2Score: m.team2Score,
+      superCupLeg: m.superCupLeg,
+      matchType: m.matchType,
+      notes: m.notes ?? null,
+      matchups: matchupsByMatch.get(m.id) ?? [],
+    })).sort((a, b) => (a.superCupLeg ?? 0) - (b.superCupLeg ?? 0));
+
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message });
+  }
+});
+
 export default router;

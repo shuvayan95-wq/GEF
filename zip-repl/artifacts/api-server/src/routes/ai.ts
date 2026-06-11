@@ -808,26 +808,14 @@ Rules:
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function getVisionAI(): Promise<{ client: any; model: string; supportsVision: boolean }> {
-  // Prefer Replit OpenAI integration (GPT-4o, supports vision)
+  // Try Replit OpenAI integration first (GPT-4o supports vision)
   try {
     const mod = await import("@workspace/integrations-openai-ai-server");
     if (mod.openai) return { client: mod.openai, model: "gpt-4o", supportsVision: true };
   } catch {}
-  // OPENAI_API_KEY direct (vision supported)
-  if (process.env.OPENAI_API_KEY) {
-    const { default: OpenAI } = await import("openai");
-    return { client: new OpenAI({ apiKey: process.env.OPENAI_API_KEY }), model: "gpt-4o", supportsVision: true };
-  }
-  // Groq fallback (no vision)
-  if (process.env.GROQ_API_KEY) {
-    const { default: OpenAI } = await import("openai");
-    return {
-      client: new OpenAI({ apiKey: process.env.GROQ_API_KEY, baseURL: "https://api.groq.com/openai/v1" }),
-      model: "llama-3.3-70b-versatile",
-      supportsVision: false,
-    };
-  }
-  return { client: null, model: "", supportsVision: false };
+  // Fall back to whatever getOpenAI() returns (Groq, etc.) — no vision but still works
+  const client = await getOpenAI();
+  return { client, model: "llama-3.3-70b-versatile", supportsVision: false };
 }
 
 // GET /api/ai/match-analysis — list all analyses

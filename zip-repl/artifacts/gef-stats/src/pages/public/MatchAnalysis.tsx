@@ -313,7 +313,7 @@ export function MatchAnalysis() {
             {report.roast && (
               <div className="border-t-2 border-b-2 border-red-500/30 bg-red-500/5 py-6 mb-6 px-4 sm:px-0">
                 <p className="text-[10px] font-black uppercase tracking-[0.25em] text-red-400 mb-3">
-                  🔥 The Roast
+                  In The Dock
                 </p>
                 <p className="text-base sm:text-lg leading-relaxed text-foreground/90 font-medium italic">
                   {report.roast}

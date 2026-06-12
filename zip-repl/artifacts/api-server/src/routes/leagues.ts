@@ -2,9 +2,11 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import {
   leaguesTable, teamsTable, matchesTable, playerMatchupsTable,
-  playersTable, leagueParticipantsTable,
+  playersTable, leagueParticipantsTable, leagueFixturesTable,
 } from "@workspace/db";
 import { eq, sql, inArray } from "drizzle-orm";
+import { recalculateAllMarketValues } from "../lib/marketValue.js";
+import { recalculateAllTeamIncomes } from "../lib/incomeCalculator.js";
 
 const router: IRouter = Router();
 
@@ -45,6 +47,8 @@ router.get("/leagues", async (req, res) => {
       leagueType: league.leagueType ?? "league",
       isLocked: league.isLocked,
       teamCount: countByLeague.get(league.id) ?? 0,
+      fixtureRounds: league.fixtureRounds ?? 1,
+      leagueRules: league.leagueRules ?? null,
       createdAt: league.createdAt.toISOString(),
     }));
     res.json(result);
@@ -297,7 +301,243 @@ router.delete("/leagues/:id", requireAdmin, async (req, res) => {
   res.json({ success: true });
 });
 
-// GET /leagues/:id/supercup — fetch supercup matches for this league
+// ─── Fixture Schedule ───────────────────────────────────────────────────────
+
+// Round-robin generator — returns { matchday, homeTeamId, awayTeamId }[]
+function generateRoundRobin(teamIds: number[], rounds: number) {
+  const fixtures: { matchday: number; homeTeamId: number; awayTeamId: number }[] = [];
+  const teams = [...teamIds];
+  const isOdd = teams.length % 2 !== 0;
+  if (isOdd) teams.push(-1); // -1 = bye slot
+
+  const n = teams.length;
+  const totalRounds = n - 1;
+  const matchesPerRound = n / 2;
+
+  for (let round = 0; round < totalRounds; round++) {
+    for (let m = 0; m < matchesPerRound; m++) {
+      const home = teams[m];
+      const away = teams[n - 1 - m];
+      if (home !== -1 && away !== -1) {
+        fixtures.push({ matchday: round + 1, homeTeamId: home, awayTeamId: away });
+      }
+    }
+    // Rotate: keep index 0 fixed, rotate the rest clockwise
+    const last = teams.splice(n - 1, 1)[0];
+    teams.splice(1, 0, last);
+  }
+
+  // Additional rounds: swap home/away for even rounds
+  for (let r = 2; r <= rounds; r++) {
+    const firstPass = fixtures.filter(f => f.matchday <= totalRounds);
+    for (const f of firstPass) {
+      fixtures.push({
+        matchday: f.matchday + totalRounds * (r - 1),
+        homeTeamId: r % 2 === 0 ? f.awayTeamId : f.homeTeamId,
+        awayTeamId: r % 2 === 0 ? f.homeTeamId : f.awayTeamId,
+      });
+    }
+  }
+
+  return fixtures;
+}
+
+// GET /leagues/:id/fixture-schedule
+router.get("/leagues/:id/fixture-schedule", async (req, res) => {
+  try {
+    const leagueId = parseInt(req.params.id);
+    const [fixtures, teams, matches] = await Promise.all([
+      db.select().from(leagueFixturesTable).where(eq(leagueFixturesTable.leagueId, leagueId)),
+      db.select().from(teamsTable),
+      db.select().from(matchesTable).where(eq(matchesTable.leagueId, leagueId)),
+    ]);
+    const teamMap = new Map(teams.map(t => [t.id, t]));
+    const matchMap = new Map(matches.map(m => [m.id, m]));
+
+    const result = fixtures
+      .sort((a, b) => a.matchday - b.matchday || a.id - b.id)
+      .map(f => {
+        const home = teamMap.get(f.homeTeamId);
+        const away = teamMap.get(f.awayTeamId);
+        const match = f.matchId ? matchMap.get(f.matchId) : null;
+        return {
+          id: f.id,
+          leagueId: f.leagueId,
+          matchday: f.matchday,
+          homeTeamId: f.homeTeamId,
+          homeTeamName: home?.name ?? "TBD",
+          homeTeamLogoUrl: home?.logoUrl ?? null,
+          awayTeamId: f.awayTeamId,
+          awayTeamName: away?.name ?? "TBD",
+          awayTeamLogoUrl: away?.logoUrl ?? null,
+          scheduledDate: f.scheduledDate ?? null,
+          matchId: f.matchId ?? null,
+          status: f.status,
+          homeScore: match?.team1Id === f.homeTeamId ? match?.team1Score : match?.team2Score ?? null,
+          awayScore: match?.team1Id === f.homeTeamId ? match?.team2Score : match?.team1Score ?? null,
+        };
+      });
+
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message });
+  }
+});
+
+// POST /leagues/:id/fixture-schedule/generate
+router.post("/leagues/:id/fixture-schedule/generate", requireAdmin, async (req, res) => {
+  try {
+    const leagueId = parseInt(req.params.id);
+    const { rounds = 1, clearExisting = true } = req.body as { rounds?: number; clearExisting?: boolean };
+
+    const teamIds = await getParticipantTeamIds(leagueId);
+    if (teamIds.length < 2) {
+      return res.status(400).json({ error: "Need at least 2 participating teams to generate fixtures" });
+    }
+
+    if (clearExisting) {
+      await db.delete(leagueFixturesTable).where(eq(leagueFixturesTable.leagueId, leagueId));
+    }
+
+    const generated = generateRoundRobin(teamIds, Math.max(1, Math.min(rounds, 4)));
+
+    if (generated.length > 0) {
+      await db.insert(leagueFixturesTable).values(
+        generated.map(f => ({ leagueId, matchday: f.matchday, homeTeamId: f.homeTeamId, awayTeamId: f.awayTeamId, status: "pending" }))
+      );
+    }
+
+    // Update rounds setting on league
+    await db.update(leaguesTable).set({ fixtureRounds: rounds }).where(eq(leaguesTable.id, leagueId));
+
+    res.json({ generated: generated.length, matchdays: Math.max(...generated.map(f => f.matchday), 0) });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message });
+  }
+});
+
+// DELETE /leagues/:id/fixture-schedule
+router.delete("/leagues/:id/fixture-schedule", requireAdmin, async (req, res) => {
+  try {
+    const leagueId = parseInt(req.params.id);
+    await db.delete(leagueFixturesTable).where(eq(leagueFixturesTable.leagueId, leagueId));
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message });
+  }
+});
+
+// PATCH /fixture-schedule/:id/result — enter or update result, creates/updates a match record
+router.patch("/fixture-schedule/:id/result", requireAdmin, async (req, res) => {
+  try {
+    const fixtureId = parseInt(req.params.id);
+    const { date, homeScore, awayScore, playerMatchups, notes } = req.body;
+
+    const [fixture] = await db.select().from(leagueFixturesTable).where(eq(leagueFixturesTable.id, fixtureId));
+    if (!fixture) return res.status(404).json({ error: "Fixture not found" });
+
+    const [league] = await db.select().from(leaguesTable).where(eq(leaguesTable.id, fixture.leagueId));
+
+    let matchId = fixture.matchId;
+
+    if (matchId) {
+      // Update existing match
+      await db.update(matchesTable).set({
+        date: date ?? new Date().toISOString(),
+        team1Score: Number(homeScore),
+        team2Score: Number(awayScore),
+        notes: notes ?? null,
+      }).where(eq(matchesTable.id, matchId));
+
+      await db.delete(playerMatchupsTable).where(eq(playerMatchupsTable.matchId, matchId));
+    } else {
+      // Create new match
+      const [newMatch] = await db.insert(matchesTable).values({
+        date: date ?? new Date().toISOString(),
+        team1Id: fixture.homeTeamId,
+        team2Id: fixture.awayTeamId,
+        team1Score: Number(homeScore),
+        team2Score: Number(awayScore),
+        leagueId: fixture.leagueId,
+        season: league?.season ?? null,
+        matchType: "league",
+        notes: notes ?? null,
+      }).returning();
+      matchId = newMatch.id;
+    }
+
+    // Insert player matchups
+    if (playerMatchups && playerMatchups.length > 0) {
+      await db.insert(playerMatchupsTable).values(
+        playerMatchups.map((m: any) => ({
+          matchId: matchId!,
+          player1Id: Number(m.player1Id),
+          player2Id: Number(m.player2Id),
+          player1Goals: Number(m.player1Goals),
+          player2Goals: Number(m.player2Goals),
+          mvpPlayerId: m.mvpPlayerId ? Number(m.mvpPlayerId) : null,
+        }))
+      );
+    }
+
+    // Mark fixture as played
+    await db.update(leagueFixturesTable).set({ status: "played", matchId }).where(eq(leagueFixturesTable.id, fixtureId));
+
+    recalculateAllMarketValues("Fixture result entered").catch(console.error);
+    recalculateAllTeamIncomes("Fixture result entered").catch(console.error);
+
+    res.json({ success: true, matchId });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message });
+  }
+});
+
+// PATCH /fixture-schedule/:id/date — update scheduled date
+router.patch("/fixture-schedule/:id/date", requireAdmin, async (req, res) => {
+  try {
+    const fixtureId = parseInt(req.params.id);
+    const { scheduledDate } = req.body;
+    await db.update(leagueFixturesTable).set({ scheduledDate: scheduledDate ?? null }).where(eq(leagueFixturesTable.id, fixtureId));
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message });
+  }
+});
+
+// DELETE /fixture-schedule/:id
+router.delete("/fixture-schedule/:id", requireAdmin, async (req, res) => {
+  try {
+    const fixtureId = parseInt(req.params.id);
+    const [fixture] = await db.select().from(leagueFixturesTable).where(eq(leagueFixturesTable.id, fixtureId));
+    if (!fixture) return res.status(404).json({ error: "Fixture not found" });
+
+    // If linked to a match, delete the match too
+    if (fixture.matchId) {
+      await db.delete(playerMatchupsTable).where(eq(playerMatchupsTable.matchId, fixture.matchId));
+      await db.delete(matchesTable).where(eq(matchesTable.id, fixture.matchId));
+    }
+
+    await db.delete(leagueFixturesTable).where(eq(leagueFixturesTable.id, fixtureId));
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message });
+  }
+});
+
+// PUT /leagues/:id/rules — save promotion/relegation/playoff rules
+router.put("/leagues/:id/rules", requireAdmin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { rules } = req.body;
+    await db.update(leaguesTable).set({ leagueRules: JSON.stringify(rules) }).where(eq(leaguesTable.id, id));
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message });
+  }
+});
+
+// GET /leagues/:id — full league detail with standings + player stats
+
 router.get("/leagues/:id/supercup", async (req, res) => {
   try {
     const leagueId = parseInt(req.params.id);

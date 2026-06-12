@@ -10,9 +10,10 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Edit, Trash2, Plus, Loader2, Trophy, Users,
   Lock, Unlock, EyeOff, ChevronRight, Calendar, PlusCircle,
-  Shield, CheckSquare, Square, UserX, Star, X, Zap,
+  Shield, CheckSquare, Square, UserX, Star, X, Zap, ClipboardList,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { FixtureManager } from "@/components/admin/FixtureManager";
 
 interface TeamItem {
   id: number;
@@ -30,6 +31,8 @@ interface LeagueItem {
   leagueType: string;
   teamCount: number;
   isLocked: boolean;
+  fixtureRounds?: number;
+  leagueRules?: string | null;
 }
 
 interface LeagueGroup {
@@ -96,6 +99,7 @@ export function ManageLeagues() {
   const [dialogState, setDialogState] = useState<DialogState | null>(null);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [superCupSeason, setSuperCupSeason] = useState<LeagueItem | null>(null);
+  const [fixtureManagerSeason, setFixtureManagerSeason] = useState<LeagueItem | null>(null);
 
   const groups = useMemo(() => groupLeagues(leagues ?? []), [leagues]);
 
@@ -271,6 +275,15 @@ export function ManageLeagues() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          onClick={() => setFixtureManagerSeason(season)}
+                          title="Manage fixtures & league rules"
+                          className="text-primary hover:text-primary hover:bg-primary/10"
+                        >
+                          <ClipboardList className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           onClick={() => setSuperCupSeason(season)}
                           title="Manage Super Cup for this season"
                           className="text-yellow-500 hover:text-yellow-400 hover:bg-yellow-500/10"
@@ -349,6 +362,11 @@ export function ManageLeagues() {
         season={superCupSeason}
         onClose={() => setSuperCupSeason(null)}
         onSaved={() => queryClient.invalidateQueries({ queryKey: ["/api/matches"] })}
+      />
+
+      <FixtureManager
+        league={fixtureManagerSeason}
+        onClose={() => setFixtureManagerSeason(null)}
       />
     </AdminLayout>
   );

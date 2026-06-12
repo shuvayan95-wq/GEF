@@ -10,6 +10,8 @@ export const leaguesTable = pgTable("leagues", {
   logoUrl: text("logo_url"),
   leagueType: text("league_type").notNull().default("league"),
   isLocked: boolean("is_locked").notNull().default(false),
+  fixtureRounds: integer("fixture_rounds").notNull().default(1),
+  leagueRules: text("league_rules"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

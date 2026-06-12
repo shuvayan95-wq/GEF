@@ -13,10 +13,14 @@ import { format } from "date-fns";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
+interface LeagueRule {
+  posFrom: number; posTo: number; label: string; color: string;
+}
 interface LeagueItem {
   id: number; name: string; description: string | null;
   season: string | null; logoUrl: string | null;
   leagueType: string; teamCount: number; createdAt: string;
+  leagueRules?: string | null;
 }
 interface StandingRow {
   teamId: number; teamName: string; teamLogoUrl: string | null;
@@ -32,6 +36,7 @@ interface PlayerStatRow {
 interface LeagueDetail {
   id: number; name: string; season: string | null;
   standings: StandingRow[]; playerStats: PlayerStatRow[]; matchCount: number;
+  leagueRules?: string | null;
 }
 interface FixtureMatchup {
   id: number; player1Name: string; player2Name: string;
@@ -128,7 +133,27 @@ function useLeagueSupercup(id: number | null) {
 
 // ── Standings Tab ─────────────────────────────────────────────────────────────
 
-function StandingsTab({ standings }: { standings: StandingRow[] }) {
+const RULE_COLORS: Record<string, { border: string; bg: string; dot: string }> = {
+  gold:   { border: "#eab308", bg: "rgba(234,179,8,0.06)",   dot: "#eab308" },
+  green:  { border: "#22c55e", bg: "rgba(34,197,94,0.06)",   dot: "#22c55e" },
+  blue:   { border: "#3b82f6", bg: "rgba(59,130,246,0.06)",  dot: "#3b82f6" },
+  red:    { border: "#ef4444", bg: "rgba(239,68,68,0.06)",   dot: "#ef4444" },
+  purple: { border: "#a855f7", bg: "rgba(168,85,247,0.06)",  dot: "#a855f7" },
+  orange: { border: "#f97316", bg: "rgba(249,115,22,0.06)",  dot: "#f97316" },
+  cyan:   { border: "#06b6d4", bg: "rgba(6,182,212,0.06)",   dot: "#06b6d4" },
+  pink:   { border: "#ec4899", bg: "rgba(236,72,153,0.06)",  dot: "#ec4899" },
+};
+
+function getRuleForPos(rules: LeagueRule[], pos: number): LeagueRule | null {
+  return rules.find(r => pos >= r.posFrom && pos <= r.posTo) ?? null;
+}
+
+function StandingsTab({ standings, rulesJson }: { standings: StandingRow[]; rulesJson?: string | null }) {
+  const rules: LeagueRule[] = (() => {
+    try { return rulesJson ? JSON.parse(rulesJson) : []; }
+    catch { return []; }
+  })();
+
   if (standings.length === 0)
     return (
       <div className="py-16 text-center text-muted-foreground">
@@ -136,61 +161,90 @@ function StandingsTab({ standings }: { standings: StandingRow[] }) {
         <p className="font-display uppercase">No matches recorded yet</p>
       </div>
     );
+
+  // Deduplicate rules for legend (keep unique labels)
+  const legendRules = rules.filter((r, idx, arr) =>
+    arr.findIndex(x => x.label === r.label) === idx
+  );
+
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-left min-w-[640px]">
-        <thead className="bg-secondary/40 border-b border-border">
-          <tr>
-            <th className="p-4 text-xs font-bold text-muted-foreground uppercase w-10">#</th>
-            <th className="p-4 text-xs font-bold text-muted-foreground uppercase">Team</th>
-            <th className="p-4 text-xs font-bold text-muted-foreground uppercase text-center w-10">P</th>
-            <th className="p-4 text-xs font-bold text-green-400 uppercase text-center w-10">W</th>
-            <th className="p-4 text-xs font-bold text-muted-foreground uppercase text-center w-10">D</th>
-            <th className="p-4 text-xs font-bold text-red-400 uppercase text-center w-10">L</th>
-            <th className="p-4 text-xs font-bold text-muted-foreground uppercase text-center w-10">GF</th>
-            <th className="p-4 text-xs font-bold text-muted-foreground uppercase text-center w-10">GA</th>
-            <th className="p-4 text-xs font-bold text-muted-foreground uppercase text-center w-10">GD</th>
-            <th className="p-4 text-xs font-bold text-primary uppercase text-center w-14">PTS</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border">
-          {standings.map((row, i) => (
-            <motion.tr
-              key={row.teamId}
-              initial={{ opacity: 0, x: -8 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.04 }}
-              className={cn(
-                "hover:bg-secondary/20 transition-colors group",
-                i === 0 && "bg-yellow-500/5",
-                i < 3 && "border-l-2 border-l-transparent",
-                i === 0 && "border-l-yellow-500/60",
-                i === 1 && "border-l-slate-400/60",
-                i === 2 && "border-l-orange-700/60",
-              )}
-            >
-              <td className="p-4"><RankBadge rank={i + 1} /></td>
-              <td className="p-4">
-                <div className="flex items-center gap-3">
-                  <TeamLogo url={row.teamLogoUrl} name={row.teamName} />
-                  <span className="font-bold uppercase text-sm group-hover:text-primary transition-colors">{row.teamName}</span>
-                  {i === 0 && <Crown className="w-3.5 h-3.5 text-yellow-500" />}
-                </div>
-              </td>
-              <td className="p-4 text-center text-sm tabular-nums">{row.played}</td>
-              <td className="p-4 text-center text-sm text-green-400 font-bold tabular-nums">{row.won}</td>
-              <td className="p-4 text-center text-sm text-muted-foreground tabular-nums">{row.drawn}</td>
-              <td className="p-4 text-center text-sm text-red-400 font-bold tabular-nums">{row.lost}</td>
-              <td className="p-4 text-center text-sm tabular-nums">{row.goalsFor}</td>
-              <td className="p-4 text-center text-sm tabular-nums">{row.goalsAgainst}</td>
-              <td className="p-4 text-center text-sm font-bold tabular-nums">{row.goalDiff > 0 ? `+${row.goalDiff}` : row.goalDiff}</td>
-              <td className="p-4 text-center">
-                <span className={cn("font-display font-black text-lg tabular-nums", i === 0 ? "text-yellow-400" : "text-primary")}>{row.points}</span>
-              </td>
-            </motion.tr>
-          ))}
-        </tbody>
-      </table>
+    <div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left min-w-[640px]">
+          <thead className="bg-secondary/40 border-b border-border">
+            <tr>
+              <th className="p-4 text-xs font-bold text-muted-foreground uppercase w-10">#</th>
+              <th className="p-4 text-xs font-bold text-muted-foreground uppercase">Team</th>
+              <th className="p-4 text-xs font-bold text-muted-foreground uppercase text-center w-10">P</th>
+              <th className="p-4 text-xs font-bold text-green-400 uppercase text-center w-10">W</th>
+              <th className="p-4 text-xs font-bold text-muted-foreground uppercase text-center w-10">D</th>
+              <th className="p-4 text-xs font-bold text-red-400 uppercase text-center w-10">L</th>
+              <th className="p-4 text-xs font-bold text-muted-foreground uppercase text-center w-10">GF</th>
+              <th className="p-4 text-xs font-bold text-muted-foreground uppercase text-center w-10">GA</th>
+              <th className="p-4 text-xs font-bold text-muted-foreground uppercase text-center w-10">GD</th>
+              <th className="p-4 text-xs font-bold text-primary uppercase text-center w-14">PTS</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {standings.map((row, i) => {
+              const pos = i + 1;
+              const rule = rules.length > 0 ? getRuleForPos(rules, pos) : null;
+              const colors = rule ? (RULE_COLORS[rule.color] ?? RULE_COLORS.green) : null;
+
+              return (
+                <motion.tr
+                  key={row.teamId}
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.04 }}
+                  className="hover:bg-secondary/20 transition-colors group"
+                  style={colors ? {
+                    borderLeft: `3px solid ${colors.border}`,
+                    backgroundColor: colors.bg,
+                  } : {
+                    borderLeft: "3px solid transparent",
+                  }}
+                >
+                  <td className="p-4"><RankBadge rank={pos} /></td>
+                  <td className="p-4">
+                    <div className="flex items-center gap-3">
+                      <TeamLogo url={row.teamLogoUrl} name={row.teamName} />
+                      <span className="font-bold uppercase text-sm group-hover:text-primary transition-colors">{row.teamName}</span>
+                      {i === 0 && <Crown className="w-3.5 h-3.5 text-yellow-500" />}
+                    </div>
+                  </td>
+                  <td className="p-4 text-center text-sm tabular-nums">{row.played}</td>
+                  <td className="p-4 text-center text-sm text-green-400 font-bold tabular-nums">{row.won}</td>
+                  <td className="p-4 text-center text-sm text-muted-foreground tabular-nums">{row.drawn}</td>
+                  <td className="p-4 text-center text-sm text-red-400 font-bold tabular-nums">{row.lost}</td>
+                  <td className="p-4 text-center text-sm tabular-nums">{row.goalsFor}</td>
+                  <td className="p-4 text-center text-sm tabular-nums">{row.goalsAgainst}</td>
+                  <td className="p-4 text-center text-sm font-bold tabular-nums">{row.goalDiff > 0 ? `+${row.goalDiff}` : row.goalDiff}</td>
+                  <td className="p-4 text-center">
+                    <span className={cn("font-display font-black text-lg tabular-nums", i === 0 ? "text-yellow-400" : "text-primary")}>{row.points}</span>
+                  </td>
+                </motion.tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Legend */}
+      {legendRules.length > 0 && (
+        <div className="px-4 py-3 border-t border-border/40 bg-secondary/10 flex flex-wrap gap-x-5 gap-y-1.5">
+          {legendRules.map(r => {
+            const colors = RULE_COLORS[r.color] ?? RULE_COLORS.green;
+            return (
+              <div key={r.label} className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: colors.dot }} />
+                <span className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{r.label}</span>
+                <span className="text-[10px] text-muted-foreground/50">(P{r.posFrom}{r.posTo > r.posFrom ? `–${r.posTo}` : ""})</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -822,7 +876,7 @@ export function Leagues() {
                         exit={{ opacity: 0 }}
                         transition={{ duration: 0.18 }}
                       >
-                        {tab === "standings" && <StandingsTab standings={detail?.standings ?? []} />}
+                        {tab === "standings" && <StandingsTab standings={detail?.standings ?? []} rulesJson={detail?.leagueRules} />}
                         {tab === "fixtures"  && <FixturesTab  leagueId={selectedId} />}
                         {tab === "players"   && <PlayersTab   playerStats={detail?.playerStats ?? []} />}
                         {tab === "supercup"  && <SuperCupTab  leagueId={selectedId} />}

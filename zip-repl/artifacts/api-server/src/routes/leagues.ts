@@ -187,6 +187,7 @@ router.get("/leagues/:id", async (req, res) => {
     playerStats,
     matchCount: matches.length,
     participantTeamIds,
+    leagueRules: league.leagueRules ?? null,
     createdAt: league.createdAt.toISOString(),
   });
 });

@@ -1,4 +1,5 @@
 import { pgTable, serial, text, boolean, timestamp, integer, jsonb } from "drizzle-orm/pg-core";
+import { playersTable } from "./players";
 
 export const cmsSettingsTable = pgTable("cms_settings", {
   id: serial("id").primaryKey(),
@@ -134,6 +135,18 @@ export const matchAnalysisTable = pgTable("match_analysis", {
 });
 
 export type MatchAnalysis = typeof matchAnalysisTable.$inferSelect;
+
+// ── Lineup Changes ────────────────────────────────────────────────────────────
+export const lineupChangesTable = pgTable("lineup_changes", {
+  id: serial("id").primaryKey(),
+  teamId: integer("team_id"),
+  inPlayerId: integer("in_player_id").references(() => playersTable.id, { onDelete: "cascade" }),
+  inPlayerName: text("in_player_name").notNull(),
+  outPlayerId: integer("out_player_id").references(() => playersTable.id, { onDelete: "set null" }),
+  outPlayerName: text("out_player_name"),
+  changedAt: timestamp("changed_at").defaultNow().notNull(),
+});
+export type LineupChange = typeof lineupChangesTable.$inferSelect;
 
 export type CmsSetting = typeof cmsSettingsTable.$inferSelect;
 export type CmsPost = typeof cmsPostsTable.$inferSelect;

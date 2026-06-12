@@ -6,6 +6,7 @@ import { Link } from "wouter";
 import {
   Users, Shield, Search, ChevronDown, Tag, Gamepad2, Star,
   Swords, TrendingUp, TrendingDown, Minus, Trophy, Flame, MessageCircle,
+  ArrowUp, ArrowDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -15,11 +16,15 @@ import { motion, AnimatePresence } from "framer-motion";
 interface TaglistPlayer {
   id: number; name: string; imageUrl: string | null; position: string | null;
   nationality: string | null; efootballId: string | null; rank: string | null; crewName: string | null;
-  whatsappNumber: string | null; status: string;
+  whatsappNumber: string | null; status: string; lineupRole: string | null;
+}
+interface LineupChange {
+  id: number; inPlayerId: number | null; inPlayerName: string;
+  outPlayerId: number | null; outPlayerName: string | null; changedAt: string;
 }
 interface TaglistTeam {
   id: number; name: string; logoUrl: string | null; leagueId: number | null;
-  playerCount: number; players: TaglistPlayer[];
+  playerCount: number; players: TaglistPlayer[]; recentChanges?: LineupChange[];
 }
 interface TaglistData { teams: TaglistTeam[]; freeAgents: TaglistPlayer[]; }
 
@@ -228,8 +233,59 @@ function PlayerRow({ player, index }: { player: TaglistPlayer; index: number }) 
   );
 }
 
+function LineupChangeStrip({ changes }: { changes: LineupChange[] }) {
+  if (!changes || changes.length === 0) return null;
+  return (
+    <div className="px-5 py-2.5 bg-primary/5 border-b border-primary/15 flex flex-wrap gap-3">
+      {changes.map(c => (
+        <div key={c.id} className="flex items-center gap-1.5 text-xs">
+          <ArrowUp className="w-3 h-3 text-green-400 shrink-0" />
+          <span className="font-bold text-green-400">{c.inPlayerName}</span>
+          {c.outPlayerName && (
+            <>
+              <span className="text-muted-foreground/50 text-[10px]">for</span>
+              <ArrowDown className="w-3 h-3 text-amber-400 shrink-0" />
+              <span className="font-bold text-amber-400">{c.outPlayerName}</span>
+            </>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PlayerRoster({ players, label, accent }: {
+  players: TaglistPlayer[]; label: string; accent: string;
+}) {
+  if (players.length === 0) return null;
+  return (
+    <div>
+      <div className={cn("flex items-center gap-2 px-5 py-2 border-b border-border/40", accent)}>
+        <span className="text-[9px] font-black uppercase tracking-[0.2em]">{label}</span>
+        <span className="text-[9px] opacity-60">({players.length})</span>
+      </div>
+      <div className="hidden sm:flex items-center gap-4 px-5 py-1.5 bg-secondary/20 border-b border-border/30">
+        <div className="w-10 shrink-0" />
+        <div className="flex-1 text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Player</div>
+        <div className="min-w-[110px] text-[9px] font-bold uppercase tracking-widest text-muted-foreground text-center">eFootball ID</div>
+        <div className="hidden md:block min-w-[80px] text-[9px] font-bold uppercase tracking-widest text-muted-foreground text-center">Rank</div>
+        <div className="hidden lg:block min-w-[90px] text-[9px] font-bold uppercase tracking-widest text-muted-foreground text-center">Nationality</div>
+        <div className="hidden xl:block min-w-[100px] text-[9px] font-bold uppercase tracking-widest text-muted-foreground text-center">Crew</div>
+        <div className="min-w-[44px]" />
+      </div>
+      {players.map((p, i) => <PlayerRow key={p.id} player={p} index={i} />)}
+    </div>
+  );
+}
+
 function TeamCard({ team, defaultOpen = false }: { team: TaglistTeam; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
+
+  const mainPlayers = team.players.filter(p => p.lineupRole === "main");
+  const benchPlayers = team.players.filter(p => p.lineupRole === "bench");
+  const unassigned = team.players.filter(p => !p.lineupRole);
+  const hasRoles = mainPlayers.length > 0 || benchPlayers.length > 0;
+
   return (
     <div className={cn("bg-card border rounded-2xl overflow-hidden transition-all duration-200", open ? "border-primary/30 shadow-lg shadow-primary/5" : "border-border hover:border-primary/20")}>
       <button onClick={() => setOpen(!open)} className="w-full flex items-center gap-4 p-5 text-left hover:bg-secondary/10 transition-colors">
@@ -238,15 +294,41 @@ function TeamCard({ team, defaultOpen = false }: { team: TaglistTeam; defaultOpe
         </div>
         <div className="flex-1 min-w-0">
           <div className="font-display font-bold uppercase text-lg leading-tight truncate">{team.name}</div>
-          <div className="text-sm text-muted-foreground">{team.playerCount} player{team.playerCount !== 1 ? "s" : ""}</div>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
+            <span>{team.playerCount} player{team.playerCount !== 1 ? "s" : ""}</span>
+            {mainPlayers.length > 0 && (
+              <span className="flex items-center gap-0.5 text-green-400 text-xs font-bold">
+                <ArrowUp className="w-3 h-3" />{mainPlayers.length} main
+              </span>
+            )}
+            {benchPlayers.length > 0 && (
+              <span className="flex items-center gap-0.5 text-amber-400 text-xs font-bold">
+                <ArrowDown className="w-3 h-3" />{benchPlayers.length} bench
+              </span>
+            )}
+          </div>
         </div>
         <div className={cn("transition-transform duration-200", open && "rotate-180")}><ChevronDown className="w-5 h-5 text-muted-foreground" /></div>
       </button>
+
       <AnimatePresence>
         {open && (
           <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
+            {/* Recent lineup changes */}
+            {team.recentChanges && team.recentChanges.length > 0 && (
+              <LineupChangeStrip changes={team.recentChanges} />
+            )}
+
             {team.players.length === 0 ? (
               <div className="px-5 py-6 text-center text-sm text-muted-foreground border-t border-border/60">No players registered for this team yet.</div>
+            ) : hasRoles ? (
+              <div className="border-t border-border/60 divide-y divide-border/30">
+                <PlayerRoster players={mainPlayers} label="Starting Lineup" accent="bg-green-500/5 text-green-400" />
+                <PlayerRoster players={benchPlayers} label="Bench" accent="bg-amber-500/5 text-amber-400" />
+                {unassigned.length > 0 && (
+                  <PlayerRoster players={unassigned} label="Unassigned" accent="bg-secondary/30 text-muted-foreground" />
+                )}
+              </div>
             ) : (
               <div className="border-t border-border/60">
                 <div className="hidden sm:flex items-center gap-4 px-5 py-2 bg-secondary/30 border-b border-border/40">

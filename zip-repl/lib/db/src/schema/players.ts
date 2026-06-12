@@ -26,6 +26,7 @@ export const playersTable = pgTable("players", {
   whatsappNumber: text("whatsapp_number"),
   status: text("status").default("active").notNull(),
   teamRole: text("team_role"),
+  lineupRole: text("lineup_role"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

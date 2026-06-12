@@ -5,12 +5,14 @@ import { getApiUrl } from "@/lib/api";
 import { format } from "date-fns";
 import {
   Sparkles, TrendingUp, Zap, Shield, AlertCircle, Star, Clock,
-  ChevronRight, Flame, Activity,
+  ChevronRight, Flame, Activity, Trophy, Swords,
 } from "lucide-react";
 
 interface Prediction {
   team1: string;
   team2: string;
+  competition?: string;
+  matchday?: string;
   predictedScore: string;
   winner: string;
   confidence: number;
@@ -75,6 +77,22 @@ function PredictionCard({ prediction, index }: { prediction: Prediction; index: 
       <div className={`h-1 w-full ${mood.bg.replace("bg-", "bg-").replace("/10", "/60")}`} />
 
       <div className="p-6 space-y-5">
+        {/* Competition badge */}
+        {prediction.competition && (
+          <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground bg-secondary/60 rounded-lg px-2.5 py-1.5 border border-border/60">
+            {prediction.competition.toLowerCase().includes("gcc")
+              ? <Swords className="w-3 h-3 shrink-0" />
+              : <Trophy className="w-3 h-3 shrink-0" />}
+            <span>{prediction.competition}</span>
+            {prediction.matchday && (
+              <>
+                <span className="text-muted-foreground/30 mx-0.5">·</span>
+                <span className="text-primary">{prediction.matchday}</span>
+              </>
+            )}
+          </div>
+        )}
+
         {/* Header row */}
         <div className="flex items-start justify-between gap-3">
           <MoodPill mood={prediction.mood} />

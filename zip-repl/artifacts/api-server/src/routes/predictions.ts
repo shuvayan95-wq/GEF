@@ -2,9 +2,10 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import {
   playersTable, teamsTable, matchesTable, playerMatchupsTable,
-  leaguesTable, aiPredictionsTable,
+  leaguesTable, aiPredictionsTable, leagueFixturesTable,
+  gccFixturesTable, gccTournamentsTable,
 } from "@workspace/db";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, inArray, and } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -51,49 +52,59 @@ router.get("/ai/predictions", async (_req, res) => {
   }
 });
 
-// POST /api/ai/predictions/generate — admin only: generate new predictions
+// POST /api/ai/predictions/generate — admin only
 router.post("/ai/predictions/generate", requireAdmin, async (req, res) => {
   try {
     const openai = await getOpenAI();
     if (!openai) return res.status(503).json({ error: "AI integration not configured" });
 
-    const [teams, players, allMatches, matchups, leagues] = await Promise.all([
+    // ── 1. Load all base data ─────────────────────────────────────────────────
+    const [teams, players, allMatches, matchups, leagues, gccTournaments] = await Promise.all([
       db.select().from(teamsTable),
       db.select().from(playersTable),
       db.select().from(matchesTable).orderBy(desc(matchesTable.createdAt)),
       db.select().from(playerMatchupsTable),
       db.select().from(leaguesTable).orderBy(desc(leaguesTable.createdAt)),
+      db.select().from(gccTournamentsTable).orderBy(desc(gccTournamentsTable.createdAt)),
     ]);
 
     const teamMap = new Map(teams.map(t => [t.id, t]));
-    const playerMap = new Map(players.map(p => [p.id, p]));
+    const leagueMap = new Map(leagues.map(l => [l.id, l]));
 
-    // Detect current season
-    const allSeasons = [
-      ...leagues.map(l => l.season),
-      ...allMatches.map(m => m.season),
-    ].filter(Boolean) as string[];
-    const currentSeason = allSeasons[0] ?? null;
+    // ── 2. Find upcoming league fixtures (status = "pending") ─────────────────
+    const pendingLeagueFixtures = await db
+      .select()
+      .from(leagueFixturesTable)
+      .where(eq(leagueFixturesTable.status, "pending"))
+      .orderBy(leagueFixturesTable.matchday, leagueFixturesTable.id);
 
-    const matches = currentSeason
-      ? allMatches.filter(m => m.season === currentSeason)
-      : allMatches.slice(0, 100);
+    // ── 3. Find upcoming GCC fixtures (played = false) ────────────────────────
+    const pendingGccFixtures = await db
+      .select()
+      .from(gccFixturesTable)
+      .where(eq(gccFixturesTable.played, false))
+      .orderBy(gccFixturesTable.id);
 
-    const matchIdSet = new Set(matches.map(m => m.id));
-    const currentMatchups = matchups.filter(mu => matchIdSet.has(mu.matchId));
+    // ── 4. Build team historical stats from ALL past matches ──────────────────
+    const teamStats: Record<number, {
+      w: number; l: number; d: number; gf: number; ga: number;
+      form: string[]; recentMatches: string[];
+    }> = {};
 
-    // Per-team stats
-    const teamStats: Record<number, { w: number; l: number; d: number; gf: number; ga: number; form: string[] }> = {};
     for (const t of teams) {
-      teamStats[t.id] = { w: 0, l: 0, d: 0, gf: 0, ga: 0, form: [] };
+      teamStats[t.id] = { w: 0, l: 0, d: 0, gf: 0, ga: 0, form: [], recentMatches: [] };
     }
-    for (const m of [...matches].reverse()) {
+
+    for (const m of [...allMatches].reverse()) {
       for (const id of [m.team1Id, m.team2Id]) {
-        if (!teamStats[id]) teamStats[id] = { w: 0, l: 0, d: 0, gf: 0, ga: 0, form: [] };
+        if (!teamStats[id]) teamStats[id] = { w: 0, l: 0, d: 0, gf: 0, ga: 0, form: [], recentMatches: [] };
       }
       const t1 = teamStats[m.team1Id], t2 = teamStats[m.team2Id];
+      const t1Name = teamMap.get(m.team1Id)?.name ?? "?";
+      const t2Name = teamMap.get(m.team2Id)?.name ?? "?";
       t1.gf += m.team1Score; t1.ga += m.team2Score;
       t2.gf += m.team2Score; t2.ga += m.team1Score;
+      const resultLine = `${t1Name} ${m.team1Score}-${m.team2Score} ${t2Name}`;
       if (m.team1Score > m.team2Score) {
         t1.w++; t2.l++;
         t1.form.push("W"); t2.form.push("L");
@@ -104,20 +115,22 @@ router.post("/ai/predictions/generate", requireAdmin, async (req, res) => {
         t1.d++; t2.d++;
         t1.form.push("D"); t2.form.push("D");
       }
+      t1.recentMatches.push(resultLine);
+      t2.recentMatches.push(resultLine);
     }
 
-    // Per-player goals and MVPs
+    // Per-player goals and MVPs (all time)
     const playerGoals: Record<number, number> = {};
     const playerMVPs: Record<number, number> = {};
-    for (const mu of currentMatchups) {
+    for (const mu of matchups) {
       playerGoals[mu.player1Id] = (playerGoals[mu.player1Id] ?? 0) + mu.player1Goals;
       playerGoals[mu.player2Id] = (playerGoals[mu.player2Id] ?? 0) + mu.player2Goals;
       if (mu.mvpPlayerId) playerMVPs[mu.mvpPlayerId] = (playerMVPs[mu.mvpPlayerId] ?? 0) + 1;
     }
 
-    // H2H records between teams
+    // H2H records
     const h2hMap: Record<string, { t1w: number; t2w: number; d: number }> = {};
-    for (const m of matches) {
+    for (const m of allMatches) {
       const key = [Math.min(m.team1Id, m.team2Id), Math.max(m.team1Id, m.team2Id)].join("-");
       if (!h2hMap[key]) h2hMap[key] = { t1w: 0, t2w: 0, d: 0 };
       const rec = h2hMap[key];
@@ -127,112 +140,143 @@ router.post("/ai/predictions/generate", requireAdmin, async (req, res) => {
       else rec.d++;
     }
 
-    // Build team context strings
-    const teamContext = teams.map(t => {
-      const s = teamStats[t.id] ?? { w: 0, l: 0, d: 0, gf: 0, ga: 0, form: [] };
+    // ── 5. Build team context string helper ───────────────────────────────────
+    function teamContextStr(teamId: number): string {
+      const t = teamMap.get(teamId);
+      if (!t) return "Unknown team";
+      const s = teamStats[teamId] ?? { w: 0, l: 0, d: 0, gf: 0, ga: 0, form: [], recentMatches: [] };
       const total = s.w + s.l + s.d;
-      if (!total) return null;
-      const wr = Math.round((s.w / total) * 100);
-      const recentForm = s.form.slice(-5).join(" ");
+      const wr = total > 0 ? Math.round((s.w / total) * 100) : 0;
+      const recentForm = s.form.slice(-5).join("");
+      const lastMatches = s.recentMatches.slice(-3).join(", ");
       const topPlayers = players
-        .filter(p => p.teamId === t.id)
+        .filter(p => p.teamId === teamId)
         .map(p => ({ name: p.name, goals: playerGoals[p.id] ?? 0, mvps: playerMVPs[p.id] ?? 0, ovr: p.cardOvr }))
         .sort((a, b) => b.goals - a.goals)
         .slice(0, 3)
-        .map(p => `${p.name} (${p.goals}g, ${p.mvps} MVPs${p.ovr ? `, OVR ${p.ovr}` : ""})`)
+        .map(p => `${p.name}(${p.goals}g,${p.mvps}MVP${p.ovr ? `,OVR${p.ovr}` : ""})`)
         .join(", ");
-      return `${t.name}: W${s.w} L${s.l} D${s.d} | GF${s.gf} GA${s.ga} GD${s.gf - s.ga} | WR${wr}% | Form: ${recentForm || "N/A"} | Key: ${topPlayers || "none"}`;
-    }).filter(Boolean).join("\n");
-
-    // Recent matches for context
-    const recentMatchesCtx = matches.slice(0, 20).map(m => {
-      const t1 = teamMap.get(m.team1Id)?.name ?? "?";
-      const t2 = teamMap.get(m.team2Id)?.name ?? "?";
-      return `${t1} ${m.team1Score}-${m.team2Score} ${t2}`;
-    }).join("\n");
-
-    // Pick ~6 interesting upcoming matchups (teams that have played each other before, or top teams)
-    const activeTeams = teams.filter(t => {
-      const s = teamStats[t.id];
-      return s && (s.w + s.l + s.d) > 0;
-    });
-
-    // Build pairs from recent opponents (last 10 unique pairings reversed for "next" feel)
-    const seenPairs = new Set<string>();
-    const suggestedMatchups: { team1: string; team2: string; t1id: number; t2id: number }[] = [];
-    for (const m of [...matches].slice(0, 30)) {
-      const key = [Math.min(m.team1Id, m.team2Id), Math.max(m.team1Id, m.team2Id)].join("-");
-      if (!seenPairs.has(key) && suggestedMatchups.length < 6) {
-        seenPairs.add(key);
-        const t1 = teamMap.get(m.team1Id)?.name;
-        const t2 = teamMap.get(m.team2Id)?.name;
-        if (t1 && t2) {
-          suggestedMatchups.push({ team1: t1, team2: t2, t1id: m.team1Id, t2id: m.team2Id });
-        }
-      }
+      return `${t.name}: ${total} games | W${s.w} D${s.d} L${s.l} | GF${s.gf} GA${s.ga} GD${s.gf - s.ga} | WR${wr}% | Form:${recentForm || "N/A"} | Recent:${lastMatches || "none"} | Players:${topPlayers || "none"}`;
     }
 
-    // If not enough pairs, pad with top teams vs each other
-    if (suggestedMatchups.length < 4 && activeTeams.length >= 2) {
-      const sorted = activeTeams.sort((a, b) => {
-        const sa = teamStats[a.id], sb = teamStats[b.id];
-        const ta = sa.w + sa.l + sa.d, tb = sb.w + sb.l + sb.d;
-        const wra = ta ? sa.w / ta : 0, wrb = tb ? sb.w / tb : 0;
-        return wrb - wra;
-      });
-      for (let i = 0; i < sorted.length - 1 && suggestedMatchups.length < 6; i++) {
-        const key = [Math.min(sorted[i].id, sorted[i + 1].id), Math.max(sorted[i].id, sorted[i + 1].id)].join("-");
-        if (!seenPairs.has(key)) {
-          seenPairs.add(key);
-          suggestedMatchups.push({ team1: sorted[i].name, team2: sorted[i + 1].name, t1id: sorted[i].id, t2id: sorted[i + 1].id });
-        }
-      }
-    }
-
-    const matchupsForPrompt = suggestedMatchups.map(mu => {
-      const key = [Math.min(mu.t1id, mu.t2id), Math.max(mu.t1id, mu.t2id)].join("-");
+    function h2hStr(id1: number, id2: number, name1: string, name2: string): string {
+      const key = [Math.min(id1, id2), Math.max(id1, id2)].join("-");
       const h2h = h2hMap[key];
-      const isNatural = mu.t1id < mu.t2id;
-      const t1w = h2h ? (isNatural ? h2h.t1w : h2h.t2w) : 0;
-      const t2w = h2h ? (isNatural ? h2h.t2w : h2h.t1w) : 0;
-      const d = h2h?.d ?? 0;
-      return `${mu.team1} vs ${mu.team2} | H2H: ${mu.team1} W${t1w} D${d} W${t2w} ${mu.team2}`;
-    }).join("\n");
+      if (!h2h) return "No H2H history";
+      const isNatural = id1 < id2;
+      const t1w = isNatural ? h2h.t1w : h2h.t2w;
+      const t2w = isNatural ? h2h.t2w : h2h.t1w;
+      return `H2H: ${name1} W${t1w} - D${h2h.d} - W${t2w} ${name2}`;
+    }
 
-    const prompt = `You are the GEF Oracle — the legendary AI predictor for the Global eFootball Federation. You combine deep statistical analysis with sharp banter to predict upcoming matches. Your predictions are bold, specific, and entertaining.
+    // ── 6. Collect upcoming fixtures to predict (max 8 total) ────────────────
+    interface FixtureToPredict {
+      homeId: number; awayId: number;
+      homeName: string; awayName: string;
+      competition: string; matchday: string;
+      scheduledDate: string | null;
+    }
+
+    const fixturesToPredict: FixtureToPredict[] = [];
+    const seenPairs = new Set<string>();
+
+    // League fixtures first (earliest matchday pending)
+    for (const f of pendingLeagueFixtures) {
+      if (fixturesToPredict.length >= 7) break;
+      const pairKey = [Math.min(f.homeTeamId, f.awayTeamId), Math.max(f.homeTeamId, f.awayTeamId)].join("-");
+      if (seenPairs.has(pairKey)) continue;
+      const home = teamMap.get(f.homeTeamId);
+      const away = teamMap.get(f.awayTeamId);
+      if (!home || !away) continue;
+      const league = leagueMap.get(f.leagueId);
+      const leagueName = league ? `${league.name}${league.season ? ` S${league.season}` : ""}` : "League";
+      seenPairs.add(pairKey);
+      fixturesToPredict.push({
+        homeId: f.homeTeamId,
+        awayId: f.awayTeamId,
+        homeName: home.name,
+        awayName: away.name,
+        competition: leagueName,
+        matchday: `Matchday ${f.matchday}`,
+        scheduledDate: f.scheduledDate ?? null,
+      });
+    }
+
+    // GCC fixtures next
+    for (const f of pendingGccFixtures) {
+      if (fixturesToPredict.length >= 9) break;
+      const pairKey = [Math.min(f.homeTeamId, f.awayTeamId), Math.max(f.homeTeamId, f.awayTeamId)].join("-");
+      if (seenPairs.has(pairKey)) continue;
+      const home = teamMap.get(f.homeTeamId);
+      const away = teamMap.get(f.awayTeamId);
+      if (!home || !away) continue;
+      const tournament = gccTournaments.find(t => t.id === f.tournamentId);
+      const tournamentName = tournament ? `GCC ${tournament.name}${tournament.season ? ` S${tournament.season}` : ""}` : "GCC";
+      const stageLabel = f.stage === "league" ? `Round ${f.round}` : f.stage.toUpperCase();
+      seenPairs.add(pairKey);
+      fixturesToPredict.push({
+        homeId: f.homeTeamId,
+        awayId: f.awayTeamId,
+        homeName: home.name,
+        awayName: away.name,
+        competition: tournamentName,
+        matchday: stageLabel,
+        scheduledDate: f.scheduledDate ?? null,
+      });
+    }
+
+    // Fallback: if no scheduled fixtures found at all, tell AI there's nothing to predict
+    if (fixturesToPredict.length === 0) {
+      return res.json({
+        predictions: [],
+        generatedAt: new Date().toISOString(),
+        message: "No upcoming fixtures found. Generate a fixture schedule in the admin panel first.",
+      });
+    }
+
+    // ── 7. Build the prompt ───────────────────────────────────────────────────
+    const fixtureBlocks = fixturesToPredict.map((f, i) => {
+      const dateStr = f.scheduledDate ? ` | Date: ${f.scheduledDate}` : "";
+      return [
+        `--- FIXTURE ${i + 1}: ${f.competition} — ${f.matchday}${dateStr} ---`,
+        `HOME: ${teamContextStr(f.homeId)}`,
+        `AWAY: ${teamContextStr(f.awayId)}`,
+        h2hStr(f.homeId, f.awayId, f.homeName, f.awayName),
+      ].join("\n");
+    }).join("\n\n");
+
+    const prompt = `You are the GEF Oracle — the legendary AI predictor for the Global eFootball Federation. You analyse real historical stats to predict UPCOMING scheduled matches. Your predictions are bold, specific, and entertaining.
 
 YOUR RULES:
+- These are REAL UPCOMING fixtures — predict each one specifically.
 - Base ALL predictions strictly on the stats provided. Never invent scores or stats.
 - Each prediction needs a confidence % (50–95%) based on form, H2H, and GD.
 - Give an exact predicted scoreline (e.g. 3-1, 2-2).
-- Pick a "Star Player to Watch" for each match — a real player from the team data.
-- "Analysis" section: 2 sentences using real data (win rates, form, GD).
-- "Banter" section: 1 sentence of sharp, witty commentary — like a football pundit having fun.
-- "Verdict": 1 short sentence naming the predicted winner and why.
-- Vary the outcomes — don't make every match a home win.
+- Pick a "Star Player to Watch" — a real player from the team data.
+- "analysis": 2 sentences using real data (win rates, form, GD, H2H).
+- "banter": 1 sentence of sharp, witty commentary — like a football pundit.
+- "verdict": 1 short sentence naming the predicted winner and why.
+- Include the "competition" and "matchday" fields EXACTLY as provided below.
+- Vary the outcomes — not every match is a home win.
 
-=== TEAM STATS (Current Season: ${currentSeason ?? "All time"}) ===
-${teamContext || "Limited data"}
+=== UPCOMING FIXTURES TO PREDICT ===
+${fixtureBlocks}
 
-=== RECENT RESULTS ===
-${recentMatchesCtx || "No recent matches"}
-
-=== MATCHUPS TO PREDICT ===
-${matchupsForPrompt || "Generate predictions for the top 4 teams based on the data"}
-
-Predict ALL ${suggestedMatchups.length || 4} matchups above.
+Predict ALL ${fixturesToPredict.length} fixtures above.
 
 Return ONLY valid JSON, no markdown:
 {
   "predictions": [
     {
-      "team1": "Team Name",
-      "team2": "Team Name",
+      "team1": "Home Team Name",
+      "team2": "Away Team Name",
+      "competition": "exact competition string from above",
+      "matchday": "exact matchday string from above",
       "predictedScore": "2-1",
-      "winner": "Team Name",
+      "winner": "Team Name or Draw",
       "confidence": 78,
       "starPlayer": "Player Name (Team)",
-      "analysis": "2 sentence data-driven analysis citing real stats.",
+      "analysis": "2 sentence data-driven analysis.",
       "banter": "1 sentence pundit-style banter.",
       "verdict": "1 sentence prediction verdict.",
       "mood": "BANGER" | "TIGHT" | "UPSET" | "ROUTINE"
@@ -244,7 +288,7 @@ MOOD guide: BANGER = high-scoring expected, TIGHT = close match, UPSET = underdo
 
     const response = await openai.chat.completions.create({
       model: "llama-3.3-70b-versatile",
-      max_tokens: 3000,
+      max_tokens: 4000,
       response_format: { type: "json_object" },
       messages: [{ role: "user", content: prompt }],
     });
@@ -254,7 +298,6 @@ MOOD guide: BANGER = high-scoring expected, TIGHT = close match, UPSET = underdo
     try { parsed = JSON.parse(raw); } catch { parsed = { predictions: [] }; }
     const predictions = parsed.predictions ?? [];
 
-    // Unpublish old, insert new
     await db.update(aiPredictionsTable).set({ isPublished: false }).where(eq(aiPredictionsTable.isPublished, true));
     await db.insert(aiPredictionsTable).values({ predictions, isPublished: true });
 

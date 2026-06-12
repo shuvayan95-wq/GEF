@@ -887,54 +887,90 @@ router.post("/ai/match-analysis/generate", requireAdmin, async (req, res) => {
       ? `Super Cup Leg ${match.superCupLeg ?? "?"}`
       : match.matchType === "friendly" ? "Friendly" : "League";
 
+    // Fetch head-to-head history and recent form for both teams
+    const recentAllMatches = await db.select().from(matchesTable).orderBy(desc(matchesTable.date)).limit(30);
+    const h2h = recentAllMatches.filter(
+      m => m.id !== matchId &&
+        ((m.team1Id === match.team1Id && m.team2Id === match.team2Id) ||
+         (m.team1Id === match.team2Id && m.team2Id === match.team1Id))
+    ).slice(0, 5);
+    const t1Recent = recentAllMatches.filter(
+      m => m.id !== matchId && (m.team1Id === match.team1Id || m.team2Id === match.team1Id)
+    ).slice(0, 5);
+    const t2Recent = recentAllMatches.filter(
+      m => m.id !== matchId && (m.team1Id === match.team2Id || m.team2Id === match.team2Id)
+    ).slice(0, 5);
+
+    const fmtH2H = (m: any) => {
+      const isNorm = m.team1Id === match.team1Id;
+      const s1 = isNorm ? m.team1Score : m.team2Score;
+      const s2 = isNorm ? m.team2Score : m.team1Score;
+      const d = m.date ? new Date(m.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "?";
+      return `  ${d}: ${t1?.name} ${s1}-${s2} ${t2?.name} (${s1 > s2 ? t1?.name : s2 > s1 ? t2?.name : "Draw"})`;
+    };
+    const fmtForm = (m: any, teamId: number) => {
+      const isT1 = m.team1Id === teamId;
+      const gs = isT1 ? m.team1Score : m.team2Score;
+      const gc = isT1 ? m.team2Score : m.team1Score;
+      const d = m.date ? new Date(m.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "?";
+      return `${d}: ${gs > gc ? "W" : gc > gs ? "L" : "D"} ${gs}-${gc}`;
+    };
+
+    const historyText = h2h.length > 0
+      ? `HEAD-TO-HEAD (last ${h2h.length} meetings):\n${h2h.map(fmtH2H).join("\n")}`
+      : "HEAD-TO-HEAD: First recorded meeting between these sides.";
+    const t1FormText = t1Recent.length > 0 ? `${t1?.name} recent form: ${t1Recent.map(m => fmtForm(m, match.team1Id)).join(" | ")}` : "";
+    const t2FormText = t2Recent.length > 0 ? `${t2?.name} recent form: ${t2Recent.map(m => fmtForm(m, match.team2Id)).join(" | ")}` : "";
+
     const matchupsText = matchupsEnriched.map((m, i) => {
       const note = matchupInputs[i]?.notes ?? "";
       return `  Game ${i + 1}: ${m.player1Name} ${m.player1Goals}-${m.player2Goals} ${m.player2Name}${m.mvpName ? ` (MVP: ${m.mvpName})` : ""}${note ? `\n    Notes: "${note}"` : ""}`;
     }).join("\n");
 
-    const textPrompt = `You are the GEF MATCH ANALYST — a ruthlessly honest, data-driven sports analyst covering the Global eFootball Federation. Your voice is equal parts Roy Keane, Gary Neville, and a forensic data journalist. You are entertaining, specific, and never diplomatic.
+    const p1name0 = matchupsEnriched[0]?.player1Name ?? "P1";
+    const p2name0 = matchupsEnriched[0]?.player2Name ?? "P2";
+    const nGames = matchupsEnriched.length;
+    const t1name = t1?.name ?? "Team 1";
+    const t2name = t2?.name ?? "Team 2";
+    const matchDate = match.date ? new Date(match.date).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "Unknown";
+    const resultStr = match.team1Score > match.team2Score ? t1name + " WIN" : match.team2Score > match.team1Score ? t2name + " WIN" : "DRAW";
+
+    const textPrompt = `You are the GEF MATCH ANALYST writing a newspaper match report for the Global eFootball Federation. Your voice is Roy Keane's brutal honesty meets The Athletic's tactical depth meets tabloid roast energy. Write like a journalist, not a data machine.
 
 MATCH DATA:
-Date: ${match.date ? new Date(match.date).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "Unknown"}
+Date: ${matchDate}
 Competition: ${matchTypeLabel}
-${t1?.name ?? "Team 1"} ${match.team1Score} — ${match.team2Score} ${t2?.name ?? "Team 2"}
-Result: ${match.team1Score > match.team2Score ? `${t1?.name} WIN` : match.team2Score > match.team1Score ? `${t2?.name} WIN` : "DRAW"}
+${t1name} ${match.team1Score} — ${match.team2Score} ${t2name}
+Result: ${resultStr}
 
 INDIVIDUAL GAME MATCHUPS (5 games, each player controls one player):
 ${matchupsText}
 
-${contextNotes ? `ADMIN CONTEXT & LORE:\n${contextNotes}` : ""}
+${historyText}
+${t1FormText}
+${t2FormText}
+${contextNotes ? "LORE/CONTEXT:\n" + contextNotes : ""}
 
-Generate a comprehensive post-match analysis report. Return ONLY valid JSON (no markdown, no code fences):
+Return ONLY valid JSON with no markdown or code fences:
 
 {
-  "title": "Short match title",
-  "headline": "ALL CAPS PUNCHY NEWSPAPER-STYLE HEADLINE",
+  "headline": "ALL CAPS NEWSPAPER HEADLINE — make it dramatic and punchy",
+  "subheadline": "One-line subheading with a cutting insight or extra context",
   "tone": "DOMINANT_WIN|TIGHT_BATTLE|SHOCK_UPSET|ROUTINE",
-  "openingStatement": "2-3 sentence punchy opening about what this match meant",
-  "team1Report": {
-    "name": "${t1?.name ?? "Team 1"}",
-    "overallRating": 0,
-    "verdict": "2-3 sentence team performance verdict",
-    "highlights": ["strength 1", "strength 2"],
-    "concerns": ["concern 1"]
-  },
-  "team2Report": {
-    "name": "${t2?.name ?? "Team 2"}",
-    "overallRating": 0,
-    "verdict": "2-3 sentence team performance verdict",
-    "highlights": [],
-    "concerns": []
-  },
+  "mvpOfTheMatch": "player name",
+  "team1Rating": 0,
+  "team2Rating": 0,
+  "fullArticle": "WRITE 5-6 PARAGRAPHS OF FLOWING NEWSPAPER PROSE separated by actual newlines. Para 1: punchy lede — the result, the drama, what it means. Para 2: the winners broken down — which games, which players, why they won, tactical reasons. Para 3: the losers — what went wrong, who underperformed, reference their recent form. Para 4: standout individual battles from the 5 matchups — who stepped up, who bottled it. Para 5: historical context from h2h data, what this result means for both sides going forward. Para 6 optional: next steps and advice. NO bullet points, NO headers. Name actual players. Reference actual game scores from the matchup data.",
+  "pullQuote": "ONE unforgettable quotable sentence from the article — the kind blown up huge on the page",
+  "roast": "3-5 sentences savage roast of the worst performer or losing team. Name names, cite exact game scores. Be specific and brutal. No diplomacy.",
   "matchupBreakdowns": [
     {
       "game": 1,
-      "player1Name": "${matchupsEnriched[0]?.player1Name ?? "P1"}",
-      "player2Name": "${matchupsEnriched[0]?.player2Name ?? "P2"}",
+      "player1Name": "${p1name0}",
+      "player2Name": "${p2name0}",
       "score": "X-Y",
-      "winnerName": "name of winner or DRAW",
-      "analysis": "2-3 sentence breakdown of this individual matchup",
-      "keyInsight": "one punchy tactical or technical insight",
+      "winnerName": "winner name or DRAW",
+      "verdict": "One punchy sentence verdict on this game",
       "player1Rating": 0,
       "player2Rating": 0,
       "possessionTeam1": 50,
@@ -943,33 +979,20 @@ Generate a comprehensive post-match analysis report. Return ONLY valid JSON (no 
       "shotsTeam2": 0
     }
   ],
-  "keyTurningPoints": ["turning point 1", "turning point 2"],
-  "verdict": "3-4 sentence overall verdict on the match",
-  "roast": "A devastating, specific, stats-backed roast of whoever performed poorly",
-  "mvpOfTheMatch": "player name",
-  "finalCall": "One punchy final sentence — the definitive verdict",
-  "nextMatchAdvice": {
-    "team1": ["tactical advice 1", "player advice 2"],
-    "team2": ["tactical advice 1", "player advice 2"]
-  },
+  "finalCall": "The definitive last line — one memorable sentence",
   "chartData": {
-    "goalsPerGame": [
-      {"game": "G1", "player1": "name", "player2": "name", "team1Goals": 0, "team2Goals": 0}
-    ],
-    "playerRatings": [
-      {"name": "player", "rating": 0, "goals": 0, "side": "team1"}
-    ]
+    "goalsPerGame": [{"game": "G1", "player1": "name", "player2": "name", "team1Goals": 0, "team2Goals": 0}],
+    "playerRatings": [{"name": "player", "rating": 0, "goals": 0, "side": "team1"}]
   }
 }
 
 RULES:
-- ALL numbers must come from the match data provided. Never invent scores.
-- matchupBreakdowns must cover ALL ${matchupsEnriched.length} games.
-- chartData.goalsPerGame must have exactly ${matchupsEnriched.length} entries matching the matchups.
-- If screenshot notes describe possession/shots data, extract those exact numbers into possessionTeam1/2 and shotsTeam1/2.
-- Ratings 1-10. A perfect performance = 10. An embarrassing performance = 1-3.
-- The roast must cite specific stats and be genuinely devastating — not diplomatic.
-- Be entertaining but grounded in the actual match data.`;
+- All scores from match data only. Never invent numbers.
+- matchupBreakdowns must cover ALL ${nGames} games in order.
+- chartData.goalsPerGame must have exactly ${nGames} entries matching the matchups.
+- fullArticle must be flowing prose paragraphs — ONE article, not sections.
+- roast must cite specific player names and actual scores from the matchups above.
+- Use h2h history and form data when writing the article body.`;
 
     // Build message content (add images if vision is supported)
     const messageContent: any[] = supportsVision ? [] : [{ type: "text", text: textPrompt }];

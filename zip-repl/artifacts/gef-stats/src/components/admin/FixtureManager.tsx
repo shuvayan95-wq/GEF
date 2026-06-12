@@ -435,6 +435,8 @@ function FixtureRow({
 
 // ─── Result Form ───────────────────────────────────────────────────────────────
 
+const EMPTY_MATCHUP = () => ({ p1: "", p2: "", s1: 0, s2: 0, mvp: "" });
+
 function ResultForm({
   fixture, allPlayers, onCancel, onSuccess,
 }: {
@@ -447,40 +449,58 @@ function ResultForm({
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
-  const [matchups, setMatchups] = useState<any[]>([]);
+  // Start with 5 pre-filled empty rows, exactly like ManageMatches
+  const [matchups, setMatchups] = useState<any[]>([
+    EMPTY_MATCHUP(), EMPTY_MATCHUP(), EMPTY_MATCHUP(), EMPTY_MATCHUP(), EMPTY_MATCHUP(),
+  ]);
 
   const homePlayers = allPlayers.filter((p: any) => p.teamId === fixture.homeTeamId);
   const awayPlayers = allPlayers.filter((p: any) => p.teamId === fixture.awayTeamId);
-  const homeOpts = [{ label: "— Player —", value: "" }, ...homePlayers.map((p: any) => ({ label: p.name, value: p.id }))];
-  const awayOpts = [{ label: "— Player —", value: "" }, ...awayPlayers.map((p: any) => ({ label: p.name, value: p.id }))];
 
+  const homeOpts = [
+    { label: `— ${fixture.homeTeamName} player —`, value: "" },
+    ...homePlayers.map((p: any) => ({ label: p.name, value: p.id })),
+  ];
+  const awayOpts = [
+    { label: `— ${fixture.awayTeamName} player —`, value: "" },
+    ...awayPlayers.map((p: any) => ({ label: p.name, value: p.id })),
+  ];
+
+  // Scores auto-sum from matchup individual scores
   const totalHome = matchups.reduce((s, m) => s + (Number(m.s1) || 0), 0);
   const totalAway = matchups.reduce((s, m) => s + (Number(m.s2) || 0), 0);
 
-  const addMatchup = () => {
-    if (matchups.length >= 5) return;
-    setMatchups(p => [...p, { p1: "", p2: "", s1: 0, s2: 0, mvp: "" }]);
+  const updateM = (idx: number, field: string, val: any) => {
+    setMatchups(prev => {
+      const n = [...prev];
+      n[idx] = { ...n[idx], [field]: val };
+      // Reset MVP if the referenced player changes
+      if (field === "p1" || field === "p2") n[idx].mvp = "";
+      return n;
+    });
   };
 
-  const updateM = (idx: number, field: string, val: any) => {
-    setMatchups(prev => { const n = [...prev]; n[idx] = { ...n[idx], [field]: val }; return n; });
-  };
+  const removeM = (idx: number) => setMatchups(prev => prev.filter((_, j) => j !== idx));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const validMatchups = matchups.filter(m => m.p1 && m.p2);
+    if (validMatchups.length === 0) {
+      return toast({ variant: "destructive", title: "Add at least one player matchup" });
+    }
     setSaving(true);
     try {
       const payload = {
         date: new Date(date).toISOString(),
         homeScore: totalHome,
         awayScore: totalAway,
-        playerMatchups: matchups.map(m => ({
+        playerMatchups: validMatchups.map(m => ({
           player1Id: Number(m.p1),
           player2Id: Number(m.p2),
           player1Goals: Number(m.s1),
           player2Goals: Number(m.s2),
           mvpPlayerId: m.mvp ? Number(m.mvp) : null,
-        })).filter(m => m.player1Id && m.player2Id),
+        })),
       };
       const r = await fetch(getApiUrl(`/api/fixture-schedule/${fixture.id}/result`), {
         method: "PATCH",
@@ -497,78 +517,148 @@ function ResultForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-bold uppercase tracking-widest text-primary">Enter Result</p>
-        <div className="flex items-center gap-2">
-          <span className="font-display font-black text-primary text-lg">{totalHome} – {totalAway}</span>
-          <label className="text-xs text-muted-foreground">Auto-sum from matchups</label>
+    <form onSubmit={handleSubmit} className="p-4 space-y-4">
+
+      {/* Team vs Team header with live score */}
+      <div className="grid grid-cols-[1fr_auto_1fr] gap-3 items-center bg-card border border-border rounded-xl p-4">
+        {/* Home */}
+        <div className="flex flex-col items-center gap-1 text-center min-w-0">
+          {fixture.homeTeamLogoUrl
+            ? <img src={fixture.homeTeamLogoUrl} className="w-10 h-10 object-contain rounded" />
+            : <div className="w-10 h-10 rounded bg-secondary flex items-center justify-center"><Shield className="w-5 h-5 text-muted-foreground" /></div>
+          }
+          <span className="text-xs font-black uppercase tracking-wide text-primary truncate max-w-full">{fixture.homeTeamName}</span>
+          <span className="text-xs text-muted-foreground">Home</span>
+        </div>
+
+        {/* Live score */}
+        <div className="flex flex-col items-center gap-0.5 shrink-0 px-2">
+          <div className="flex items-center gap-2">
+            <span className="font-display font-black text-3xl text-primary tabular-nums">{totalHome}</span>
+            <span className="text-muted-foreground/50 font-bold text-lg">–</span>
+            <span className="font-display font-black text-3xl text-primary tabular-nums">{totalAway}</span>
+          </div>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Auto-sum</span>
+        </div>
+
+        {/* Away */}
+        <div className="flex flex-col items-center gap-1 text-center min-w-0">
+          {fixture.awayTeamLogoUrl
+            ? <img src={fixture.awayTeamLogoUrl} className="w-10 h-10 object-contain rounded" />
+            : <div className="w-10 h-10 rounded bg-secondary flex items-center justify-center"><Shield className="w-5 h-5 text-muted-foreground" /></div>
+          }
+          <span className="text-xs font-black uppercase tracking-wide text-accent truncate max-w-full">{fixture.awayTeamName}</span>
+          <span className="text-xs text-muted-foreground">Away</span>
         </div>
       </div>
 
+      {/* Date */}
       <div>
-        <label className="text-xs font-bold uppercase text-muted-foreground mb-1 block">Date</label>
-        <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="max-w-[180px]" />
+        <label className="text-xs font-bold uppercase text-muted-foreground mb-1 block">Match Date</label>
+        <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="max-w-[200px]" />
       </div>
 
-      {/* Matchups */}
+      {/* Player Matchups — same layout as ManageMatches */}
       <div>
-        <div className="flex items-center justify-between mb-2">
-          <label className="text-xs font-bold uppercase">Player Matchups ({matchups.length}/5)</label>
-          <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={addMatchup} disabled={matchups.length >= 5}>
+        <div className="flex items-center justify-between mb-3">
+          <label className="text-sm font-bold uppercase text-foreground">
+            Individual Matchups ({matchups.filter(m => m.p1 && m.p2).length}/5)
+          </label>
+          <Button
+            type="button" variant="outline" size="sm" className="h-7 text-xs gap-1"
+            onClick={() => setMatchups(p => p.length < 5 ? [...p, EMPTY_MATCHUP()] : p)}
+            disabled={matchups.length >= 5}
+          >
             <Plus className="w-3 h-3" /> Add Game
           </Button>
         </div>
 
-        {matchups.length === 0 && (
-          <p className="text-xs text-muted-foreground italic bg-secondary/20 rounded-lg p-3 border border-border">
-            No matchups added — score will be 0–0. Add player games above.
-          </p>
-        )}
-
-        <div className="space-y-2">
+        <div className="space-y-3">
           {matchups.map((m, i) => (
-            <div key={i} className="grid grid-cols-[1fr_auto_1fr_auto_auto] gap-2 items-center bg-secondary/30 p-2 rounded border border-border text-sm">
-              <Select
-                required value={m.p1}
-                onChange={e => updateM(i, "p1", e.target.value)}
-                options={homeOpts}
-              />
-              <div className="flex items-center gap-1 shrink-0">
-                <Input type="number" min={0} value={m.s1} onChange={e => updateM(i, "s1", e.target.value)} className="w-12 text-center h-8 p-1" />
-                <span className="text-muted-foreground text-xs">–</span>
-                <Input type="number" min={0} value={m.s2} onChange={e => updateM(i, "s2", e.target.value)} className="w-12 text-center h-8 p-1" />
+            <div
+              key={i}
+              className="flex flex-col md:flex-row gap-2 items-stretch md:items-center bg-secondary/30 p-3 rounded-lg border border-border"
+            >
+              {/* Home player */}
+              <div className="flex-1 min-w-0">
+                <label className="text-xs font-bold uppercase text-primary mb-1 block">
+                  {fixture.homeTeamName}
+                </label>
+                <Select
+                  value={m.p1}
+                  onChange={e => updateM(i, "p1", e.target.value)}
+                  options={homeOpts}
+                />
               </div>
-              <Select
-                required value={m.p2}
-                onChange={e => updateM(i, "p2", e.target.value)}
-                options={awayOpts}
-              />
-              <Select
-                value={m.mvp}
-                onChange={e => updateM(i, "mvp", e.target.value)}
-                options={[
-                  { label: "MVP?", value: "" },
-                  ...(m.p1 ? [{ label: allPlayers.find((p: any) => p.id === Number(m.p1))?.name ?? "P1 MVP", value: m.p1 }] : []),
-                  ...(m.p2 ? [{ label: allPlayers.find((p: any) => p.id === Number(m.p2))?.name ?? "P2 MVP", value: m.p2 }] : []),
-                ]}
-                className="w-24"
-              />
-              <button type="button" onClick={() => setMatchups(prev => prev.filter((_, j) => j !== i))} className="text-destructive hover:bg-destructive/10 p-1 rounded shrink-0">
-                <X className="w-3.5 h-3.5" />
+
+              {/* Scores */}
+              <div className="flex flex-col items-center gap-1 shrink-0 mx-1">
+                <Input
+                  type="number" min={0} value={m.s1}
+                  onChange={e => updateM(i, "s1", e.target.value)}
+                  className="w-16 text-center font-bold"
+                />
+                <span className="text-muted-foreground text-xs font-bold">—</span>
+                <Input
+                  type="number" min={0} value={m.s2}
+                  onChange={e => updateM(i, "s2", e.target.value)}
+                  className="w-16 text-center font-bold"
+                />
+              </div>
+
+              {/* Away player */}
+              <div className="flex-1 min-w-0">
+                <label className="text-xs font-bold uppercase text-accent mb-1 block">
+                  {fixture.awayTeamName}
+                </label>
+                <Select
+                  value={m.p2}
+                  onChange={e => updateM(i, "p2", e.target.value)}
+                  options={awayOpts}
+                />
+              </div>
+
+              {/* MVP */}
+              <div className="w-full md:w-36 shrink-0">
+                <label className="text-xs font-bold uppercase text-muted-foreground mb-1 block">MVP</label>
+                <Select
+                  value={m.mvp}
+                  onChange={e => updateM(i, "mvp", e.target.value)}
+                  options={[
+                    { label: "No MVP", value: "" },
+                    ...(m.p1 ? [{
+                      label: allPlayers.find((p: any) => p.id === Number(m.p1))?.name ?? "Home Player",
+                      value: m.p1,
+                    }] : []),
+                    ...(m.p2 ? [{
+                      label: allPlayers.find((p: any) => p.id === Number(m.p2))?.name ?? "Away Player",
+                      value: m.p2,
+                    }] : []),
+                  ]}
+                />
+              </div>
+
+              {/* Remove */}
+              <button
+                type="button"
+                onClick={() => removeM(i)}
+                className="text-destructive hover:bg-destructive/10 p-2 rounded self-end md:self-center shrink-0 mt-auto md:mt-5"
+              >
+                <X className="w-4 h-4" />
               </button>
             </div>
           ))}
         </div>
       </div>
 
-      <div className="flex gap-2 pt-1">
+      {/* Actions */}
+      <div className="flex gap-2 pt-1 border-t border-border">
         <Button type="button" variant="ghost" size="sm" onClick={onCancel} className="gap-1">
           <X className="w-3.5 h-3.5" /> Cancel
         </Button>
-        <Button type="submit" variant="gaming" size="sm" className="flex-1 gap-1" disabled={saving}>
-          {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-          Save Result
+        <Button type="submit" variant="gaming" size="sm" className="flex-1 gap-1 h-10" disabled={saving}>
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+          Save Result — {totalHome} : {totalAway}
         </Button>
       </div>
     </form>

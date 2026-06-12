@@ -114,6 +114,22 @@ function useLeagueFixtures(id: number | null) {
   });
 }
 
+interface ScheduledFixture {
+  id: number; matchday: number;
+  homeTeamId: number; homeTeamName: string; homeTeamLogoUrl: string | null;
+  awayTeamId: number; awayTeamName: string; awayTeamLogoUrl: string | null;
+  scheduledDate: string | null; matchId: number | null; status: string;
+  homeScore: number | null; awayScore: number | null;
+}
+
+function useLeagueSchedule(id: number | null) {
+  return useQuery<ScheduledFixture[]>({
+    queryKey: ["/api/leagues", id, "fixture-schedule"],
+    queryFn: () => fetch(getApiUrl(`/api/leagues/${id}/fixture-schedule`), { credentials: "include" }).then(r => r.json()),
+    enabled: id !== null,
+  });
+}
+
 interface SuperCupMatchData {
   id: number; date: string; superCupLeg: number | null;
   team1Id: number; team2Id: number;
@@ -628,9 +644,142 @@ function PlayersTab({ playerStats }: { playerStats: PlayerStatRow[] }) {
   );
 }
 
+// ── Schedule Tab ──────────────────────────────────────────────────────────────
+
+function ScheduleTab({ leagueId }: { leagueId: number }) {
+  const { data: fixtures = [], isLoading } = useLeagueSchedule(leagueId);
+
+  if (isLoading)
+    return (
+      <div className="p-8 space-y-3">
+        {[1,2,3,4].map(i => <div key={i} className="h-16 bg-secondary/30 rounded-xl animate-pulse" />)}
+      </div>
+    );
+
+  if (fixtures.length === 0)
+    return (
+      <div className="py-16 text-center text-muted-foreground">
+        <Calendar className="w-10 h-10 mx-auto mb-3 opacity-20" />
+        <p className="font-display uppercase">No schedule generated yet</p>
+        <p className="text-sm mt-1">Generate a fixture schedule from the Admin panel.</p>
+      </div>
+    );
+
+  // Group by matchday
+  const byMatchday = new Map<number, ScheduledFixture[]>();
+  for (const f of fixtures) {
+    if (!byMatchday.has(f.matchday)) byMatchday.set(f.matchday, []);
+    byMatchday.get(f.matchday)!.push(f);
+  }
+  const matchdays = Array.from(byMatchday.entries()).sort((a, b) => a[0] - b[0]);
+
+  const now = new Date();
+
+  return (
+    <div className="divide-y divide-border/40">
+      {matchdays.map(([md, rows]) => {
+        const allPlayed = rows.every(r => r.status === "played");
+        const hasDate = rows.some(r => r.scheduledDate);
+        const firstDate = rows.find(r => r.scheduledDate)?.scheduledDate;
+        const isPast = firstDate ? new Date(firstDate) < now : false;
+
+        return (
+          <div key={md}>
+            {/* Matchday header */}
+            <div className={cn(
+              "flex items-center justify-between px-5 py-2.5 bg-secondary/20 border-b border-border/40",
+              allPlayed && "opacity-60"
+            )}>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-primary">Matchday {md}</span>
+                {allPlayed && (
+                  <span className="text-[9px] font-bold uppercase tracking-wide text-green-400 bg-green-400/10 px-1.5 py-0.5 rounded-full">Completed</span>
+                )}
+              </div>
+              {firstDate && (
+                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                  <Calendar className="w-3 h-3" />
+                  <span>{format(new Date(firstDate), "MMM d, yyyy")}</span>
+                  {!allPlayed && !isPast && (
+                    <span className="ml-1 text-primary font-bold">Upcoming</span>
+                  )}
+                </div>
+              )}
+              {!hasDate && !allPlayed && (
+                <span className="text-[10px] text-muted-foreground/50 italic">Date TBD</span>
+              )}
+            </div>
+
+            {/* Fixture rows */}
+            <div className="divide-y divide-border/20">
+              {rows.map((f, i) => {
+                const played = f.status === "played";
+                const hWin = played && f.homeScore != null && f.awayScore != null && f.homeScore > f.awayScore;
+                const aWin = played && f.homeScore != null && f.awayScore != null && f.awayScore > f.homeScore;
+                const isDraw = played && f.homeScore === f.awayScore;
+
+                return (
+                  <motion.div
+                    key={f.id}
+                    initial={{ opacity: 0, x: -6 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.03 }}
+                    className={cn(
+                      "flex items-center gap-3 px-5 py-3",
+                      played ? "opacity-70" : "hover:bg-secondary/10 transition-colors",
+                    )}
+                  >
+                    {/* Home team */}
+                    <div className="flex-1 flex items-center justify-end gap-2.5 min-w-0">
+                      <span className={cn(
+                        "font-display font-bold uppercase text-xs truncate",
+                        played ? (hWin ? "text-foreground" : "text-muted-foreground") : "text-foreground"
+                      )}>{f.homeTeamName}</span>
+                      <TeamLogo url={f.homeTeamLogoUrl} name={f.homeTeamName} size={7} />
+                    </div>
+
+                    {/* Score / status */}
+                    <div className="shrink-0 w-20 text-center">
+                      {played && f.homeScore != null && f.awayScore != null ? (
+                        <div className="flex items-center justify-center gap-1.5">
+                          <span className={cn("font-display font-black text-lg tabular-nums w-5 text-right", hWin ? "text-primary" : isDraw ? "text-yellow-400" : "text-muted-foreground")}>{f.homeScore}</span>
+                          <span className="text-muted-foreground/40 text-sm">-</span>
+                          <span className={cn("font-display font-black text-lg tabular-nums w-5 text-left", aWin ? "text-primary" : isDraw ? "text-yellow-400" : "text-muted-foreground")}>{f.awayScore}</span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center">
+                          {f.scheduledDate ? (
+                            <span className="text-[11px] font-bold text-muted-foreground tabular-nums">{format(new Date(f.scheduledDate), "HH:mm") !== "00:00" ? format(new Date(f.scheduledDate), "HH:mm") : "—"}</span>
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground/40 font-bold tracking-widest">VS</span>
+                          )}
+                          <Clock className="w-3 h-3 text-muted-foreground/30 mt-0.5" />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Away team */}
+                    <div className="flex-1 flex items-center gap-2.5 min-w-0">
+                      <TeamLogo url={f.awayTeamLogoUrl} name={f.awayTeamName} size={7} />
+                      <span className={cn(
+                        "font-display font-bold uppercase text-xs truncate",
+                        played ? (aWin ? "text-foreground" : "text-muted-foreground") : "text-foreground"
+                      )}>{f.awayTeamName}</span>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Main Component ─────────────────────────────────────────────────────────────
 
-type DetailTab = "standings" | "fixtures" | "players" | "supercup";
+type DetailTab = "standings" | "fixtures" | "players" | "supercup" | "schedule";
 
 export function Leagues() {
   const { data: leagues, isLoading } = useLeagues();
@@ -661,10 +810,11 @@ export function Leagues() {
   }
 
   const TABS: { key: DetailTab; label: string; icon: React.ElementType }[] = [
-    { key: "standings", label: "Standings", icon: Trophy },
-    { key: "fixtures",  label: "Fixtures",  icon: Swords },
-    { key: "players",   label: "Players",   icon: Users  },
-    { key: "supercup",  label: "Super Cup", icon: Star   },
+    { key: "standings", label: "Standings", icon: Trophy   },
+    { key: "schedule",  label: "Schedule",  icon: Calendar },
+    { key: "fixtures",  label: "Results",   icon: Swords   },
+    { key: "players",   label: "Players",   icon: Users    },
+    { key: "supercup",  label: "Super Cup", icon: Star     },
   ];
 
   return (
@@ -877,6 +1027,7 @@ export function Leagues() {
                         transition={{ duration: 0.18 }}
                       >
                         {tab === "standings" && <StandingsTab standings={detail?.standings ?? []} rulesJson={detail?.leagueRules} />}
+                        {tab === "schedule"  && <ScheduleTab  leagueId={selectedId} />}
                         {tab === "fixtures"  && <FixturesTab  leagueId={selectedId} />}
                         {tab === "players"   && <PlayersTab   playerStats={detail?.playerStats ?? []} />}
                         {tab === "supercup"  && <SuperCupTab  leagueId={selectedId} />}

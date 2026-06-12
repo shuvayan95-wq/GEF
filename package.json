@@ -15,6 +15,7 @@
     "openai": "^6.41.0",
     "p-limit": "^7.3.0",
     "p-retry": "^8.0.0",
+    "pnpm": "^10.34.3",
     "zod": "^4.4.3",
     "zod-validation-error": "^5.0.0"
   }

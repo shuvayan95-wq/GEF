@@ -449,6 +449,9 @@ function ResultForm({
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  // Manual team scores — entered directly, not auto-summed
+  const [homeScore, setHomeScore] = useState(fixture.homeScore ?? 0);
+  const [awayScore, setAwayScore] = useState(fixture.awayScore ?? 0);
   // Start with 5 pre-filled empty rows, exactly like ManageMatches
   const [matchups, setMatchups] = useState<any[]>([
     EMPTY_MATCHUP(), EMPTY_MATCHUP(), EMPTY_MATCHUP(), EMPTY_MATCHUP(), EMPTY_MATCHUP(),
@@ -466,10 +469,6 @@ function ResultForm({
     ...awayPlayers.map((p: any) => ({ label: p.name, value: p.id })),
   ];
 
-  // Scores auto-sum from matchup individual scores
-  const totalHome = matchups.reduce((s, m) => s + (Number(m.s1) || 0), 0);
-  const totalAway = matchups.reduce((s, m) => s + (Number(m.s2) || 0), 0);
-
   const updateM = (idx: number, field: string, val: any) => {
     setMatchups(prev => {
       const n = [...prev];
@@ -485,15 +484,12 @@ function ResultForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const validMatchups = matchups.filter(m => m.p1 && m.p2);
-    if (validMatchups.length === 0) {
-      return toast({ variant: "destructive", title: "Add at least one player matchup" });
-    }
     setSaving(true);
     try {
       const payload = {
         date: new Date(date).toISOString(),
-        homeScore: totalHome,
-        awayScore: totalAway,
+        homeScore: Number(homeScore),
+        awayScore: Number(awayScore),
         playerMatchups: validMatchups.map(m => ({
           player1Id: Number(m.p1),
           player2Id: Number(m.p2),
@@ -519,36 +515,42 @@ function ResultForm({
   return (
     <form onSubmit={handleSubmit} className="p-4 space-y-4">
 
-      {/* Team vs Team header with live score */}
+      {/* Team vs Team header with manual score inputs */}
       <div className="grid grid-cols-[1fr_auto_1fr] gap-3 items-center bg-card border border-border rounded-xl p-4">
         {/* Home */}
-        <div className="flex flex-col items-center gap-1 text-center min-w-0">
+        <div className="flex flex-col items-center gap-2 text-center min-w-0">
           {fixture.homeTeamLogoUrl
             ? <img src={fixture.homeTeamLogoUrl} className="w-10 h-10 object-contain rounded" />
             : <div className="w-10 h-10 rounded bg-secondary flex items-center justify-center"><Shield className="w-5 h-5 text-muted-foreground" /></div>
           }
           <span className="text-xs font-black uppercase tracking-wide text-primary truncate max-w-full">{fixture.homeTeamName}</span>
-          <span className="text-xs text-muted-foreground">Home</span>
+          <Input
+            type="number" min={0} required
+            value={homeScore}
+            onChange={e => setHomeScore(Number(e.target.value))}
+            className="w-20 text-center font-display font-black text-2xl h-12 px-1"
+          />
         </div>
 
-        {/* Live score */}
-        <div className="flex flex-col items-center gap-0.5 shrink-0 px-2">
-          <div className="flex items-center gap-2">
-            <span className="font-display font-black text-3xl text-primary tabular-nums">{totalHome}</span>
-            <span className="text-muted-foreground/50 font-bold text-lg">–</span>
-            <span className="font-display font-black text-3xl text-primary tabular-nums">{totalAway}</span>
-          </div>
-          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Auto-sum</span>
+        {/* VS divider */}
+        <div className="flex flex-col items-center shrink-0 px-2 gap-1">
+          <span className="text-muted-foreground/50 font-bold text-2xl leading-none mt-8">–</span>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Score</span>
         </div>
 
         {/* Away */}
-        <div className="flex flex-col items-center gap-1 text-center min-w-0">
+        <div className="flex flex-col items-center gap-2 text-center min-w-0">
           {fixture.awayTeamLogoUrl
             ? <img src={fixture.awayTeamLogoUrl} className="w-10 h-10 object-contain rounded" />
             : <div className="w-10 h-10 rounded bg-secondary flex items-center justify-center"><Shield className="w-5 h-5 text-muted-foreground" /></div>
           }
           <span className="text-xs font-black uppercase tracking-wide text-accent truncate max-w-full">{fixture.awayTeamName}</span>
-          <span className="text-xs text-muted-foreground">Away</span>
+          <Input
+            type="number" min={0} required
+            value={awayScore}
+            onChange={e => setAwayScore(Number(e.target.value))}
+            className="w-20 text-center font-display font-black text-2xl h-12 px-1"
+          />
         </div>
       </div>
 
@@ -658,7 +660,7 @@ function ResultForm({
         </Button>
         <Button type="submit" variant="gaming" size="sm" className="flex-1 gap-1 h-10" disabled={saving}>
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-          Save Result — {totalHome} : {totalAway}
+          Save Result — {homeScore} : {awayScore}
         </Button>
       </div>
     </form>

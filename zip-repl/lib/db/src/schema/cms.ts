@@ -104,6 +104,7 @@ export const potwVotesTable = pgTable("potw_votes", {
   roundId: integer("round_id").notNull(),
   playerId: integer("player_id").notNull(),
   voterIp: text("voter_ip").notNull(),
+  voterToken: text("voter_token"), // localStorage UUID for per-browser deduplication
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

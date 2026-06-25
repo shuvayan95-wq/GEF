@@ -5,7 +5,7 @@ import { getApiUrl } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import {
   Star, Plus, Lock, Eye, Trash2, Crown, Clock, RefreshCw, CheckCircle2,
-  Target, Zap, Trophy, TrendingUp, Users, ChevronDown, ChevronRight,
+  Target, Zap, Trophy, TrendingUp, Users, ChevronDown, ChevronRight, Radio,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 interface PlayerStats { goals: number; mvps: number; wins: number; matches: number; }
 interface Candidate { id: number; name: string; position?: string; imageUrl?: string; teamId?: number; stats: PlayerStats; }
 interface Player { id: number; name: string; teamId?: number; imageUrl?: string; position?: string; }
-interface Round { id: number; weekLabel: string; nomineeIds: number[]; isActive: boolean; winnerId?: number; closedAt?: string; createdAt: string; }
+interface Round { id: number; weekLabel: string; nomineeIds: number[]; isActive: boolean; winnerId?: number; closedAt?: string; createdAt: string; season?: string; votesRevealed?: boolean; }
 
 const TIER_COLORS: Record<string, string> = {
   CF: "text-red-400", LW: "text-orange-400", RW: "text-orange-400",
@@ -23,6 +23,8 @@ const TIER_COLORS: Record<string, string> = {
   CB: "text-emerald-400", LB: "text-teal-400", RB: "text-teal-400",
   GK: "text-purple-400",
 };
+
+const SEASON_OPTIONS = ["2024-25", "2025-26", "2026-27"];
 
 function StatBadge({ icon, value, label, color }: { icon: React.ReactNode; value: number; label: string; color: string }) {
   return (
@@ -36,8 +38,6 @@ function StatBadge({ icon, value, label, color }: { icon: React.ReactNode; value
 
 function CandidateCard({ candidate, selected, onToggle }: { candidate: Candidate; selected: boolean; onToggle: () => void }) {
   const posColor = TIER_COLORS[candidate.position ?? ""] ?? "text-muted-foreground";
-  const score = candidate.stats.goals * 3 + candidate.stats.mvps * 5 + candidate.stats.wins * 2;
-
   return (
     <motion.button
       onClick={onToggle}
@@ -50,7 +50,6 @@ function CandidateCard({ candidate, selected, onToggle }: { candidate: Candidate
           : "border-border bg-card hover:border-primary/40 hover:bg-secondary/20",
       )}
     >
-      {/* Avatar */}
       <div className="w-10 h-10 rounded-full bg-primary/10 border-2 border-primary/20 flex items-center justify-center overflow-hidden shrink-0">
         {candidate.imageUrl
           ? <img src={candidate.imageUrl} alt={candidate.name} className="w-full h-full object-cover" />
@@ -58,7 +57,6 @@ function CandidateCard({ candidate, selected, onToggle }: { candidate: Candidate
         }
       </div>
 
-      {/* Info */}
       <div className="flex-1 min-w-0">
         <div className="font-bold text-sm text-foreground truncate">{candidate.name}</div>
         <div className={cn("text-[10px] font-bold uppercase tracking-wider", posColor)}>
@@ -69,14 +67,12 @@ function CandidateCard({ candidate, selected, onToggle }: { candidate: Candidate
         </div>
       </div>
 
-      {/* Stats */}
       <div className="flex gap-1 shrink-0">
         <StatBadge icon={<Target className="w-2.5 h-2.5" />} value={candidate.stats.goals} label="gls" color="text-green-400" />
         <StatBadge icon={<Zap className="w-2.5 h-2.5" />} value={candidate.stats.mvps} label="mvp" color="text-yellow-400" />
         <StatBadge icon={<Trophy className="w-2.5 h-2.5" />} value={candidate.stats.wins} label="win" color="text-blue-400" />
       </div>
 
-      {/* Checkmark */}
       {selected && <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />}
     </motion.button>
   );
@@ -88,6 +84,8 @@ export function ManagePotw() {
   const [weekLabel, setWeekLabel] = useState("");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [showAllPlayers, setShowAllPlayers] = useState(false);
+  const [candidateSeason, setCandidateSeason] = useState("2025-26");
+  const [roundSeason, setRoundSeason] = useState("2025-26");
 
   const { data, isLoading } = useQuery<{ rounds: Round[]; players: Player[] }>({
     queryKey: ["admin-potw"],
@@ -98,10 +96,11 @@ export function ManagePotw() {
     },
   });
 
-  const { data: candidatesData, isLoading: candidatesLoading } = useQuery<{ players: Candidate[] }>({
-    queryKey: ["admin-potw-candidates"],
+  const { data: candidatesData, isLoading: candidatesLoading, refetch: refetchCandidates } = useQuery<{ players: Candidate[] }>({
+    queryKey: ["admin-potw-candidates", candidateSeason],
     queryFn: async () => {
-      const res = await fetch(getApiUrl("/api/admin/potw/candidates"), { credentials: "include" });
+      const url = getApiUrl(`/api/admin/potw/candidates?season=${encodeURIComponent(candidateSeason)}`);
+      const res = await fetch(url, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to load candidates");
       return res.json();
     },
@@ -113,7 +112,6 @@ export function ManagePotw() {
   const playerMap = new Map(players.map(p => [p.id, p]));
   const candidates = candidatesData?.players ?? [];
 
-  // Players not in candidates list (no recent games) — shown in "other players" section
   const candidateIds = new Set(candidates.map(c => c.id));
   const otherPlayers = players.filter(p => !candidateIds.has(p.id));
 
@@ -122,7 +120,7 @@ export function ManagePotw() {
       const res = await fetch(getApiUrl("/api/admin/potw/round"), {
         method: "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ weekLabel, nomineeIds: selectedIds }),
+        body: JSON.stringify({ weekLabel, nomineeIds: selectedIds, season: roundSeason }),
       });
       if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error((e as any).error ?? "Failed"); }
       return res.json();
@@ -145,6 +143,19 @@ export function ManagePotw() {
       queryClient.invalidateQueries({ queryKey: ["admin-potw"] });
       const winner = data.winnerId ? playerMap.get(data.winnerId) : null;
       toast({ title: "Voting closed!", description: winner ? `Winner: ${winner.name}` : "No votes cast." });
+    },
+    onError: (err: any) => toast({ variant: "destructive", title: "Failed", description: err?.message }),
+  });
+
+  const revealMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(getApiUrl("/api/admin/potw/reveal-votes"), { method: "POST", credentials: "include" });
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error((e as any).error ?? "Failed"); }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-potw"] });
+      toast({ title: "Votes revealed!", description: "The public can now see vote tallies." });
     },
     onError: (err: any) => toast({ variant: "destructive", title: "Failed", description: err?.message }),
   });
@@ -178,28 +189,51 @@ export function ManagePotw() {
 
       {/* Active round banner */}
       {activeRound && (
-        <div className="bg-primary/5 border border-primary/20 rounded-xl p-5 mb-6 flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-              <Star className="w-4 h-4 text-primary" />
-            </div>
-            <div>
-              <div className="text-sm font-bold text-foreground">Active: {activeRound.weekLabel}</div>
-              <div className="text-xs text-muted-foreground">
-                {(activeRound.nomineeIds as number[]).length} nominees · started {format(new Date(activeRound.createdAt), "d MMM yyyy")}
+        <div className="bg-primary/5 border border-primary/20 rounded-xl p-5 mb-6 space-y-3">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                <Star className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <div className="text-sm font-bold text-foreground">Active: {activeRound.weekLabel}</div>
+                <div className="text-xs text-muted-foreground">
+                  {(activeRound.nomineeIds as number[]).length} nominees
+                  {activeRound.season && <span> · Season {activeRound.season}</span>}
+                  · started {format(new Date(activeRound.createdAt), "d MMM yyyy")}
+                </div>
               </div>
             </div>
+            <div className="flex gap-2">
+              {!activeRound.votesRevealed && (
+                <Button
+                  onClick={() => revealMutation.mutate()}
+                  disabled={revealMutation.isPending}
+                  variant="outline"
+                  className="gap-2 border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
+                >
+                  {revealMutation.isPending
+                    ? <><RefreshCw className="w-4 h-4 animate-spin" /> Revealing…</>
+                    : <><Radio className="w-4 h-4" /> Reveal Votes</>}
+                </Button>
+              )}
+              {activeRound.votesRevealed && (
+                <span className="flex items-center gap-1.5 text-xs text-blue-400 border border-blue-500/30 bg-blue-500/10 rounded-lg px-3 py-2 font-semibold">
+                  <Eye className="w-3.5 h-3.5" /> Votes visible to public
+                </span>
+              )}
+              <Button
+                onClick={() => closeMutation.mutate()}
+                disabled={closeMutation.isPending}
+                variant="outline"
+                className="gap-2 border-red-500/30 text-red-400 hover:bg-red-500/10"
+              >
+                {closeMutation.isPending
+                  ? <><RefreshCw className="w-4 h-4 animate-spin" /> Closing…</>
+                  : <><Lock className="w-4 h-4" /> Close Voting</>}
+              </Button>
+            </div>
           </div>
-          <Button
-            onClick={() => closeMutation.mutate()}
-            disabled={closeMutation.isPending}
-            variant="outline"
-            className="gap-2 border-red-500/30 text-red-400 hover:bg-red-500/10"
-          >
-            {closeMutation.isPending
-              ? <><RefreshCw className="w-4 h-4 animate-spin" /> Closing…</>
-              : <><Lock className="w-4 h-4" /> Close Voting</>}
-          </Button>
         </div>
       )}
 
@@ -207,26 +241,45 @@ export function ManagePotw() {
       <div className="bg-card border border-border rounded-xl p-5 mb-8 space-y-5">
         <h2 className="text-sm font-black uppercase tracking-wider text-muted-foreground">Create New Voting Round</h2>
 
-        <div>
-          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest block mb-1.5">Week Label</label>
-          <input
-            className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary"
-            placeholder="e.g. Week 12 · Season 3"
-            value={weekLabel}
-            onChange={e => setWeekLabel(e.target.value)}
-          />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest block mb-1.5">Week Label</label>
+            <input
+              className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary"
+              placeholder="e.g. Week 12 · Season 3"
+              value={weekLabel}
+              onChange={e => setWeekLabel(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest block mb-1.5">Season</label>
+            <select
+              className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary"
+              value={roundSeason}
+              onChange={e => setRoundSeason(e.target.value)}
+            >
+              {SEASON_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
         </div>
 
-        {/* Top candidates from last 3 matches */}
+        {/* Season filter for candidates */}
         <div>
           <div className="flex items-center gap-2 mb-3">
             <TrendingUp className="w-4 h-4 text-primary" />
             <label className="text-xs font-black uppercase tracking-wider text-foreground">
-              Top Performers — Last 3 Matches
+              Top Performers — Last 3 Matchdays
             </label>
-            <span className="text-xs text-muted-foreground ml-auto">
-              {selectedIds.length} selected
-            </span>
+            <div className="ml-auto flex items-center gap-2">
+              <select
+                className="bg-background border border-border rounded-lg px-2 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary"
+                value={candidateSeason}
+                onChange={e => { setCandidateSeason(e.target.value); setRoundSeason(e.target.value); }}
+              >
+                {SEASON_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+              <span className="text-xs text-muted-foreground">{selectedIds.length} selected</span>
+            </div>
           </div>
 
           {candidatesLoading ? (
@@ -237,7 +290,7 @@ export function ManagePotw() {
             </div>
           ) : candidates.length === 0 ? (
             <div className="text-center py-8 border border-dashed border-border rounded-xl text-muted-foreground text-sm">
-              No recent match data found. Record some matches first.
+              No match data for season {candidateSeason}. Try a different season or record matches first.
             </div>
           ) : (
             <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
@@ -333,9 +386,15 @@ export function ManagePotw() {
                           "text-[10px] font-black uppercase px-1.5 py-0.5 rounded border",
                           r.isActive ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/30" : "text-muted-foreground bg-secondary border-border"
                         )}>{r.isActive ? "OPEN" : "CLOSED"}</span>
+                        {r.isActive && r.votesRevealed && (
+                          <span className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded border text-blue-400 bg-blue-500/10 border-blue-500/30">
+                            VOTES LIVE
+                          </span>
+                        )}
                       </div>
                       <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
                         <span>{(r.nomineeIds as number[]).length} nominees</span>
+                        {r.season && <span>Season {r.season}</span>}
                         {winner && <span className="flex items-center gap-1"><Crown className="w-3 h-3 text-yellow-400" /> Winner: {winner.name}</span>}
                         {r.closedAt && <span><Clock className="w-3 h-3 inline mr-0.5" />{format(new Date(r.closedAt), "d MMM yyyy")}</span>}
                       </div>

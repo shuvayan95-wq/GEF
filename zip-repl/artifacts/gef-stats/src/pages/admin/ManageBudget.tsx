@@ -21,15 +21,16 @@ function fmt(v: number) {
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
-  transfer_in:  "Transfer Fee Received",
-  transfer_out: "Transfer Fee Paid",
-  prize_money:  "Prize Money",
-  sponsorship:  "Sponsorship",
-  grant:        "Grant / Allocation",
-  wages:        "Player Wages",
-  penalty:      "Financial Penalty",
-  operational:  "Operational Cost",
-  other:        "Other",
+  transfer_in:       "Transfer Fee Received",
+  transfer_out:      "Transfer Fee Paid",
+  prize_money:       "Prize Money",
+  sponsorship:       "Sponsorship",
+  grant:             "Grant / Allocation",
+  wages:             "Player Wages",
+  penalty:           "Financial Penalty",
+  operational:       "Operational Cost",
+  performance_bonus: "Performance Bonus",
+  other:             "Other",
 };
 
 const CATEGORY_ICON: Record<string, any> = {
@@ -74,6 +75,8 @@ export function ManageBudget() {
   const [txnSeason,   setTxnSeason]   = useState("2025-26");
   const [savingTxn,   setSavingTxn]   = useState(false);
   const [syncingTransfers, setSyncingTransfers] = useState(false);
+  const [bonusSeason, setBonusSeason] = useState("2025-26");
+  const [givingBonus, setGivingBonus] = useState(false);
 
   useEffect(() => { loadAll(); }, []);
 
@@ -156,6 +159,33 @@ export function ManageBudget() {
     }
   }
 
+  async function givePerformanceBonus() {
+    setGivingBonus(true);
+    try {
+      const res = await fetch("/api/admin/performance-bonus", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ season: bonusSeason }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      if (data.bonusesGranted === 0) {
+        toast({ title: "No bonuses granted", description: "Bonuses may already have been given for this season, or no matches found." });
+      } else {
+        toast({
+          title: `Performance bonuses granted`,
+          description: `${data.bonusesGranted} club${data.bonusesGranted !== 1 ? "s" : ""} received bonuses for season ${bonusSeason}`,
+        });
+        await loadAll();
+      }
+    } catch (err: any) {
+      toast({ title: "Failed to give bonuses", description: err?.message, variant: "destructive" });
+    } finally {
+      setGivingBonus(false);
+    }
+  }
+
   async function syncTransfers() {
     setSyncingTransfers(true);
     try {
@@ -206,7 +236,22 @@ export function ManageBudget() {
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">Track income, expenses, transfers & penalties — all linked to FFP</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Performance Bonus */}
+            <div className="flex items-center gap-1.5 border border-border rounded-lg px-2 py-1">
+              <select
+                className="bg-transparent text-xs text-foreground focus:outline-none"
+                value={bonusSeason}
+                onChange={e => setBonusSeason(e.target.value)}
+              >
+                {["2024-25","2025-26","2026-27"].map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+              <Button size="sm" variant="outline" onClick={givePerformanceBonus} disabled={givingBonus}
+                className="text-xs h-7 border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10 gap-1">
+                {givingBonus ? <Loader2 className="w-3 h-3 animate-spin" /> : <TrendingUp className="w-3 h-3" />}
+                Performance Bonus
+              </Button>
+            </div>
             <Button variant="outline" size="sm" onClick={syncTransfers} disabled={syncingTransfers || loading}>
               {syncingTransfers
                 ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" />

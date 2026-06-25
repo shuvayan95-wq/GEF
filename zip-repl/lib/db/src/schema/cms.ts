@@ -95,6 +95,8 @@ export const potwRoundsTable = pgTable("potw_rounds", {
   nomineeIds: jsonb("nominee_ids").notNull().default("[]"), // int[]
   isActive: boolean("is_active").notNull().default(true),
   winnerId: integer("winner_id"), // player id, set when closed
+  votesRevealed: boolean("votes_revealed").notNull().default(false),
+  season: text("season"), // e.g. "2025-26"
   closedAt: timestamp("closed_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { playersTable, teamsTable, awardsTable, playerMatchupsTable, playerMarketValueHistoryTable, matchesTable } from "@workspace/db";
 import { eq, sql, asc, inArray } from "drizzle-orm";
 import { recalculateAllMarketValues, calcOVR } from "../lib/marketValue.js";
+import { syncTeamFinancials } from "./budget.js";
 
 const router: IRouter = Router();
 
@@ -421,6 +422,10 @@ router.post("/admin/salaries/recalculate", requireAdmin, async (req, res) => {
     }
 
     res.json({ updated, count: updated.length });
+
+    // Sync wages_expense for all affected teams in the background
+    const teamIds = [...new Set(targets.filter(p => p.teamId).map(p => p.teamId as number))];
+    Promise.all(teamIds.map(id => syncTeamFinancials(id))).catch(() => {});
   } catch (err: any) {
     res.status(500).json({ error: err?.message });
   }

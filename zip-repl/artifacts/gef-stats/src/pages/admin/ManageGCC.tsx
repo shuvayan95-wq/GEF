@@ -27,6 +27,10 @@ export function ManageGCC() {
   const [entryForm, setEntryForm] = useState({ teamId: "", pot: "1" });
   // Result form
   const [resultForms, setResultForms] = useState<Record<number, { homeScore: string; awayScore: string }>>({});
+  // Per-fixture matchup rows for inline result entry
+  const emptyFixtureMatchupRow = () => ({ player1Id: "", player2Id: "", player1Goals: "0", player2Goals: "0", mvpPlayerId: "" });
+  const [fixtureMatchupRows, setFixtureMatchupRows] = useState<Record<number, Array<ReturnType<typeof emptyFixtureMatchupRow>>>>({}); 
+  const [expandedFixtureId, setExpandedFixtureId] = useState<number | null>(null);
 
   // Add Match form (for direct past-season entry)
   const [addMatchForm, setAddMatchForm] = useState({
@@ -188,14 +192,18 @@ export function ManageGCC() {
   });
 
   const resultMutation = useMutation({
-    mutationFn: async ({ fixtureId, homeScore, awayScore }: { fixtureId: number; homeScore: number; awayScore: number }) => {
+    mutationFn: async ({ fixtureId, homeScore, awayScore, playerMatchups }: { fixtureId: number; homeScore: number; awayScore: number; playerMatchups?: any[] }) => {
       const r = await fetch(`/api/gcc/tournaments/${selectedTournament}/fixtures/${fixtureId}`, {
         method: "PUT", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ homeScore, awayScore, played: true }),
+        body: JSON.stringify({ homeScore, awayScore, played: true, playerMatchups }),
       });
       return r.json();
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["gcc-tournament", selectedTournament] }),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ["gcc-tournament", selectedTournament] });
+      setExpandedFixtureId(null);
+      setFixtureMatchupRows(prev => { const n = {...prev}; delete n[vars.fixtureId]; return n; });
+    },
   });
 
   const knockoutMutation = useMutation({
@@ -536,10 +544,12 @@ export function ManageGCC() {
                                 <h3 className="text-xs text-gray-600 uppercase tracking-wider py-2 px-1">Matchday {round}</h3>
                                 {(byRound.get(round) ?? []).map((f: any) => {
                                   const rf = resultForms[f.id] ?? { homeScore: "", awayScore: "" };
+                                  const isExpanded = expandedFixtureId === f.id;
+                                  const matchupRows = fixtureMatchupRows[f.id] ?? Array.from({ length: 5 }, emptyFixtureMatchupRow);
                                   return (
-                                    <div key={f.id} className="rounded-lg p-3 mb-1"
+                                    <div key={f.id} className="rounded-lg mb-1"
                                       style={{ background: f.played ? "rgba(34,197,94,0.05)" : "rgba(255,255,255,0.04)", border: f.played ? "1px solid rgba(34,197,94,0.15)" : "1px solid rgba(255,255,255,0.06)" }}>
-                                      <div className="flex items-center gap-3">
+                                      <div className="flex items-center gap-3 p-3">
                                         <span className="text-xs text-white font-medium flex-1 text-right">{f.homeTeam?.name ?? f.homeTeamId}</span>
                                         {f.played ? (
                                           <span className="text-sm font-black text-green-400 px-2">{f.homeScore} - {f.awayScore}</span>
@@ -551,15 +561,64 @@ export function ManageGCC() {
                                             <input type="number" min="0" value={rf.awayScore} onChange={e => setResultForms(prev => ({...prev, [f.id]: {...rf, awayScore: e.target.value}}))}
                                               className="w-12 text-center bg-white/10 border border-white/10 rounded px-1 py-0.5 text-sm text-white" />
                                             <button
+                                              className="ml-1 px-2 py-0.5 rounded bg-gray-700 text-gray-300 text-xs font-semibold hover:bg-gray-600 transition-colors"
+                                              title="Enter player matchups"
+                                              onClick={() => {
+                                                if (!fixtureMatchupRows[f.id]) setFixtureMatchupRows(prev => ({...prev, [f.id]: Array.from({ length: 5 }, emptyFixtureMatchupRow)}));
+                                                setExpandedFixtureId(isExpanded ? null : f.id);
+                                              }}>
+                                              {isExpanded ? "▲" : "▼"}
+                                            </button>
+                                            <button
                                               className="ml-1 px-2 py-0.5 rounded bg-blue-600 text-white text-xs font-semibold hover:bg-blue-500 transition-colors disabled:opacity-50"
                                               disabled={rf.homeScore === "" || rf.awayScore === "" || resultMutation.isPending}
-                                              onClick={() => resultMutation.mutate({ fixtureId: f.id, homeScore: Number(rf.homeScore), awayScore: Number(rf.awayScore) })}>
+                                              onClick={() => {
+                                                const validMatchups = matchupRows.filter(r => r.player1Id && r.player2Id).map(r => ({
+                                                  player1Id: Number(r.player1Id), player2Id: Number(r.player2Id),
+                                                  player1Goals: Number(r.player1Goals), player2Goals: Number(r.player2Goals),
+                                                  mvpPlayerId: r.mvpPlayerId ? Number(r.mvpPlayerId) : null,
+                                                }));
+                                                resultMutation.mutate({ fixtureId: f.id, homeScore: Number(rf.homeScore), awayScore: Number(rf.awayScore), playerMatchups: validMatchups });
+                                              }}>
                                               Save
                                             </button>
                                           </div>
                                         )}
                                         <span className="text-xs text-white font-medium flex-1">{f.awayTeam?.name ?? f.awayTeamId}</span>
                                       </div>
+
+                                      {/* Inline matchup form — expanded when ▼ clicked */}
+                                      {!f.played && isExpanded && (
+                                        <div className="px-3 pb-3 border-t border-white/5 pt-3 space-y-2">
+                                          <p className="text-xs text-gray-500 mb-1">Player Matchups ({f.homeTeam?.name ?? "Home"} vs {f.awayTeam?.name ?? "Away"})</p>
+                                          {matchupRows.map((row, idx) => (
+                                            <div key={idx} className="grid grid-cols-[1fr_auto_auto_1fr_auto] gap-1 items-center text-xs">
+                                              <select className={inputClass + " text-xs"} value={row.player1Id}
+                                                onChange={e => setFixtureMatchupRows(prev => { const rows = [...(prev[f.id] ?? matchupRows)]; rows[idx] = {...rows[idx], player1Id: e.target.value, mvpPlayerId: ""}; return {...prev, [f.id]: rows}; })}>
+                                                <option value="">Home player…</option>
+                                                {(allTeams.find((t: any) => t.id === f.homeTeamId)?.players ?? []).map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                              </select>
+                                              <input type="number" min="0" max="20" value={row.player1Goals}
+                                                onChange={e => setFixtureMatchupRows(prev => { const rows = [...(prev[f.id] ?? matchupRows)]; rows[idx] = {...rows[idx], player1Goals: e.target.value}; return {...prev, [f.id]: rows}; })}
+                                                className="w-10 text-center bg-white/10 border border-white/10 rounded px-1 py-0.5 text-xs text-white" />
+                                              <input type="number" min="0" max="20" value={row.player2Goals}
+                                                onChange={e => setFixtureMatchupRows(prev => { const rows = [...(prev[f.id] ?? matchupRows)]; rows[idx] = {...rows[idx], player2Goals: e.target.value}; return {...prev, [f.id]: rows}; })}
+                                                className="w-10 text-center bg-white/10 border border-white/10 rounded px-1 py-0.5 text-xs text-white" />
+                                              <select className={inputClass + " text-xs"} value={row.player2Id}
+                                                onChange={e => setFixtureMatchupRows(prev => { const rows = [...(prev[f.id] ?? matchupRows)]; rows[idx] = {...rows[idx], player2Id: e.target.value, mvpPlayerId: ""}; return {...prev, [f.id]: rows}; })}>
+                                                <option value="">Away player…</option>
+                                                {(allTeams.find((t: any) => t.id === f.awayTeamId)?.players ?? []).map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                              </select>
+                                              <select className={inputClass + " text-xs w-20"} value={row.mvpPlayerId}
+                                                onChange={e => setFixtureMatchupRows(prev => { const rows = [...(prev[f.id] ?? matchupRows)]; rows[idx] = {...rows[idx], mvpPlayerId: e.target.value}; return {...prev, [f.id]: rows}; })}>
+                                                <option value="">MVP?</option>
+                                                {row.player1Id && <option value={row.player1Id}>H</option>}
+                                                {row.player2Id && <option value={row.player2Id}>A</option>}
+                                              </select>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
                                     </div>
                                   );
                                 })}

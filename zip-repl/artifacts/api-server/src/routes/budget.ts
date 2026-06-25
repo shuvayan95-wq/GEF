@@ -7,8 +7,12 @@ import {
   teamsTable,
   transfersTable,
   playersTable,
+  matchesTable,
+  playerMatchupsTable,
+  leaguesTable,
+  gccTournamentsTable,
 } from "@workspace/db";
-import { eq, sql, and, isNull } from "drizzle-orm";
+import { eq, sql, and, isNull, inArray, or, desc } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -284,6 +288,135 @@ router.post("/budget/sync-transfers", requireAdmin, async (_req, res) => {
     }
 
     res.json({ success: true, created, syncedTeams: affectedTeams.size });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message });
+  }
+});
+
+// POST /admin/performance-bonus — calculate and grant performance bonuses for last 3 MDs of a season
+router.post("/admin/performance-bonus", requireAdmin, async (req, res) => {
+  try {
+    const { season } = req.body as { season?: string };
+    if (!season) return res.status(400).json({ error: "season is required" });
+
+    // Get league IDs for this season
+    const leaguesForSeason = await db.select({ id: leaguesTable.id }).from(leaguesTable)
+      .where(eq(leaguesTable.season, season));
+    const leagueIds = leaguesForSeason.map(l => l.id);
+
+    // Get gcc tournament IDs for this season
+    const gccForSeason = await db.select({ id: gccTournamentsTable.id }).from(gccTournamentsTable)
+      .where(eq(gccTournamentsTable.season, season));
+    const gccIds = gccForSeason.map(g => g.id);
+
+    // Get all matches for this season
+    const seasonMatchesRaw = await db.select({ id: matchesTable.id, date: matchesTable.date, team1Id: matchesTable.team1Id, team2Id: matchesTable.team2Id, team1Score: matchesTable.team1Score, team2Score: matchesTable.team2Score })
+      .from(matchesTable)
+      .where(
+        or(
+          eq(matchesTable.season, season),
+          leagueIds.length > 0 ? inArray(matchesTable.leagueId, leagueIds) : undefined,
+          gccIds.length > 0 ? inArray(matchesTable.gccTournamentId, gccIds) : undefined,
+        )
+      )
+      .orderBy(desc(matchesTable.date));
+
+    if (!seasonMatchesRaw.length) return res.status(400).json({ error: "No matches found for this season" });
+
+    // Last 3 distinct matchdays (dates)
+    const distinctDates = [...new Set(seasonMatchesRaw.map(m => m.date))].slice(0, 3);
+    const lastMatches = seasonMatchesRaw.filter(m => distinctDates.includes(m.date));
+    const lastMatchIds = lastMatches.map(m => m.id);
+
+    // Get all player matchups for those matches
+    const matchups = await db.select().from(playerMatchupsTable)
+      .where(inArray(playerMatchupsTable.matchId, lastMatchIds));
+
+    // Get all players with their team
+    const players = await db.select({ id: playersTable.id, teamId: playersTable.teamId })
+      .from(playersTable).where(eq(playersTable.status, "active"));
+    const playerTeamMap = new Map(players.map(p => [p.id, p.teamId]));
+
+    // Build match map for win calculation
+    const matchMap = new Map(lastMatches.map(m => [m.id, m]));
+
+    // Tally per-team score
+    const teamScores = new Map<number, { goals: number; wins: number; mvps: number }>();
+
+    const ensureTeam = (teamId: number) => {
+      if (!teamScores.has(teamId)) teamScores.set(teamId, { goals: 0, wins: 0, mvps: 0 });
+    };
+
+    for (const mu of matchups) {
+      const match = matchMap.get(mu.matchId);
+      if (!match) continue;
+
+      const team1 = playerTeamMap.get(mu.player1Id);
+      const team2 = playerTeamMap.get(mu.player2Id);
+
+      if (team1) {
+        ensureTeam(team1);
+        teamScores.get(team1)!.goals += mu.player1Goals;
+        if (match.team1Score > match.team2Score) teamScores.get(team1)!.wins += 1;
+        if (mu.mvpPlayerId === mu.player1Id) teamScores.get(team1)!.mvps += 1;
+      }
+      if (team2) {
+        ensureTeam(team2);
+        teamScores.get(team2)!.goals += mu.player2Goals;
+        if (match.team2Score > match.team1Score) teamScores.get(team2)!.wins += 1;
+        if (mu.mvpPlayerId === mu.player2Id) teamScores.get(team2)!.mvps += 1;
+      }
+    }
+
+    // Get all teams
+    const allTeams = await db.select().from(teamsTable);
+
+    // Calculate max score for normalization
+    let maxScore = 0;
+    for (const [, s] of teamScores) {
+      const score = s.goals * 3 + s.wins * 2 + s.mvps * 5;
+      if (score > maxScore) maxScore = score;
+    }
+
+    const MIN_BONUS = 50_000;
+    const MAX_BONUS = 250_000;
+
+    const results: { teamId: number; teamName: string; bonus: number; score: number }[] = [];
+
+    for (const team of allTeams) {
+      const s = teamScores.get(team.id);
+      if (!s) continue;
+
+      const score = s.goals * 3 + s.wins * 2 + s.mvps * 5;
+      if (score === 0) continue;
+
+      const ratio = maxScore > 0 ? score / maxScore : 0;
+      const rawBonus = MIN_BONUS + ratio * (MAX_BONUS - MIN_BONUS);
+      const bonus = Math.round(rawBonus / 5000) * 5000;
+
+      // Check if bonus already given for this season (avoid duplicates)
+      const existing = await db.select().from(budgetTransactionsTable)
+        .where(and(
+          eq(budgetTransactionsTable.teamId, team.id),
+          eq(budgetTransactionsTable.category, "performance_bonus"),
+          eq(budgetTransactionsTable.season, season)
+        ));
+      if (existing.length > 0) continue;
+
+      await db.insert(budgetTransactionsTable).values({
+        teamId: team.id,
+        type: "income",
+        category: "performance_bonus",
+        amount: String(bonus),
+        description: `Performance bonus — ${season} (last 3 matchdays)`,
+        season,
+      });
+
+      await syncTeamFinancials(team.id);
+      results.push({ teamId: team.id, teamName: team.name, bonus, score });
+    }
+
+    res.json({ success: true, bonusesGranted: results.length, results });
   } catch (err: any) {
     res.status(500).json({ error: err?.message });
   }

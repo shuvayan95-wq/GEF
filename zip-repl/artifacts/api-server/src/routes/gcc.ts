@@ -606,8 +606,9 @@ router.get("/gcc/tournaments/:id/fixtures", async (req, res) => {
 
 router.put("/gcc/tournaments/:id/fixtures/:fid", requireAdmin, async (req, res) => {
   try {
+    const tournamentId = Number(req.params.id);
     const fid = Number(req.params.fid);
-    const { homeScore, awayScore, played, notes, scheduledDate } = req.body;
+    const { homeScore, awayScore, played, notes, scheduledDate, playerMatchups } = req.body;
 
     const updates: Record<string, any> = {};
     if (homeScore !== undefined) updates.homeScore = Number(homeScore);
@@ -618,6 +619,37 @@ router.put("/gcc/tournaments/:id/fixtures/:fid", requireAdmin, async (req, res) 
 
     const [f] = await db.update(gccFixturesTable).set(updates)
       .where(eq(gccFixturesTable.id, fid)).returning();
+
+    // If recording a result with player matchups, also create a match record for player stats
+    const hasScore = homeScore !== undefined && awayScore !== undefined;
+    if (hasScore && played !== false && playerMatchups && Array.isArray(playerMatchups) && playerMatchups.length > 0) {
+      const validMatchups = playerMatchups.filter((m: any) => m.player1Id && m.player2Id);
+      if (validMatchups.length > 0) {
+        const today = new Date().toISOString().split("T")[0];
+        const [match] = await db.insert(matchesTable).values({
+          date: today,
+          team1Id: f.homeTeamId,
+          team2Id: f.awayTeamId,
+          team1Score: Number(homeScore),
+          team2Score: Number(awayScore),
+          gccTournamentId: tournamentId,
+          matchType: "gcc",
+          notes: `GCC R${f.round}${f.leg > 1 ? ` Leg${f.leg}` : ""} ${f.stage}`,
+        }).returning();
+
+        await db.insert(playerMatchupsTable).values(
+          validMatchups.map((m: any) => ({
+            matchId: match.id,
+            player1Id: Number(m.player1Id),
+            player2Id: Number(m.player2Id),
+            player1Goals: Number(m.player1Goals ?? 0),
+            player2Goals: Number(m.player2Goals ?? 0),
+            mvpPlayerId: m.mvpPlayerId ? Number(m.mvpPlayerId) : null,
+          }))
+        );
+      }
+    }
+
     res.json({ fixture: f });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });

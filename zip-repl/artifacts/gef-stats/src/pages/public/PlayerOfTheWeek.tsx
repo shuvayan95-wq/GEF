@@ -36,7 +36,8 @@ interface Player {
 
 interface Round {
   id: number; weekLabel: string; nomineeIds: number[]; isActive: boolean;
-  winnerId?: number; closedAt?: string; createdAt: string;
+  winnerId?: number; closedAt?: string; createdAt: string; season?: string;
+  votesRevealed?: boolean;
 }
 
 interface PlayerStats { goals: number; mvps: number; wins: number; matches: number; }
@@ -94,7 +95,7 @@ function StatPill({ icon, value, label, highlight }: { icon: React.ReactNode; va
 
 // ─── Nominee Card ─────────────────────────────────────────────────────────────
 function NomineeCard({
-  player, stats, votes, total, hasVoted, isMyVote, isWinner, isActive, onVote, disabled,
+  player, stats, votes, total, hasVoted, isMyVote, isWinner, isActive, showVoteBar, onVote, disabled,
 }: {
   player: Player;
   stats: PlayerStats;
@@ -104,6 +105,7 @@ function NomineeCard({
   isMyVote: boolean;
   isWinner: boolean;
   isActive: boolean;
+  showVoteBar: boolean;
   onVote: () => void;
   disabled: boolean;
 }) {
@@ -173,8 +175,8 @@ function NomineeCard({
           </div>
         )}
 
-        {/* Vote bar — shown after voting or when closed */}
-        {hasVoted && (
+        {/* Vote bar — shown only when votes are revealed or round is closed */}
+        {showVoteBar && (
           <div className="space-y-1.5">
             <div className="flex justify-between text-xs">
               <span className="text-muted-foreground">{votes} vote{votes !== 1 ? "s" : ""}</span>
@@ -284,6 +286,8 @@ export function PlayerOfTheWeek() {
   const myVote = data?.myVote ?? null;
   const totalVotes = data?.totalVotes ?? 0;
   const nomineeStats = data?.nomineeStats ?? {};
+  // Show vote bars when: round is closed OR votes have been revealed by admin
+  const showVoteBar = !round?.isActive || !!(round?.votesRevealed);
 
   const sortedNominees = [...nominees].sort((a, b) => {
     if (!round?.isActive && round?.winnerId) {
@@ -405,6 +409,7 @@ export function PlayerOfTheWeek() {
                       isMyVote={myVote === player.id}
                       isWinner={round.winnerId === player.id}
                       isActive={round.isActive}
+                      showVoteBar={showVoteBar}
                       onVote={() => voteMutation.mutate(player.id)}
                       disabled={voteMutation.isPending}
                     />

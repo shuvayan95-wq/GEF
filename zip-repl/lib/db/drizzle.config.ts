@@ -1,13 +1,10 @@
 import { defineConfig } from "drizzle-kit";
 import path from "path";
 
-let url = process.env.SUPABASE_DATABASE_URL || process.env.DATABASE_URL;
-if (url && url.includes("pooler.supabase.com:6543")) {
-  url = url.replace(":6543/", ":5432/");
-}
+const url = process.env.DATABASE_URL;
 
 if (!url) {
-  throw new Error("SUPABASE_DATABASE_URL or DATABASE_URL must be set");
+  throw new Error("DATABASE_URL must be set");
 }
 
 export default defineConfig({
@@ -15,6 +12,5 @@ export default defineConfig({
   dialect: "postgresql",
   dbCredentials: {
     url,
-    ssl: process.env.SUPABASE_DATABASE_URL ? "require" : undefined,
-  } as any,
+  },
 });

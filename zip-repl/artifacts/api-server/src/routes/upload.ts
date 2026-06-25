@@ -1,8 +1,7 @@
 import { Router, type IRouter } from "express";
 import path from "path";
-import fs from "fs";
 import { randomUUID } from "crypto";
-import { createClient } from "@supabase/supabase-js";
+import { Storage } from "@google-cloud/storage";
 import multer from "multer";
 
 const router: IRouter = Router();
@@ -14,38 +13,34 @@ function requireAdmin(req: any, res: any, next: any) {
   next();
 }
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const BUCKET = "player-images";
+const REPLIT_SIDECAR_ENDPOINT = "http://127.0.0.1:1106";
 
-function getSupabaseClient() {
-  if (!SUPABASE_URL || !SUPABASE_KEY) return null;
-  return createClient(SUPABASE_URL, SUPABASE_KEY);
+function getObjectStorageClient() {
+  return new Storage({
+    credentials: {
+      audience: "replit",
+      subject_token_type: "access_token",
+      token_url: `${REPLIT_SIDECAR_ENDPOINT}/token`,
+      type: "external_account",
+      credential_source: {
+        url: `${REPLIT_SIDECAR_ENDPOINT}/credential`,
+        format: { type: "json", subject_token_field_name: "access_token" },
+      },
+      universe_domain: "googleapis.com",
+    } as any,
+    projectId: "",
+  });
 }
 
-async function ensureBucketPublic() {
-  const supabase = getSupabaseClient();
-  if (!supabase) return;
-  try {
-    const { error: createErr } = await supabase.storage.createBucket(BUCKET, { public: true });
-    if (createErr && createErr.message?.includes("already exists")) {
-      await supabase.storage.updateBucket(BUCKET, { public: true });
-    }
-  } catch {
-  }
-}
-ensureBucketPublic().catch(() => {});
-
-// Fallback: local disk uploads (used only if Supabase is not configured)
-const UPLOAD_DIR = path.join(process.cwd(), "uploads");
-if (!fs.existsSync(UPLOAD_DIR)) {
-  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+function getBucketName(): string | null {
+  const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
+  if (!bucketId) return null;
+  return bucketId;
 }
 
-// Use multer with memory storage so we can forward buffer to Supabase
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB
+  limits: { fileSize: 20 * 1024 * 1024 },
   fileFilter(_req, file, cb) {
     if (file.mimetype.startsWith("image/")) {
       cb(null, true);
@@ -62,45 +57,30 @@ router.post("/upload/image", requireAdmin, upload.single("file"), async (req, re
     }
 
     const ext = path.extname(req.file.originalname || ".jpg") || ".jpg";
-    const filename = randomUUID() + ext;
+    const filename = `player-images/${randomUUID()}${ext}`;
     const mimeType = req.file.mimetype || "image/jpeg";
     const fileData = req.file.buffer;
 
-    const supabase = getSupabaseClient();
+    const bucketName = getBucketName();
 
-    if (supabase) {
-      const { data, error } = await supabase.storage
-        .from(BUCKET)
-        .upload(filename, fileData, {
-          contentType: mimeType,
-          upsert: false,
-        });
+    if (bucketName) {
+      const storageClient = getObjectStorageClient();
+      const bucket = storageClient.bucket(bucketName);
+      const file = bucket.file(filename);
 
-      if (error) {
-        return res.status(500).json({ error: `Supabase upload failed: ${error.message}` });
-      }
+      await file.save(fileData, {
+        metadata: { contentType: mimeType },
+        public: true,
+      });
 
-      const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(filename);
-      return res.json({ url: urlData.publicUrl });
+      const publicUrl = `https://storage.googleapis.com/${bucketName}/${filename}`;
+      return res.json({ url: publicUrl });
     }
 
-    // Fallback to local storage
-    const filepath = path.join(UPLOAD_DIR, filename);
-    fs.writeFileSync(filepath, fileData);
-    res.json({ url: `/api/uploads/${filename}` });
+    return res.status(500).json({ error: "Object storage not configured. Set DEFAULT_OBJECT_STORAGE_BUCKET_ID." });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
-});
-
-// Serve locally stored uploads (fallback / legacy)
-router.get("/uploads/:filename", (req, res) => {
-  const filename = path.basename(req.params.filename);
-  const filepath = path.join(UPLOAD_DIR, filename);
-  if (!fs.existsSync(filepath)) {
-    return res.status(404).json({ error: "File not found" });
-  }
-  res.sendFile(filepath);
 });
 
 export default router;

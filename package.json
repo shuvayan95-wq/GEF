@@ -11,7 +11,13 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@google-cloud/storage": "^7.21.0",
+    "@uppy/aws-s3": "^5.1.0",
+    "@uppy/core": "^5.2.0",
+    "@uppy/dashboard": "^5.1.1",
+    "@uppy/react": "^5.2.0",
     "drizzle-zod": "^0.8.3",
+    "google-auth-library": "^10.9.0",
     "openai": "^6.41.0",
     "p-limit": "^7.3.0",
     "p-retry": "^8.0.0",

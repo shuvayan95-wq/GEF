@@ -125,9 +125,8 @@ router.get("/admin/db-status", requireAdmin, async (_req, res) => {
         counts[t] = -1;
       }
     }
-    const isSupabase = !!process.env.SUPABASE_DATABASE_URL;
     const connected = Object.values(counts).some(c => c >= 0);
-    res.json({ isSupabase, connected, counts });
+    res.json({ connected, counts });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

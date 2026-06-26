@@ -526,7 +526,19 @@ export function ManageGCC() {
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <h2 className="text-lg font-bold text-white">League Fixtures</h2>
-                        <span className="text-gray-500 text-sm">{leagueFixtures.filter(f => f.played).length}/{leagueFixtures.length} played</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500 text-sm">{leagueFixtures.filter(f => f.played).length}/{leagueFixtures.length} played</span>
+                          <button
+                            className="px-2.5 py-1 rounded-lg bg-yellow-600/20 border border-yellow-500/30 text-yellow-400 text-xs font-semibold hover:bg-yellow-600/30 transition-colors disabled:opacity-50 flex items-center gap-1"
+                            disabled={completeMutation.isPending}
+                            title="Re-runs the round scheduler using the existing drawn pairs. Clears unplayed fixtures and redistributes them into balanced matchdays."
+                            onClick={() => {
+                              if (!confirm("This will regenerate the fixture schedule from the existing draw pairs — all UNPLAYED fixtures will be replaced. Played results are kept. Continue?")) return;
+                              completeMutation.mutate();
+                            }}>
+                            {completeMutation.isPending ? "⏳ Regenerating…" : "⟳ Regenerate Fixtures"}
+                          </button>
+                        </div>
                       </div>
 
                       {leagueFixtures.length === 0 ? (

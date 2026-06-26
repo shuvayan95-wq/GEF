@@ -5,7 +5,7 @@ import { getApiUrl } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import {
   Star, Plus, Lock, Eye, Trash2, Crown, Clock, RefreshCw, CheckCircle2,
-  Target, Zap, Trophy, TrendingUp, Users, ChevronDown, ChevronRight, Radio,
+  Target, Zap, Trophy, TrendingUp, Users, ChevronDown, ChevronRight, Radio, ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
@@ -86,6 +86,8 @@ export function ManagePotw() {
   const [showAllPlayers, setShowAllPlayers] = useState(false);
   const [candidateSeason, setCandidateSeason] = useState("2025-26");
   const [roundSeason, setRoundSeason] = useState("2025-26");
+  const [overrideWinnerId, setOverrideWinnerId] = useState<number | "">("");
+  const [showOverride, setShowOverride] = useState(false);
 
   const { data, isLoading } = useQuery<{ rounds: Round[]; players: Player[] }>({
     queryKey: ["admin-potw"],
@@ -169,6 +171,25 @@ export function ManagePotw() {
     onError: (err: any) => toast({ variant: "destructive", title: "Failed", description: err?.message }),
   });
 
+  const overrideMutation = useMutation({
+    mutationFn: async (winnerId: number) => {
+      const res = await fetch(getApiUrl("/api/admin/potw/override-winner"), {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ winnerId }),
+      });
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error((e as any).error ?? "Failed"); }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-potw"] });
+      const winner = playerMap.get(data.winnerId);
+      toast({ title: "Winner declared!", description: winner ? `${winner.name} crowned as admin override.` : "Round closed." });
+      setOverrideWinnerId(""); setShowOverride(false);
+    },
+    onError: (err: any) => toast({ variant: "destructive", title: "Failed", description: err?.message }),
+  });
+
   const togglePlayer = (id: number) => {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
@@ -204,7 +225,7 @@ export function ManagePotw() {
                 </div>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               {!activeRound.votesRevealed && (
                 <Button
                   onClick={() => revealMutation.mutate()}
@@ -223,6 +244,13 @@ export function ManagePotw() {
                 </span>
               )}
               <Button
+                onClick={() => { setShowOverride(v => !v); setOverrideWinnerId(""); }}
+                variant="outline"
+                className="gap-2 border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
+              >
+                <ShieldCheck className="w-4 h-4" /> Admin Override
+              </Button>
+              <Button
                 onClick={() => closeMutation.mutate()}
                 disabled={closeMutation.isPending}
                 variant="outline"
@@ -234,6 +262,52 @@ export function ManagePotw() {
               </Button>
             </div>
           </div>
+
+          {/* Admin override panel */}
+          <AnimatePresence>
+            {showOverride && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="pt-3 border-t border-amber-500/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Crown className="w-3.5 h-3.5 text-amber-400" />
+                    <span className="text-xs font-black uppercase tracking-wider text-amber-400">
+                      Declare Winner — Admin Override
+                    </span>
+                    <span className="text-xs text-muted-foreground ml-1">
+                      Bypasses vote count and closes the round immediately.
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <select
+                      className="flex-1 bg-background border border-amber-500/30 rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-amber-400"
+                      value={overrideWinnerId}
+                      onChange={e => setOverrideWinnerId(e.target.value === "" ? "" : parseInt(e.target.value))}
+                    >
+                      <option value="">— Select a nominee —</option>
+                      {(activeRound.nomineeIds as number[]).map(nid => {
+                        const p = playerMap.get(nid);
+                        return p ? <option key={nid} value={nid}>{p.name}</option> : null;
+                      })}
+                    </select>
+                    <Button
+                      onClick={() => overrideWinnerId !== "" && overrideMutation.mutate(overrideWinnerId as number)}
+                      disabled={overrideWinnerId === "" || overrideMutation.isPending}
+                      className="gap-2 bg-amber-500 hover:bg-amber-400 text-black font-bold shrink-0"
+                    >
+                      {overrideMutation.isPending
+                        ? <><RefreshCw className="w-4 h-4 animate-spin" /> Declaring…</>
+                        : <><Crown className="w-4 h-4" /> Declare Winner</>}
+                    </Button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       )}
 

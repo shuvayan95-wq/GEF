@@ -335,6 +335,35 @@ router.post("/admin/potw/close", requireAdmin, async (req, res) => {
   }
 });
 
+// ─── POST /api/admin/potw/override-winner ─────────────────────────────────────
+// Close the active round and crown a specific player regardless of vote counts.
+router.post("/admin/potw/override-winner", requireAdmin, async (req, res) => {
+  try {
+    const { winnerId } = req.body as { winnerId: number };
+    if (!winnerId) return res.status(400).json({ error: "winnerId required" });
+
+    const active = await db.select().from(potwRoundsTable).where(eq(potwRoundsTable.isActive, true)).limit(1);
+    if (!active.length) return res.status(400).json({ error: "No active round" });
+
+    const round = active[0];
+    const nomineeIds = round.nomineeIds as number[];
+    if (!nomineeIds.includes(winnerId)) {
+      return res.status(400).json({ error: "Player is not a nominee in the active round" });
+    }
+
+    await db.update(potwRoundsTable).set({
+      isActive: false,
+      votesRevealed: true,
+      winnerId,
+      closedAt: new Date(),
+    }).where(eq(potwRoundsTable.id, round.id));
+
+    res.json({ ok: true, winnerId });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message });
+  }
+});
+
 // ─── POST /api/admin/potw/reveal-votes ───────────────────────────────────────
 router.post("/admin/potw/reveal-votes", requireAdmin, async (req, res) => {
   try {

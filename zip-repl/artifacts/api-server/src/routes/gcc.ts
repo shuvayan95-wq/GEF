@@ -195,22 +195,55 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-/** Schedule pairs into rounds: no team plays twice in the same round */
+/**
+ * Schedule pairs into rounds: no team plays twice in the same round.
+ * Packs rounds as densely as possible by prioritising pairs whose teams
+ * have the most remaining games (frequency-first greedy).
+ * For a k-regular pair graph on N teams this guarantees every round —
+ * including the last — contains exactly N/2 matches (all teams play).
+ */
 function scheduleRounds(pairs: { homeTeamId: number; awayTeamId: number }[]): { homeTeamId: number; awayTeamId: number; round: number }[] {
-  const teamRounds = new Map<number, Set<number>>();
-  const ensure = (id: number) => { if (!teamRounds.has(id)) teamRounds.set(id, new Set()); };
+  const remaining = [...pairs];
+  const rounds: { homeTeamId: number; awayTeamId: number }[][] = [];
 
-  const result = shuffle(pairs).map(p => {
-    ensure(p.homeTeamId); ensure(p.awayTeamId);
-    let round = 1;
-    while (teamRounds.get(p.homeTeamId)!.has(round) || teamRounds.get(p.awayTeamId)!.has(round)) {
-      round++;
+  while (remaining.length > 0) {
+    // Count how many remaining games each team still has
+    const freq = new Map<number, number>();
+    for (const p of remaining) {
+      freq.set(p.homeTeamId, (freq.get(p.homeTeamId) ?? 0) + 1);
+      freq.set(p.awayTeamId, (freq.get(p.awayTeamId) ?? 0) + 1);
     }
-    teamRounds.get(p.homeTeamId)!.add(round);
-    teamRounds.get(p.awayTeamId)!.add(round);
-    return { ...p, round };
-  });
 
+    // Sort pairs: high-load teams (fewest scheduling options left) come first
+    const order = remaining
+      .map((p, i) => ({ i, p, score: (freq.get(p.homeTeamId) ?? 0) + (freq.get(p.awayTeamId) ?? 0) }))
+      .sort((a, b) => b.score - a.score);
+
+    const round: { homeTeamId: number; awayTeamId: number }[] = [];
+    const used = new Set<number>();
+    const usedIdx = new Set<number>();
+
+    for (const { i, p } of order) {
+      if (!used.has(p.homeTeamId) && !used.has(p.awayTeamId)) {
+        round.push(p);
+        used.add(p.homeTeamId);
+        used.add(p.awayTeamId);
+        usedIdx.add(i);
+      }
+    }
+
+    // Remove scheduled pairs from remaining (high-index first to preserve indices)
+    for (const idx of [...usedIdx].sort((a, b) => b - a)) {
+      remaining.splice(idx, 1);
+    }
+
+    rounds.push(round);
+  }
+
+  const result: { homeTeamId: number; awayTeamId: number; round: number }[] = [];
+  for (let r = 0; r < rounds.length; r++) {
+    for (const p of rounds[r]) result.push({ ...p, round: r + 1 });
+  }
   return result;
 }
 

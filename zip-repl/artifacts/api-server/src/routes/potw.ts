@@ -78,43 +78,52 @@ async function computePlayerStats(playerIds?: number[], matchLimit = 30, season?
     .from(playerMatchupsTable)
     .where(inArray(playerMatchupsTable.matchId, matchIds));
 
-  const allPlayers = await db.select({ id: playersTable.id, teamId: playersTable.teamId }).from(playersTable);
-  const playerTeamMap = new Map(allPlayers.map((p) => [p.id, p.teamId]));
-
+  // raw entry per matchup row: win is based on individual 1v1 result, not team score
   type Entry = { matchDate: string; matchId: number; goals: number; isMvp: boolean; isWin: boolean };
   const entriesMap: Record<number, Entry[]> = {};
 
-  const addEntry = (playerId: number, goals: number, isMvp: boolean, matchId: number) => {
+  const addEntry = (playerId: number, goals: number, isMvp: boolean, isWin: boolean, matchId: number) => {
     const match = matchMap.get(matchId);
     if (!match) return;
-    const teamId = playerTeamMap.get(playerId);
-    let isWin = false;
-    if (teamId === match.team1Id) isWin = match.team1Score > match.team2Score;
-    else if (teamId === match.team2Id) isWin = match.team2Score > match.team1Score;
-
     if (!entriesMap[playerId]) entriesMap[playerId] = [];
     entriesMap[playerId].push({ matchDate: match.date, matchId, goals, isMvp, isWin });
   };
 
   for (const mu of matchups) {
-    addEntry(mu.player1Id, mu.player1Goals, mu.mvpPlayerId === mu.player1Id, mu.matchId);
-    addEntry(mu.player2Id, mu.player2Goals, mu.mvpPlayerId === mu.player2Id, mu.matchId);
+    // win = individual matchup result (avoids team-ID mismatch after transfers)
+    addEntry(mu.player1Id, mu.player1Goals, mu.mvpPlayerId === mu.player1Id, mu.player1Goals > mu.player2Goals, mu.matchId);
+    addEntry(mu.player2Id, mu.player2Goals, mu.mvpPlayerId === mu.player2Id, mu.player2Goals > mu.player1Goals, mu.matchId);
   }
 
   const result: Record<number, { goals: number; mvps: number; wins: number; matches: number }> = {};
   const ids = playerIds ?? Object.keys(entriesMap).map(Number);
 
   for (const pid of ids) {
-    const entries = (entriesMap[pid] ?? [])
-      .sort((a, b) => b.matchDate.localeCompare(a.matchDate))
-      .filter((e, i, arr) => arr.findIndex((x) => x.matchId === e.matchId) === i)
-      .slice(0, 3);
+    const allEntries = entriesMap[pid] ?? [];
+
+    // Aggregate across multiple matchup rows in the same match (player may appear in >1 row)
+    const matchAgg = new Map<number, { matchDate: string; goals: number; isMvp: boolean; wonAny: boolean }>();
+    for (const e of allEntries) {
+      if (!matchAgg.has(e.matchId)) {
+        matchAgg.set(e.matchId, { matchDate: e.matchDate, goals: 0, isMvp: false, wonAny: false });
+      }
+      const agg = matchAgg.get(e.matchId)!;
+      agg.goals  += e.goals;
+      agg.isMvp   = agg.isMvp  || e.isMvp;
+      agg.wonAny  = agg.wonAny  || e.isWin;
+    }
+
+    // Sort matches by date desc, take last 3 matchdays
+    const matches = [...matchAgg.entries()]
+      .sort((a, b) => b[1].matchDate.localeCompare(a[1].matchDate))
+      .slice(0, 3)
+      .map(([, v]) => v);
 
     result[pid] = {
-      goals: entries.reduce((s, e) => s + e.goals, 0),
-      mvps: entries.filter((e) => e.isMvp).length,
-      wins: entries.filter((e) => e.isWin).length,
-      matches: entries.length,
+      goals:   matches.reduce((s, m) => s + m.goals, 0),
+      mvps:    matches.filter((m) => m.isMvp).length,
+      wins:    matches.filter((m) => m.wonAny).length,
+      matches: matches.length,
     };
   }
   return result;

@@ -58,6 +58,11 @@ export function ManageGCC() {
   });
   const [finalizeForm, setFinalizeForm] = useState(emptyFinalize());
 
+  // Manual fixture builder state
+  const [manualFixForm, setManualFixForm] = useState({ homeTeamId: "", awayTeamId: "", round: "1" });
+  const [totalMatchdays, setTotalMatchdays] = useState("8");
+  const [showManualAdd, setShowManualAdd] = useState(false);
+
   const { data: tourneysData } = useQuery({
     queryKey: ["gcc-tournaments"],
     queryFn: async () => { const r = await fetch("/api/gcc/tournaments"); return r.json(); },
@@ -260,6 +265,29 @@ export function ManageGCC() {
       });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["gcc-tournament", selectedTournament] }),
+  });
+
+  const addLeagueFixtureMutation = useMutation({
+    mutationFn: async () => {
+      if (!manualFixForm.homeTeamId || !manualFixForm.awayTeamId) throw new Error("Select both teams");
+      if (Number(manualFixForm.homeTeamId) === Number(manualFixForm.awayTeamId)) throw new Error("Home and away teams must be different");
+      const r = await fetch(getApiUrl(`/api/gcc/tournaments/${selectedTournament}/fixtures/add`), {
+        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+        body: JSON.stringify({
+          homeTeamId: Number(manualFixForm.homeTeamId),
+          awayTeamId: Number(manualFixForm.awayTeamId),
+          stage: "league",
+          round: Number(manualFixForm.round),
+          leg: 1,
+        }),
+      });
+      if (!r.ok) { const e = await r.json(); throw new Error(e.error); }
+      return r.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["gcc-tournament", selectedTournament] });
+      setManualFixForm(f => ({ ...f, homeTeamId: "", awayTeamId: "" }));
+    },
   });
 
   const finalizeMutation = useMutation({
@@ -524,9 +552,9 @@ export function ManageGCC() {
                   {/* FIXTURES TAB */}
                   {tab === "fixtures" && (
                     <div className="space-y-4">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
                         <h2 className="text-lg font-bold text-white">League Fixtures</h2>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-gray-500 text-sm">{leagueFixtures.filter(f => f.played).length}/{leagueFixtures.length} played</span>
                           <button
                             className="px-2.5 py-1 rounded-lg bg-yellow-600/20 border border-yellow-500/30 text-yellow-400 text-xs font-semibold hover:bg-yellow-600/30 transition-colors disabled:opacity-50 flex items-center gap-1"
@@ -538,11 +566,87 @@ export function ManageGCC() {
                             }}>
                             {completeMutation.isPending ? "⏳ Regenerating…" : "⟳ Regenerate Fixtures"}
                           </button>
+                          <button
+                            className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1 ${showManualAdd ? "bg-blue-600/30 border border-blue-500/40 text-blue-300" : "bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10"}`}
+                            onClick={() => setShowManualAdd(v => !v)}>
+                            <Plus className="w-3.5 h-3.5" /> Manual Add
+                          </button>
                         </div>
                       </div>
 
+                      {/* Manual fixture builder panel */}
+                      {showManualAdd && (
+                        <div className="rounded-xl p-4 space-y-3" style={{ background: "rgba(59,130,246,0.05)", border: "1px solid rgba(59,130,246,0.2)" }}>
+                          <div className="flex items-center justify-between gap-4 flex-wrap">
+                            <span className="text-xs font-bold text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
+                              <Plus className="w-3.5 h-3.5" /> Add Fixture Manually
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-500">Total Matchdays</span>
+                              <input
+                                type="number" min="1" max="99" value={totalMatchdays}
+                                onChange={e => setTotalMatchdays(e.target.value)}
+                                className="w-14 text-center bg-gray-900 border border-white/10 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-blue-500/60"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-[1fr_auto_1fr_auto_auto] gap-2 items-end">
+                            <div>
+                              <label className="text-xs text-gray-500 mb-1 block">Home Team</label>
+                              <select
+                                className={inputClass}
+                                value={manualFixForm.homeTeamId}
+                                onChange={e => setManualFixForm(f => ({ ...f, homeTeamId: e.target.value }))}>
+                                <option value="">— Home —</option>
+                                {entries.map((e: any) => (
+                                  <option key={e.teamId} value={e.teamId}>{e.team?.name ?? `Team ${e.teamId}`}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <span className="text-gray-600 text-xs pb-2">vs</span>
+                            <div>
+                              <label className="text-xs text-gray-500 mb-1 block">Away Team</label>
+                              <select
+                                className={inputClass}
+                                value={manualFixForm.awayTeamId}
+                                onChange={e => setManualFixForm(f => ({ ...f, awayTeamId: e.target.value }))}>
+                                <option value="">— Away —</option>
+                                {entries.map((e: any) => (
+                                  <option key={e.teamId} value={e.teamId}>{e.team?.name ?? `Team ${e.teamId}`}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="text-xs text-gray-500 mb-1 block">Matchday</label>
+                              <select
+                                className="bg-gray-900 border border-white/10 rounded-lg px-2 py-2 text-white text-sm focus:outline-none focus:border-blue-500/60"
+                                value={manualFixForm.round}
+                                onChange={e => setManualFixForm(f => ({ ...f, round: e.target.value }))}>
+                                {Array.from({ length: Math.max(1, Number(totalMatchdays) || 8) }, (_, i) => (
+                                  <option key={i + 1} value={String(i + 1)}>MD {i + 1}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <button
+                              className={btnPrimary + " flex items-center gap-1.5 whitespace-nowrap"}
+                              disabled={!manualFixForm.homeTeamId || !manualFixForm.awayTeamId || addLeagueFixtureMutation.isPending}
+                              onClick={() => addLeagueFixtureMutation.mutate()}>
+                              <Plus className="w-3.5 h-3.5" />
+                              {addLeagueFixtureMutation.isPending ? "Adding…" : "Add Fixture"}
+                            </button>
+                          </div>
+                          {addLeagueFixtureMutation.isError && (
+                            <p className="text-red-400 text-xs">{(addLeagueFixtureMutation.error as Error).message}</p>
+                          )}
+                          {addLeagueFixtureMutation.isSuccess && (
+                            <p className="text-green-400 text-xs">✓ Fixture added to Matchday {manualFixForm.round}</p>
+                          )}
+                        </div>
+                      )}
+
                       {leagueFixtures.length === 0 ? (
-                        <p className="text-gray-600 text-sm text-center py-8">No league fixtures yet. Complete the draw first.</p>
+                        <p className="text-gray-600 text-sm text-center py-8">No league fixtures yet. Complete the draw first, or use Manual Add above.</p>
                       ) : (
                         <div className="space-y-2 max-h-[600px] overflow-y-auto">
                           {(() => {

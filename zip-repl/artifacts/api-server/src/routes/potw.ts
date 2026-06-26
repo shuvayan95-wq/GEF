@@ -89,60 +89,54 @@ async function computePlayerStats(playerIds?: number[], matchLimit = 30, season?
     candidates = candidates.slice(0, matchLimit);
   }
 
-  // ── 4. Keep only the 3 most-recent distinct matchdays ────────────────────
-  const distinctDates = [...new Set(candidates.map(m => m.date))].slice(0, 3);
-  const recentMatches = candidates.filter(m => distinctDates.includes(m.date));
+  // ── 4. Build a lookup: matchId → match record (from season-filtered candidates)
+  const candidateMatchMap = new Map(candidates.map(m => [m.id, m]));
 
-  if (!recentMatches.length) return {};
-
-  const recentMatchIdSet = new Set(recentMatches.map(m => m.id));
-  const matchMap         = new Map(recentMatches.map(m => [m.id, m]));
-  const matchups         = rawMatchups.filter(mu => recentMatchIdSet.has(mu.matchId));
-
-  // ── 5. Aggregate stats per player ─────────────────────────────────────────
-  type MatchAgg = { matchDate: string; goals: number; isMvp: boolean; wonAny: boolean };
-  const playerMatchAgg = new Map<number, Map<number, MatchAgg>>();
-
-  const touch = (pid: number, matchId: number, matchDate: string) => {
-    if (!playerMatchAgg.has(pid)) playerMatchAgg.set(pid, new Map());
-    const byMatch = playerMatchAgg.get(pid)!;
-    if (!byMatch.has(matchId)) byMatch.set(matchId, { matchDate, goals: 0, isMvp: false, wonAny: false });
-    return byMatch.get(matchId)!;
-  };
-
-  for (const mu of matchups) {
-    const match = matchMap.get(mu.matchId);
-    if (!match) continue;
-
-    const p1Win = mu.player1Goals > mu.player2Goals;
-    const p2Win = mu.player2Goals > mu.player1Goals;
-
-    const a1 = touch(mu.player1Id, mu.matchId, match.date);
-    a1.goals  += mu.player1Goals;
-    a1.isMvp   = a1.isMvp || mu.mvpPlayerId === mu.player1Id;
-    a1.wonAny  = a1.wonAny || p1Win;
-
-    const a2 = touch(mu.player2Id, mu.matchId, match.date);
-    a2.goals  += mu.player2Goals;
-    a2.isMvp   = a2.isMvp || mu.mvpPlayerId === mu.player2Id;
-    a2.wonAny  = a2.wonAny || p2Win;
-  }
-
+  // ── 5. Per-player aggregation with individual last-3-matchday windows ─────
+  //   Each player gets their OWN 3 most-recent distinct dates — this means
+  //   a league-only player (e.g. Sieon) never gets their dates crowded out by
+  //   more-recent GCC dates from other nominees.
   const result: Record<number, { goals: number; mvps: number; wins: number; matches: number }> = {};
-  const ids = playerIds ?? [...playerMatchAgg.keys()];
+  const ids = playerIds ?? [...new Set([...rawMatchups.flatMap(mu => [mu.player1Id, mu.player2Id])])];
 
   for (const pid of ids) {
-    const byMatch = playerMatchAgg.get(pid);
-    if (!byMatch) { result[pid] = { goals: 0, mvps: 0, wins: 0, matches: 0 }; continue; }
+    // All matchups for this player that belong to a season-candidate match
+    const pMatchups = rawMatchups.filter(mu =>
+      (mu.player1Id === pid || mu.player2Id === pid) &&
+      candidateMatchMap.has(mu.matchId)
+    );
 
-    const matches = [...byMatch.values()]
-      .sort((a, b) => b.matchDate.localeCompare(a.matchDate));
+    if (!pMatchups.length) {
+      result[pid] = { goals: 0, mvps: 0, wins: 0, matches: 0 };
+      continue;
+    }
+
+    // Collect per-match aggregates (goals sum, mvp, win) for this player
+    type MatchAgg = { matchDate: string; goals: number; isMvp: boolean; wonAny: boolean };
+    const byMatch = new Map<number, MatchAgg>();
+
+    for (const mu of pMatchups) {
+      const match = candidateMatchMap.get(mu.matchId)!;
+      if (!byMatch.has(mu.matchId)) {
+        byMatch.set(mu.matchId, { matchDate: match.date, goals: 0, isMvp: false, wonAny: false });
+      }
+      const agg = byMatch.get(mu.matchId)!;
+      const isP1 = mu.player1Id === pid;
+      agg.goals  += isP1 ? mu.player1Goals : mu.player2Goals;
+      agg.isMvp   = agg.isMvp || mu.mvpPlayerId === pid;
+      agg.wonAny  = agg.wonAny || (isP1 ? mu.player1Goals > mu.player2Goals : mu.player2Goals > mu.player1Goals);
+    }
+
+    // Sort by date desc → take each player's own last 3 distinct matchdays
+    const allMatchEntries = [...byMatch.values()].sort((a, b) => b.matchDate.localeCompare(a.matchDate));
+    const playerDates = [...new Set(allMatchEntries.map(e => e.matchDate))].slice(0, 3);
+    const matchEntries = allMatchEntries.filter(e => playerDates.includes(e.matchDate));
 
     result[pid] = {
-      goals:   matches.reduce((s, m) => s + m.goals, 0),
-      mvps:    matches.filter(m => m.isMvp).length,
-      wins:    matches.filter(m => m.wonAny).length,
-      matches: matches.length,
+      goals:   matchEntries.reduce((s, m) => s + m.goals, 0),
+      mvps:    matchEntries.filter(m => m.isMvp).length,
+      wins:    matchEntries.filter(m => m.wonAny).length,
+      matches: matchEntries.length,
     };
   }
   return result;

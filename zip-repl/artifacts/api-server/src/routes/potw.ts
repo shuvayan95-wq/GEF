@@ -7,7 +7,7 @@ import {
   leaguesTable,
   gccTournamentsTable,
 } from "@workspace/db";
-import { desc, eq, and, inArray, or } from "drizzle-orm";
+import { desc, eq, and, inArray, or, sql } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -25,104 +25,123 @@ function getIp(req: any): string {
 }
 
 // ─── Shared helper: compute last-3-matchday stats per player ──────────────────
-// If season provided, restricts to matches in that season and uses last 3 distinct match dates.
-// Otherwise falls back to last matchLimit matches globally.
+//
+// Strategy (player-centric — avoids missing matches due to broken season chains):
+//  1. Fetch all matchups that involve the target players.
+//  2. Load those matches (ordered newest-first).
+//  3. If a season is specified, try to narrow to matches that belong to that
+//     season (via direct season field, leagueId, or gccTournamentId lookup).
+//     If the season filter would wipe everything (e.g. matches stored without
+//     season/leagueId/gccTournamentId), we fall back gracefully to all matches.
+//  4. Keep only the 3 most-recent distinct match dates.
+//  5. Aggregate goals / wins / MVPs per match (a player can appear in multiple
+//     matchup rows of the same fixture).
+//
 async function computePlayerStats(playerIds?: number[], matchLimit = 30, season?: string) {
-  let seasonMatchIds: number[] | null = null;
+  // ── 1. Matchups for the target players ────────────────────────────────────
+  let rawMatchups: (typeof playerMatchupsTable.$inferSelect)[];
 
-  if (season) {
-    // Get league IDs for this season
-    const leaguesForSeason = await db.select({ id: leaguesTable.id })
-      .from(leaguesTable)
-      .where(eq(leaguesTable.season, season));
-    const leagueIds = leaguesForSeason.map(l => l.id);
-
-    // Get gcc tournament IDs for this season
-    const gccForSeason = await db.select({ id: gccTournamentsTable.id })
-      .from(gccTournamentsTable)
-      .where(eq(gccTournamentsTable.season, season));
-    const gccIds = gccForSeason.map(g => g.id);
-
-    // Get all matches for this season (by season field or by leagueId/gccTournamentId)
-    const allSeasonMatches = await db.select({ id: matchesTable.id, date: matchesTable.date })
-      .from(matchesTable)
-      .where(
-        or(
-          eq(matchesTable.season, season),
-          leagueIds.length > 0 ? inArray(matchesTable.leagueId, leagueIds) : undefined,
-          gccIds.length > 0 ? inArray(matchesTable.gccTournamentId, gccIds) : undefined,
-        )
+  if (playerIds && playerIds.length > 0) {
+    rawMatchups = await db.select().from(playerMatchupsTable).where(
+      or(
+        inArray(playerMatchupsTable.player1Id, playerIds),
+        inArray(playerMatchupsTable.player2Id, playerIds),
       )
-      .orderBy(desc(matchesTable.date));
-
-    if (!allSeasonMatches.length) return {};
-
-    // Get last 3 distinct matchdays (dates)
-    const distinctDates = [...new Set(allSeasonMatches.map(m => m.date))].slice(0, 3);
-    seasonMatchIds = allSeasonMatches.filter(m => distinctDates.includes(m.date)).map(m => m.id);
-
-    if (!seasonMatchIds.length) return {};
+    );
+  } else {
+    // No specific players — load all matchups (used when building full standings)
+    rawMatchups = await db.select().from(playerMatchupsTable);
   }
 
-  const recentMatches = seasonMatchIds
-    ? await db.select().from(matchesTable).where(inArray(matchesTable.id, seasonMatchIds))
-    : await db.select().from(matchesTable).orderBy(desc(matchesTable.date)).limit(matchLimit);
+  if (!rawMatchups.length) return {};
+
+  // ── 2. Fetch the matches those matchups belong to ─────────────────────────
+  const allMatchupMatchIds = [...new Set(rawMatchups.map(m => m.matchId))];
+  let candidates = await db
+    .select()
+    .from(matchesTable)
+    .where(inArray(matchesTable.id, allMatchupMatchIds))
+    .orderBy(desc(matchesTable.date));
+
+  if (!candidates.length) return {};
+
+  // ── 3. Season filter (soft — falls back if it would return nothing) ───────
+  if (season) {
+    const [leaguesForSeason, gccForSeason] = await Promise.all([
+      db.select({ id: leaguesTable.id }).from(leaguesTable).where(eq(leaguesTable.season, season)),
+      db.select({ id: gccTournamentsTable.id }).from(gccTournamentsTable).where(eq(gccTournamentsTable.season, season)),
+    ]);
+    const leagueIdSet = new Set(leaguesForSeason.map(l => l.id));
+    const gccIdSet    = new Set(gccForSeason.map(g => g.id));
+
+    const filtered = candidates.filter(m =>
+      m.season === season ||
+      (m.leagueId        != null && leagueIdSet.has(m.leagueId)) ||
+      (m.gccTournamentId != null && gccIdSet.has(m.gccTournamentId))
+    );
+
+    // Only restrict if we actually found matches for this season.
+    // If nothing matched (e.g. match stored without season/leagueId/gccTournamentId),
+    // keep all candidates so stats are never silently wiped.
+    if (filtered.length > 0) candidates = filtered;
+  } else if (!playerIds) {
+    // Global fallback without season: cap at matchLimit most-recent matches
+    candidates = candidates.slice(0, matchLimit);
+  }
+
+  // ── 4. Keep only the 3 most-recent distinct matchdays ────────────────────
+  const distinctDates = [...new Set(candidates.map(m => m.date))].slice(0, 3);
+  const recentMatches = candidates.filter(m => distinctDates.includes(m.date));
 
   if (!recentMatches.length) return {};
 
-  const matchIds = recentMatches.map((m) => m.id);
-  const matchMap = new Map(recentMatches.map((m) => [m.id, m]));
+  const recentMatchIdSet = new Set(recentMatches.map(m => m.id));
+  const matchMap         = new Map(recentMatches.map(m => [m.id, m]));
+  const matchups         = rawMatchups.filter(mu => recentMatchIdSet.has(mu.matchId));
 
-  const matchups = await db
-    .select()
-    .from(playerMatchupsTable)
-    .where(inArray(playerMatchupsTable.matchId, matchIds));
+  // ── 5. Aggregate stats per player ─────────────────────────────────────────
+  type MatchAgg = { matchDate: string; goals: number; isMvp: boolean; wonAny: boolean };
+  const playerMatchAgg = new Map<number, Map<number, MatchAgg>>();
 
-  // raw entry per matchup row: win is based on individual 1v1 result, not team score
-  type Entry = { matchDate: string; matchId: number; goals: number; isMvp: boolean; isWin: boolean };
-  const entriesMap: Record<number, Entry[]> = {};
-
-  const addEntry = (playerId: number, goals: number, isMvp: boolean, isWin: boolean, matchId: number) => {
-    const match = matchMap.get(matchId);
-    if (!match) return;
-    if (!entriesMap[playerId]) entriesMap[playerId] = [];
-    entriesMap[playerId].push({ matchDate: match.date, matchId, goals, isMvp, isWin });
+  const touch = (pid: number, matchId: number, matchDate: string) => {
+    if (!playerMatchAgg.has(pid)) playerMatchAgg.set(pid, new Map());
+    const byMatch = playerMatchAgg.get(pid)!;
+    if (!byMatch.has(matchId)) byMatch.set(matchId, { matchDate, goals: 0, isMvp: false, wonAny: false });
+    return byMatch.get(matchId)!;
   };
 
   for (const mu of matchups) {
-    // win = individual matchup result (avoids team-ID mismatch after transfers)
-    addEntry(mu.player1Id, mu.player1Goals, mu.mvpPlayerId === mu.player1Id, mu.player1Goals > mu.player2Goals, mu.matchId);
-    addEntry(mu.player2Id, mu.player2Goals, mu.mvpPlayerId === mu.player2Id, mu.player2Goals > mu.player1Goals, mu.matchId);
+    const match = matchMap.get(mu.matchId);
+    if (!match) continue;
+
+    const p1Win = mu.player1Goals > mu.player2Goals;
+    const p2Win = mu.player2Goals > mu.player1Goals;
+
+    const a1 = touch(mu.player1Id, mu.matchId, match.date);
+    a1.goals  += mu.player1Goals;
+    a1.isMvp   = a1.isMvp || mu.mvpPlayerId === mu.player1Id;
+    a1.wonAny  = a1.wonAny || p1Win;
+
+    const a2 = touch(mu.player2Id, mu.matchId, match.date);
+    a2.goals  += mu.player2Goals;
+    a2.isMvp   = a2.isMvp || mu.mvpPlayerId === mu.player2Id;
+    a2.wonAny  = a2.wonAny || p2Win;
   }
 
   const result: Record<number, { goals: number; mvps: number; wins: number; matches: number }> = {};
-  const ids = playerIds ?? Object.keys(entriesMap).map(Number);
+  const ids = playerIds ?? [...playerMatchAgg.keys()];
 
   for (const pid of ids) {
-    const allEntries = entriesMap[pid] ?? [];
+    const byMatch = playerMatchAgg.get(pid);
+    if (!byMatch) { result[pid] = { goals: 0, mvps: 0, wins: 0, matches: 0 }; continue; }
 
-    // Aggregate across multiple matchup rows in the same match (player may appear in >1 row)
-    const matchAgg = new Map<number, { matchDate: string; goals: number; isMvp: boolean; wonAny: boolean }>();
-    for (const e of allEntries) {
-      if (!matchAgg.has(e.matchId)) {
-        matchAgg.set(e.matchId, { matchDate: e.matchDate, goals: 0, isMvp: false, wonAny: false });
-      }
-      const agg = matchAgg.get(e.matchId)!;
-      agg.goals  += e.goals;
-      agg.isMvp   = agg.isMvp  || e.isMvp;
-      agg.wonAny  = agg.wonAny  || e.isWin;
-    }
-
-    // Sort matches by date desc, take last 3 matchdays
-    const matches = [...matchAgg.entries()]
-      .sort((a, b) => b[1].matchDate.localeCompare(a[1].matchDate))
-      .slice(0, 3)
-      .map(([, v]) => v);
+    const matches = [...byMatch.values()]
+      .sort((a, b) => b.matchDate.localeCompare(a.matchDate));
 
     result[pid] = {
       goals:   matches.reduce((s, m) => s + m.goals, 0),
-      mvps:    matches.filter((m) => m.isMvp).length,
-      wins:    matches.filter((m) => m.wonAny).length,
+      mvps:    matches.filter(m => m.isMvp).length,
+      wins:    matches.filter(m => m.wonAny).length,
       matches: matches.length,
     };
   }

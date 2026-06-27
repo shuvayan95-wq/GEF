@@ -918,52 +918,161 @@ export function ManageGCC() {
                                   <div className="divide-y divide-white/5">
                                     {mdFixtures.map((f: any) => {
                                       const rf = resultForms[f.id] ?? { homeScore: "", awayScore: "" };
+                                      const isExpanded = expandedFixtureId === f.id;
+                                      const homePlayers: any[] = allTeams.find((t: any) => t.id === f.homeTeamId)?.players ?? [];
+                                      const awayPlayers: any[] = allTeams.find((t: any) => t.id === f.awayTeamId)?.players ?? [];
+                                      const mRows = fixtureMatchupRows[f.id] ?? Array.from({ length: 5 }, emptyFixtureMatchupRow);
+
                                       return (
-                                        <div key={f.id} className="flex items-center gap-3 px-4 py-3 group"
-                                          style={{ background: f.played ? "rgba(34,197,94,0.04)" : "transparent" }}>
-                                          {/* Home team */}
-                                          <div className="flex items-center gap-2 flex-1 justify-end">
-                                            <span className="text-sm text-white font-medium text-right">{f.homeTeam?.name ?? `#${f.homeTeamId}`}</span>
-                                            {f.homeTeam?.logoUrl && <img src={f.homeTeam.logoUrl} alt="" className="w-6 h-6 rounded-full object-contain flex-shrink-0" />}
+                                        <div key={f.id} style={{ background: f.played ? "rgba(34,197,94,0.04)" : "transparent" }}>
+                                          {/* Main row */}
+                                          <div className="flex items-center gap-3 px-4 py-3 group">
+                                            {/* Home team */}
+                                            <div className="flex items-center gap-2 flex-1 justify-end">
+                                              <span className="text-sm text-white font-medium text-right">{f.homeTeam?.name ?? `#${f.homeTeamId}`}</span>
+                                              {f.homeTeam?.logoUrl && <img src={f.homeTeam.logoUrl} alt="" className="w-6 h-6 rounded-full object-contain flex-shrink-0" />}
+                                            </div>
+
+                                            {/* Score / inputs */}
+                                            {f.played ? (
+                                              <div className="flex items-center gap-1 px-3">
+                                                <span className="text-base font-black text-green-400 tabular-nums">{f.homeScore}</span>
+                                                <span className="text-gray-600 text-sm">–</span>
+                                                <span className="text-base font-black text-green-400 tabular-nums">{f.awayScore}</span>
+                                              </div>
+                                            ) : (
+                                              <div className="flex items-center gap-1">
+                                                <input type="number" min="0" value={rf.homeScore}
+                                                  onChange={e => setResultForms(prev => ({ ...prev, [f.id]: { ...rf, homeScore: e.target.value } }))}
+                                                  className="w-10 text-center bg-white/10 border border-white/10 rounded px-1 py-1 text-sm text-white focus:outline-none focus:border-orange-500/60" />
+                                                <span className="text-gray-600 text-xs">–</span>
+                                                <input type="number" min="0" value={rf.awayScore}
+                                                  onChange={e => setResultForms(prev => ({ ...prev, [f.id]: { ...rf, awayScore: e.target.value } }))}
+                                                  className="w-10 text-center bg-white/10 border border-white/10 rounded px-1 py-1 text-sm text-white focus:outline-none focus:border-orange-500/60" />
+                                              </div>
+                                            )}
+
+                                            {/* Away team */}
+                                            <div className="flex items-center gap-2 flex-1">
+                                              {f.awayTeam?.logoUrl && <img src={f.awayTeam.logoUrl} alt="" className="w-6 h-6 rounded-full object-contain flex-shrink-0" />}
+                                              <span className="text-sm text-white font-medium">{f.awayTeam?.name ?? `#${f.awayTeamId}`}</span>
+                                            </div>
+
+                                            {/* Expand toggle (only for unplayed) */}
+                                            {!f.played && (
+                                              <button
+                                                className={`p-1 rounded transition-colors text-xs font-bold px-2 ${isExpanded ? "bg-orange-600/30 text-orange-400" : "bg-white/5 text-gray-500 hover:text-gray-300"}`}
+                                                onClick={() => setExpandedFixtureId(isExpanded ? null : f.id)}>
+                                                {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                                              </button>
+                                            )}
+
+                                            {/* Delete */}
+                                            <button
+                                              className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded text-red-500 hover:text-red-400 hover:bg-red-900/20"
+                                              onClick={() => { if (confirm("Delete this match?")) deleteFixtureMutation.mutate(f.id); }}>
+                                              <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
                                           </div>
 
-                                          {/* Score / input */}
-                                          {f.played ? (
-                                            <div className="flex items-center gap-1 px-3">
-                                              <span className="text-base font-black text-green-400 tabular-nums">{f.homeScore}</span>
-                                              <span className="text-gray-600 text-sm">–</span>
-                                              <span className="text-base font-black text-green-400 tabular-nums">{f.awayScore}</span>
-                                            </div>
-                                          ) : (
-                                            <div className="flex items-center gap-1">
-                                              <input type="number" min="0" value={rf.homeScore}
-                                                onChange={e => setResultForms(prev => ({ ...prev, [f.id]: { ...rf, homeScore: e.target.value } }))}
-                                                className="w-10 text-center bg-white/10 border border-white/10 rounded px-1 py-1 text-sm text-white focus:outline-none focus:border-orange-500/60" />
-                                              <span className="text-gray-600 text-xs">–</span>
-                                              <input type="number" min="0" value={rf.awayScore}
-                                                onChange={e => setResultForms(prev => ({ ...prev, [f.id]: { ...rf, awayScore: e.target.value } }))}
-                                                className="w-10 text-center bg-white/10 border border-white/10 rounded px-1 py-1 text-sm text-white focus:outline-none focus:border-orange-500/60" />
+                                          {/* Expanded matchup form */}
+                                          {!f.played && isExpanded && (
+                                            <div className="px-4 pb-4 space-y-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                                              {/* Column headers */}
+                                              <div className="grid gap-1 pt-3 text-[10px] text-gray-600 uppercase tracking-wider font-bold px-1"
+                                                style={{ gridTemplateColumns: "1fr 36px 16px 36px 1fr 64px" }}>
+                                                <span>{f.homeTeam?.name ?? "Home"}</span>
+                                                <span className="text-center">G</span>
+                                                <span />
+                                                <span className="text-center">G</span>
+                                                <span>{f.awayTeam?.name ?? "Away"}</span>
+                                                <span className="text-center">MVP</span>
+                                              </div>
+
+                                              {/* 5 matchup rows */}
+                                              {mRows.map((row: any, idx: number) => (
+                                                <div key={idx} className="grid gap-1 items-center"
+                                                  style={{ gridTemplateColumns: "1fr 36px 16px 36px 1fr 64px" }}>
+                                                  <select
+                                                    className="bg-gray-800 border border-white/10 rounded px-2 py-1.5 text-white text-xs focus:outline-none focus:border-orange-500/60"
+                                                    value={row.player1Id}
+                                                    onChange={e => setFixtureMatchupRows(prev => {
+                                                      const rows = [...(prev[f.id] ?? Array.from({ length: 5 }, emptyFixtureMatchupRow))];
+                                                      rows[idx] = { ...rows[idx], player1Id: e.target.value, mvpPlayerId: "" };
+                                                      return { ...prev, [f.id]: rows };
+                                                    })}>
+                                                    <option value="">— home player —</option>
+                                                    {homePlayers.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                                  </select>
+                                                  <input type="number" min="0" max="99" value={row.player1Goals}
+                                                    onChange={e => setFixtureMatchupRows(prev => {
+                                                      const rows = [...(prev[f.id] ?? Array.from({ length: 5 }, emptyFixtureMatchupRow))];
+                                                      rows[idx] = { ...rows[idx], player1Goals: e.target.value };
+                                                      return { ...prev, [f.id]: rows };
+                                                    })}
+                                                    className="bg-gray-800 border border-white/10 rounded px-1 py-1.5 text-white text-xs text-center focus:outline-none focus:border-orange-500/60 w-full" />
+                                                  <span className="text-gray-600 text-xs text-center">v</span>
+                                                  <input type="number" min="0" max="99" value={row.player2Goals}
+                                                    onChange={e => setFixtureMatchupRows(prev => {
+                                                      const rows = [...(prev[f.id] ?? Array.from({ length: 5 }, emptyFixtureMatchupRow))];
+                                                      rows[idx] = { ...rows[idx], player2Goals: e.target.value };
+                                                      return { ...prev, [f.id]: rows };
+                                                    })}
+                                                    className="bg-gray-800 border border-white/10 rounded px-1 py-1.5 text-white text-xs text-center focus:outline-none focus:border-orange-500/60 w-full" />
+                                                  <select
+                                                    className="bg-gray-800 border border-white/10 rounded px-2 py-1.5 text-white text-xs focus:outline-none focus:border-orange-500/60"
+                                                    value={row.player2Id}
+                                                    onChange={e => setFixtureMatchupRows(prev => {
+                                                      const rows = [...(prev[f.id] ?? Array.from({ length: 5 }, emptyFixtureMatchupRow))];
+                                                      rows[idx] = { ...rows[idx], player2Id: e.target.value, mvpPlayerId: "" };
+                                                      return { ...prev, [f.id]: rows };
+                                                    })}>
+                                                    <option value="">— away player —</option>
+                                                    {awayPlayers.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                                  </select>
+                                                  <select
+                                                    className="bg-gray-800 border border-white/10 rounded px-1 py-1.5 text-yellow-400 text-xs focus:outline-none focus:border-yellow-500/60"
+                                                    value={row.mvpPlayerId}
+                                                    onChange={e => setFixtureMatchupRows(prev => {
+                                                      const rows = [...(prev[f.id] ?? Array.from({ length: 5 }, emptyFixtureMatchupRow))];
+                                                      rows[idx] = { ...rows[idx], mvpPlayerId: e.target.value };
+                                                      return { ...prev, [f.id]: rows };
+                                                    })}>
+                                                    <option value="">—</option>
+                                                    {row.player1Id && <option value={row.player1Id}>⭐ {homePlayers.find((p: any) => String(p.id) === row.player1Id)?.name}</option>}
+                                                    {row.player2Id && <option value={row.player2Id}>⭐ {awayPlayers.find((p: any) => String(p.id) === row.player2Id)?.name}</option>}
+                                                  </select>
+                                                </div>
+                                              ))}
+
+                                              {/* Save button */}
                                               <button
-                                                className="ml-1 px-2 py-1 rounded-lg bg-orange-700 hover:bg-orange-600 text-white text-xs font-bold transition-colors disabled:opacity-50"
+                                                className="w-full mt-2 py-2 rounded-lg bg-orange-700 hover:bg-orange-600 text-white text-sm font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                                                 disabled={rf.homeScore === "" || rf.awayScore === "" || resultMutation.isPending}
-                                                onClick={() => resultMutation.mutate({ fixtureId: f.id, homeScore: Number(rf.homeScore), awayScore: Number(rf.awayScore) })}>
-                                                Save
+                                                onClick={() => {
+                                                  const validMatchups = (fixtureMatchupRows[f.id] ?? [])
+                                                    .filter((r: any) => r.player1Id && r.player2Id)
+                                                    .map((r: any) => ({
+                                                      player1Id: Number(r.player1Id),
+                                                      player2Id: Number(r.player2Id),
+                                                      player1Goals: Number(r.player1Goals ?? 0),
+                                                      player2Goals: Number(r.player2Goals ?? 0),
+                                                      mvpPlayerId: r.mvpPlayerId ? Number(r.mvpPlayerId) : null,
+                                                    }));
+                                                  resultMutation.mutate({
+                                                    fixtureId: f.id,
+                                                    homeScore: Number(rf.homeScore),
+                                                    awayScore: Number(rf.awayScore),
+                                                    playerMatchups: validMatchups,
+                                                  });
+                                                }}>
+                                                {resultMutation.isPending ? "Saving…" : "Save Result & Player Stats"}
                                               </button>
+                                              <p className="text-xs text-gray-600 text-center">
+                                                Score is required · player matchups update individual stats
+                                              </p>
                                             </div>
                                           )}
-
-                                          {/* Away team */}
-                                          <div className="flex items-center gap-2 flex-1">
-                                            {f.awayTeam?.logoUrl && <img src={f.awayTeam.logoUrl} alt="" className="w-6 h-6 rounded-full object-contain flex-shrink-0" />}
-                                            <span className="text-sm text-white font-medium">{f.awayTeam?.name ?? `#${f.awayTeamId}`}</span>
-                                          </div>
-
-                                          {/* Delete */}
-                                          <button
-                                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded text-red-500 hover:text-red-400 hover:bg-red-900/20"
-                                            onClick={() => { if (confirm("Delete this match?")) deleteFixtureMutation.mutate(f.id); }}>
-                                            <Trash2 className="w-3.5 h-3.5" />
-                                          </button>
                                         </div>
                                       );
                                     })}

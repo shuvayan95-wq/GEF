@@ -909,10 +909,21 @@ export function ManageGCC() {
                                       <span className="text-sm font-black text-orange-400">MD {md}</span>
                                       <span className="text-xs text-gray-600">{mdFixtures.length} matches · {played} played</span>
                                     </div>
-                                    <div className="flex items-center gap-1.5">
-                                      {Array.from({ length: mdFixtures.length }).map((_, i) => (
-                                        <div key={i} className={`w-2 h-2 rounded-full ${i < played ? "bg-green-500" : "bg-gray-700"}`} />
-                                      ))}
+                                    <div className="flex items-center gap-3">
+                                      <div className="flex items-center gap-1">
+                                        {Array.from({ length: mdFixtures.length }).map((_, i) => (
+                                          <div key={i} className={`w-2 h-2 rounded-full ${i < played ? "bg-green-500" : "bg-gray-700"}`} />
+                                        ))}
+                                      </div>
+                                      <button
+                                        className="flex items-center gap-1 px-2 py-1 rounded-lg text-red-500 hover:text-red-400 hover:bg-red-900/20 text-xs font-semibold transition-colors"
+                                        onClick={() => {
+                                          if (confirm(`Delete all ${mdFixtures.length} fixtures in Matchday ${md}? This cannot be undone.`)) {
+                                            mdFixtures.forEach((f: any) => deleteFixtureMutation.mutate(f.id));
+                                          }
+                                        }}>
+                                        <Trash2 className="w-3 h-3" /> Delete MD
+                                      </button>
                                     </div>
                                   </div>
                                   <div className="divide-y divide-white/5">

@@ -60,7 +60,7 @@ export function GCCTournament() {
     acc[r].push(f);
     return acc;
   }, {});
-  const sortedMatchdays = Object.keys(matchdayGroups).map(Number).sort((a, b) => b - a);
+  const sortedMatchdays = Object.keys(matchdayGroups).map(Number).sort((a, b) => a - b);
   const playedFixtures = leagueFixtures.filter((f: any) => f.played);
   const recentPlayed = [...playedFixtures].reverse().slice(0, 5);
 

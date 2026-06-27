@@ -1,7 +1,8 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { gccTournamentsTable, gccEntriesTable, gccFixturesTable, teamsTable, matchesTable, playerMatchupsTable } from "@workspace/db";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, sql } from "drizzle-orm";
+import { playersTable } from "@workspace/db";
 
 const router: IRouter = Router();
 
@@ -806,6 +807,52 @@ router.delete("/gcc/tournaments/:id/fixtures/:fid", requireAdmin, async (req, re
     const fid = Number(req.params.fid);
     await db.delete(gccFixturesTable).where(eq(gccFixturesTable.id, fid));
     res.json({ ok: true });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── Top Scorers (GCC-only, this tournament) ─────────────────────────────────
+
+router.get("/gcc/tournaments/:id/top-scorers", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const [tournament] = await db.select().from(gccTournamentsTable)
+      .where(eq(gccTournamentsTable.id, id));
+    if (!tournament) return res.status(404).json({ error: "Not found" });
+
+    const rows = await db.execute(sql`
+      SELECT
+        p.id          AS player_id,
+        p.name        AS player_name,
+        p.image_url   AS image_url,
+        t.id          AS team_id,
+        t.name        AS team_name,
+        t.logo_url    AS team_logo,
+        SUM(sub.goals)     AS total_goals,
+        SUM(sub.mvp_count) AS total_mvps
+      FROM (
+        SELECT pm.player1_id AS player_id,
+               pm.player1_goals          AS goals,
+               CASE WHEN pm.mvp_player_id = pm.player1_id THEN 1 ELSE 0 END AS mvp_count
+        FROM   player_matchups pm
+        JOIN   matches m ON m.id = pm.match_id
+        WHERE  m.gcc_tournament_id = ${id}
+        UNION ALL
+        SELECT pm.player2_id AS player_id,
+               pm.player2_goals          AS goals,
+               CASE WHEN pm.mvp_player_id = pm.player2_id THEN 1 ELSE 0 END AS mvp_count
+        FROM   player_matchups pm
+        JOIN   matches m ON m.id = pm.match_id
+        WHERE  m.gcc_tournament_id = ${id}
+      ) sub
+      JOIN  players p ON p.id = sub.player_id
+      LEFT JOIN teams t ON t.id = p.team_id
+      GROUP BY p.id, p.name, p.image_url, t.id, t.name, t.logo_url
+      HAVING SUM(sub.goals) > 0
+      ORDER BY total_goals DESC, total_mvps DESC
+      LIMIT 20
+    `);
+
+    res.json({ scorers: rows.rows, tournament: { name: tournament.name, season: tournament.season } });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 

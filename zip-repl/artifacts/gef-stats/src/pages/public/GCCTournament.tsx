@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useParams, Link } from "wouter";
-import { Trophy, Layers, List, Table2, GitBranch, ArrowLeft, Circle, CheckCircle, Clock, CalendarDays, Star } from "lucide-react";
+import { Trophy, Layers, List, Table2, GitBranch, ArrowLeft, Circle, CheckCircle, Clock, CalendarDays, Star, Crosshair } from "lucide-react";
 import { useState } from "react";
 
 const STATUS_STEPS = ["setup", "draw", "league", "playoffs", "knockout", "complete"];
@@ -35,6 +35,16 @@ export function GCCTournament() {
     refetchInterval: 15_000,
   });
 
+  const topScorersQuery = useQuery({
+    queryKey: ["gcc-top-scorers", id],
+    queryFn: async () => {
+      const r = await fetch(`/api/gcc/tournaments/${id}/top-scorers`);
+      if (!r.ok) throw new Error("Failed");
+      return r.json();
+    },
+    refetchInterval: 30_000,
+  });
+
   if (isLoading) return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: "#030712" }}>
       <div className="w-12 h-12 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
@@ -49,6 +59,7 @@ export function GCCTournament() {
 
   const { tournament, entries } = data;
   const standings: any[] = standingsQuery.data?.standings ?? [];
+  const topScorers: any[] = topScorersQuery.data?.scorers ?? [];
   const stepIdx = STATUS_STEPS.indexOf(tournament.status);
   const leagueFixtures: any[] = data.fixtures?.filter((f: any) => f.stage === "league") ?? [];
   const playedCount = leagueFixtures.filter((f: any) => f.played).length;
@@ -68,6 +79,7 @@ export function GCCTournament() {
     { key: "overview",  label: "Overview",  icon: Trophy },
     { key: "standings", label: "Standings", icon: Table2 },
     { key: "matchdays", label: "Matchdays", icon: CalendarDays },
+    { key: "scorers",   label: "Top Scorers", icon: Crosshair },
   ] as const;
 
   return (
@@ -226,6 +238,21 @@ export function GCCTournament() {
                 </div>
               </div>
             )}
+
+            {/* Top Scorers preview */}
+            {topScorers.length > 0 && (
+              <div className="rounded-2xl overflow-hidden" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+                  <h2 className="text-white font-bold flex items-center gap-2"><Crosshair className="w-4 h-4 text-orange-400" /> Top Scorers</h2>
+                  <button onClick={() => setTab("scorers")} className="text-orange-400 text-sm hover:text-orange-300 transition-colors">Full list →</button>
+                </div>
+                <div className="divide-y divide-white/5">
+                  {topScorers.slice(0, 5).map((s: any, i: number) => (
+                    <ScorerRow key={s.player_id} scorer={s} rank={i + 1} />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -303,6 +330,35 @@ export function GCCTournament() {
           </div>
         )}
 
+        {/* ── SCORERS TAB ── */}
+        {tab === "scorers" && (
+          <div className="space-y-2">
+            <p className="text-xs text-gray-600 mb-4">Goals scored in GCC matches for this tournament only.</p>
+            {topScorersQuery.isLoading ? (
+              <div className="flex justify-center py-20"><div className="w-10 h-10 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" /></div>
+            ) : topScorers.length === 0 ? (
+              <div className="text-center py-20 text-gray-600">
+                <Crosshair className="w-12 h-12 mx-auto mb-3 text-gray-800" />
+                <p>No goals recorded yet.</p>
+              </div>
+            ) : (
+              <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
+                {/* Header */}
+                <div className="grid px-5 py-3 text-xs uppercase tracking-widest text-gray-600"
+                  style={{ background: "rgba(255,255,255,0.04)", borderBottom: "1px solid rgba(255,255,255,0.06)", gridTemplateColumns: "44px 1fr auto auto" }}>
+                  <span>#</span>
+                  <span>Player</span>
+                  <span className="text-center w-16">Goals</span>
+                  <span className="text-center w-14">MVP</span>
+                </div>
+                {topScorers.map((s: any, i: number) => (
+                  <ScorerRow key={s.player_id} scorer={s} rank={i + 1} full />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ── MATCHDAYS TAB ── */}
         {tab === "matchdays" && (
           <div className="space-y-6">
@@ -347,6 +403,52 @@ export function GCCTournament() {
             )}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function ScorerRow({ scorer: s, rank, full }: { scorer: any; rank: number; full?: boolean }) {
+  const goals = Number(s.total_goals);
+  const mvps  = Number(s.total_mvps);
+  return (
+    <div
+      className="grid items-center px-5 py-3 hover:bg-white/5 transition-colors divide-white/5 border-t border-white/5"
+      style={{ gridTemplateColumns: "44px 1fr auto auto" }}>
+      {/* Rank */}
+      <span className={`text-sm font-black tabular-nums ${rank === 1 ? "text-yellow-400" : rank === 2 ? "text-gray-300" : rank === 3 ? "text-orange-400" : "text-gray-600"}`}>
+        {rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : rank}
+      </span>
+
+      {/* Player info */}
+      <div className="flex items-center gap-3 min-w-0">
+        {s.image_url
+          ? <img src={s.image_url} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+          : <div className="w-8 h-8 rounded-full bg-orange-500/15 flex items-center justify-center text-xs text-orange-400 font-bold flex-shrink-0">
+              {s.player_name?.[0] ?? "?"}
+            </div>}
+        <div className="min-w-0">
+          <p className="text-white font-semibold text-sm truncate">{s.player_name}</p>
+          {s.team_name && (
+            <div className="flex items-center gap-1 mt-0.5">
+              {s.team_logo && <img src={s.team_logo} alt="" className="w-3.5 h-3.5 rounded-full object-contain" />}
+              <span className="text-gray-600 text-xs truncate">{s.team_name}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Goals */}
+      <div className="flex items-center justify-center w-16 gap-1">
+        <span className="text-white font-black text-lg tabular-nums">{goals}</span>
+        <span className="text-gray-600 text-xs">⚽</span>
+      </div>
+
+      {/* MVPs */}
+      <div className="flex items-center justify-center w-14 gap-1">
+        {mvps > 0
+          ? <><span className="text-yellow-400 font-bold text-sm tabular-nums">{mvps}</span><Star className="w-3 h-3 text-yellow-400 fill-yellow-400" /></>
+          : <span className="text-gray-700 text-sm">—</span>}
       </div>
     </div>
   );

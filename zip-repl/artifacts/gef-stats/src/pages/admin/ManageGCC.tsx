@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Trophy, Plus, Trash2, Settings, Play, RotateCcw, ChevronDown, ChevronRight, Check, PlusCircle, Flag } from "lucide-react";
+import { Trophy, Plus, Trash2, Settings, Play, RotateCcw, ChevronDown, ChevronRight, Check, PlusCircle, Flag, CalendarDays, X } from "lucide-react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { getApiUrl } from "@/lib/api";
 
@@ -14,7 +14,7 @@ export function ManageGCC() {
   const qc = useQueryClient();
   const [, navigate] = useLocation();
   const [selectedTournament, setSelectedTournament] = useState<number | null>(null);
-  const [tab, setTab] = useState<"setup"|"entries"|"draw"|"fixtures"|"knockout"|"addmatch"|"finalize">("setup");
+  const [tab, setTab] = useState<"setup"|"entries"|"draw"|"fixtures"|"matchday"|"knockout"|"addmatch"|"finalize">("setup");
 
   // Create tournament form
   const [form, setForm] = useState({
@@ -62,6 +62,14 @@ export function ManageGCC() {
   const [manualFixForm, setManualFixForm] = useState({ homeTeamId: "", awayTeamId: "", round: "1" });
   const [totalMatchdays, setTotalMatchdays] = useState("8");
   const [showManualAdd, setShowManualAdd] = useState(false);
+
+  // Matchday builder state
+  const emptyMatchdayRow = () => ({ homeTeamId: "", awayTeamId: "" });
+  const [matchdayNum, setMatchdayNum] = useState("1");
+  const [matchdayRows, setMatchdayRows] = useState<Array<ReturnType<typeof emptyMatchdayRow>>>(
+    Array.from({ length: 3 }, emptyMatchdayRow)
+  );
+  const [matchdayError, setMatchdayError] = useState("");
 
   const { data: tourneysData } = useQuery({
     queryKey: ["gcc-tournaments"],
@@ -305,6 +313,29 @@ export function ManageGCC() {
     },
   });
 
+  const createMatchdayMutation = useMutation({
+    mutationFn: async () => {
+      setMatchdayError("");
+      const validRows = matchdayRows.filter(r => r.homeTeamId && r.awayTeamId && r.homeTeamId !== r.awayTeamId);
+      if (validRows.length === 0) throw new Error("Add at least one matchup with different teams");
+      const r = await fetch(getApiUrl(`/api/gcc/tournaments/${selectedTournament}/matchday`), {
+        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+        body: JSON.stringify({
+          matchday: Number(matchdayNum),
+          fixtures: validRows.map(row => ({ homeTeamId: Number(row.homeTeamId), awayTeamId: Number(row.awayTeamId) })),
+        }),
+      });
+      if (!r.ok) { const e = await r.json(); throw new Error(e.error); }
+      return r.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["gcc-tournament", selectedTournament] });
+      setMatchdayRows(Array.from({ length: 3 }, emptyMatchdayRow));
+      setMatchdayNum(n => String(Number(n) + 1));
+    },
+    onError: (e: any) => setMatchdayError(e.message ?? "Failed to create matchday"),
+  });
+
   const inputClass = "w-full bg-gray-900 border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-blue-500/60 transition-colors";
   const btnPrimary = "px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition-colors disabled:opacity-50";
   const btnSecondary = "px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 text-sm font-semibold transition-colors border border-white/10 disabled:opacity-50";
@@ -396,6 +427,7 @@ export function ManageGCC() {
                     { id: "entries", label: "Teams" },
                     { id: "draw", label: "Draw" },
                     { id: "fixtures", label: "Fixtures" },
+                    { id: "matchday", label: "📅 Matchday" },
                     { id: "knockout", label: "Knockout" },
                     { id: "addmatch", label: "➕ Add Match" },
                     { id: "finalize", label: "🏆 Finalize" },
@@ -404,6 +436,7 @@ export function ManageGCC() {
                       className={`px-5 py-3 text-sm font-semibold whitespace-nowrap transition-colors ${tab === t
                         ? t === "addmatch" ? "text-green-400 border-b-2 border-green-400"
                           : t === "finalize" ? "text-yellow-400 border-b-2 border-yellow-400"
+                          : t === "matchday" ? "text-orange-400 border-b-2 border-orange-400"
                           : "text-blue-400 border-b-2 border-blue-400"
                         : "text-gray-500 hover:text-gray-300"}`}>
                       {label}
@@ -745,6 +778,211 @@ export function ManageGCC() {
                       )}
                     </div>
                   )}
+
+                  {/* MATCHDAY BUILDER TAB */}
+                  {tab === "matchday" && (() => {
+                    const tournamentTeams = entries.length > 0
+                      ? entries.map((e: any) => e.team ?? { id: e.teamId, name: `Team ${e.teamId}`, logoUrl: null })
+                      : allTeams;
+
+                    const matchdayGroups = leagueFixtures.reduce((acc: Record<number, any[]>, f: any) => {
+                      const r = f.round ?? 0;
+                      if (!acc[r]) acc[r] = [];
+                      acc[r].push(f);
+                      return acc;
+                    }, {});
+                    const sortedMatchdays = Object.keys(matchdayGroups).map(Number).sort((a, b) => a - b);
+
+                    return (
+                      <div className="space-y-6">
+                        <div>
+                          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                            <CalendarDays className="w-5 h-5 text-orange-400" /> Manual Matchday Builder
+                          </h2>
+                          <p className="text-gray-500 text-sm mt-1">
+                            Create a matchday and add as many matchups as you want. All results feed into the league table automatically.
+                          </p>
+                        </div>
+
+                        {/* Builder form */}
+                        <div className="rounded-xl p-5 space-y-4" style={{ background: "rgba(251,146,60,0.05)", border: "1px solid rgba(251,146,60,0.2)" }}>
+                          {/* Matchday number */}
+                          <div className="flex items-center gap-3">
+                            <div>
+                              <label className="text-xs text-gray-500 mb-1 block">Matchday #</label>
+                              <input
+                                type="number" min="1" value={matchdayNum}
+                                onChange={e => setMatchdayNum(e.target.value)}
+                                className="w-24 bg-gray-900 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-orange-500/60 transition-colors text-center font-bold"
+                              />
+                            </div>
+                            <div className="flex-1 text-right">
+                              <span className="text-xs text-gray-600">
+                                {matchdayRows.filter(r => r.homeTeamId && r.awayTeamId).length} matchup{matchdayRows.filter(r => r.homeTeamId && r.awayTeamId).length !== 1 ? "s" : ""} ready
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Column headers */}
+                          <div className="grid grid-cols-[1fr_auto_1fr_auto] gap-2 px-1">
+                            <span className="text-[10px] text-gray-600 uppercase tracking-wider font-bold">Home Team</span>
+                            <span />
+                            <span className="text-[10px] text-gray-600 uppercase tracking-wider font-bold">Away Team</span>
+                            <span />
+                          </div>
+
+                          {/* Matchup rows */}
+                          <div className="space-y-2">
+                            {matchdayRows.map((row, i) => (
+                              <div key={i} className="grid grid-cols-[1fr_auto_1fr_auto] gap-2 items-center">
+                                <select
+                                  className="bg-gray-900 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-orange-500/60 transition-colors"
+                                  value={row.homeTeamId}
+                                  onChange={e => setMatchdayRows(rows => rows.map((r, j) => j === i ? { ...r, homeTeamId: e.target.value } : r))}>
+                                  <option value="">Home team…</option>
+                                  {tournamentTeams.map((t: any) => (
+                                    <option key={t.id} value={t.id}>{t.name}</option>
+                                  ))}
+                                </select>
+
+                                <span className="text-gray-600 font-bold text-sm px-1">vs</span>
+
+                                <select
+                                  className="bg-gray-900 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-orange-500/60 transition-colors"
+                                  value={row.awayTeamId}
+                                  onChange={e => setMatchdayRows(rows => rows.map((r, j) => j === i ? { ...r, awayTeamId: e.target.value } : r))}>
+                                  <option value="">Away team…</option>
+                                  {tournamentTeams
+                                    .filter((t: any) => String(t.id) !== row.homeTeamId)
+                                    .map((t: any) => (
+                                      <option key={t.id} value={t.id}>{t.name}</option>
+                                    ))}
+                                </select>
+
+                                <button
+                                  className="p-1.5 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-900/20 transition-colors"
+                                  onClick={() => setMatchdayRows(rows => rows.length > 1 ? rows.filter((_, j) => j !== i) : rows)}>
+                                  <X className="w-4 h-4" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Add row + submit */}
+                          <div className="flex gap-2 pt-1">
+                            <button
+                              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 text-sm font-semibold border border-white/10 transition-colors"
+                              onClick={() => setMatchdayRows(rows => [...rows, emptyMatchdayRow()])}>
+                              <Plus className="w-3.5 h-3.5" /> Add Matchup
+                            </button>
+                            <button
+                              className="flex-1 py-2 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-sm font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                              disabled={createMatchdayMutation.isPending || !matchdayRows.some(r => r.homeTeamId && r.awayTeamId)}
+                              onClick={() => createMatchdayMutation.mutate()}>
+                              <CalendarDays className="w-4 h-4" />
+                              {createMatchdayMutation.isPending ? "Creating…" : `Create Matchday ${matchdayNum}`}
+                            </button>
+                          </div>
+
+                          {matchdayError && <p className="text-red-400 text-sm">{matchdayError}</p>}
+                          {createMatchdayMutation.isSuccess && (
+                            <p className="text-green-400 text-sm flex items-center gap-1.5">
+                              <Check className="w-3.5 h-3.5" /> Matchday created! Form reset for next matchday.
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Existing matchdays */}
+                        {sortedMatchdays.length > 0 && (
+                          <div className="space-y-4">
+                            <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
+                              <CalendarDays className="w-4 h-4 text-orange-400" />
+                              League Matchdays ({sortedMatchdays.length})
+                            </h3>
+                            {sortedMatchdays.map(md => {
+                              const mdFixtures = matchdayGroups[md];
+                              const played = mdFixtures.filter((f: any) => f.played).length;
+                              return (
+                                <div key={md} className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
+                                  <div className="flex items-center justify-between px-4 py-3" style={{ background: "rgba(255,255,255,0.04)" }}>
+                                    <div className="flex items-center gap-3">
+                                      <span className="text-sm font-black text-orange-400">MD {md}</span>
+                                      <span className="text-xs text-gray-600">{mdFixtures.length} matches · {played} played</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                      {Array.from({ length: mdFixtures.length }).map((_, i) => (
+                                        <div key={i} className={`w-2 h-2 rounded-full ${i < played ? "bg-green-500" : "bg-gray-700"}`} />
+                                      ))}
+                                    </div>
+                                  </div>
+                                  <div className="divide-y divide-white/5">
+                                    {mdFixtures.map((f: any) => {
+                                      const rf = resultForms[f.id] ?? { homeScore: "", awayScore: "" };
+                                      return (
+                                        <div key={f.id} className="flex items-center gap-3 px-4 py-3 group"
+                                          style={{ background: f.played ? "rgba(34,197,94,0.04)" : "transparent" }}>
+                                          {/* Home team */}
+                                          <div className="flex items-center gap-2 flex-1 justify-end">
+                                            <span className="text-sm text-white font-medium text-right">{f.homeTeam?.name ?? `#${f.homeTeamId}`}</span>
+                                            {f.homeTeam?.logoUrl && <img src={f.homeTeam.logoUrl} alt="" className="w-6 h-6 rounded-full object-contain flex-shrink-0" />}
+                                          </div>
+
+                                          {/* Score / input */}
+                                          {f.played ? (
+                                            <div className="flex items-center gap-1 px-3">
+                                              <span className="text-base font-black text-green-400 tabular-nums">{f.homeScore}</span>
+                                              <span className="text-gray-600 text-sm">–</span>
+                                              <span className="text-base font-black text-green-400 tabular-nums">{f.awayScore}</span>
+                                            </div>
+                                          ) : (
+                                            <div className="flex items-center gap-1">
+                                              <input type="number" min="0" value={rf.homeScore}
+                                                onChange={e => setResultForms(prev => ({ ...prev, [f.id]: { ...rf, homeScore: e.target.value } }))}
+                                                className="w-10 text-center bg-white/10 border border-white/10 rounded px-1 py-1 text-sm text-white focus:outline-none focus:border-orange-500/60" />
+                                              <span className="text-gray-600 text-xs">–</span>
+                                              <input type="number" min="0" value={rf.awayScore}
+                                                onChange={e => setResultForms(prev => ({ ...prev, [f.id]: { ...rf, awayScore: e.target.value } }))}
+                                                className="w-10 text-center bg-white/10 border border-white/10 rounded px-1 py-1 text-sm text-white focus:outline-none focus:border-orange-500/60" />
+                                              <button
+                                                className="ml-1 px-2 py-1 rounded-lg bg-orange-700 hover:bg-orange-600 text-white text-xs font-bold transition-colors disabled:opacity-50"
+                                                disabled={rf.homeScore === "" || rf.awayScore === "" || resultMutation.isPending}
+                                                onClick={() => resultMutation.mutate({ fixtureId: f.id, homeScore: Number(rf.homeScore), awayScore: Number(rf.awayScore) })}>
+                                                Save
+                                              </button>
+                                            </div>
+                                          )}
+
+                                          {/* Away team */}
+                                          <div className="flex items-center gap-2 flex-1">
+                                            {f.awayTeam?.logoUrl && <img src={f.awayTeam.logoUrl} alt="" className="w-6 h-6 rounded-full object-contain flex-shrink-0" />}
+                                            <span className="text-sm text-white font-medium">{f.awayTeam?.name ?? `#${f.awayTeamId}`}</span>
+                                          </div>
+
+                                          {/* Delete */}
+                                          <button
+                                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded text-red-500 hover:text-red-400 hover:bg-red-900/20"
+                                            onClick={() => { if (confirm("Delete this match?")) deleteFixtureMutation.mutate(f.id); }}>
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                          </button>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {sortedMatchdays.length === 0 && (
+                          <div className="text-center py-12 text-gray-600">
+                            <CalendarDays className="w-10 h-10 mx-auto mb-3 text-gray-800" />
+                            <p>No matchdays yet. Create your first one above.</p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* KNOCKOUT TAB */}
                   {tab === "knockout" && (

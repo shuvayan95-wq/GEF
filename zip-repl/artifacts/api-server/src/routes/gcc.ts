@@ -756,6 +756,50 @@ router.post("/gcc/tournaments/:id/fixtures/add", requireAdmin, async (req, res) 
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
+// POST /gcc/tournaments/:id/matchday — create a full matchday with multiple fixtures at once
+router.post("/gcc/tournaments/:id/matchday", requireAdmin, async (req, res) => {
+  try {
+    const tournamentId = Number(req.params.id);
+    const { matchday, fixtures } = req.body;
+
+    if (!matchday || !Array.isArray(fixtures) || fixtures.length === 0)
+      return res.status(400).json({ error: "matchday number and at least one fixture are required" });
+
+    const round = Number(matchday);
+    if (isNaN(round) || round < 1)
+      return res.status(400).json({ error: "matchday must be a positive number" });
+
+    const valid = fixtures.filter((f: any) => f.homeTeamId && f.awayTeamId && Number(f.homeTeamId) !== Number(f.awayTeamId));
+    if (valid.length === 0)
+      return res.status(400).json({ error: "No valid fixtures (home and away teams must be set and different)" });
+
+    const toInsert = valid.map((f: any) => ({
+      tournamentId,
+      stage: "league" as const,
+      round,
+      leg: 1,
+      pairKey: pairKey(Number(f.homeTeamId), Number(f.awayTeamId)),
+      homeTeamId: Number(f.homeTeamId),
+      awayTeamId: Number(f.awayTeamId),
+    }));
+
+    const inserted = await db.insert(gccFixturesTable).values(toInsert).returning();
+
+    const teamIds = [...new Set(toInsert.flatMap(f => [f.homeTeamId, f.awayTeamId]))];
+    const teams = teamIds.length ? await db.select().from(teamsTable).where(inArray(teamsTable.id, teamIds)) : [];
+    const teamMap = new Map(teams.map(t => [t.id, t]));
+
+    res.json({
+      matchday: round,
+      fixtures: inserted.map(f => ({
+        ...f,
+        homeTeam: teamMap.get(f.homeTeamId) ?? null,
+        awayTeam: teamMap.get(f.awayTeamId) ?? null,
+      })),
+    });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
 // DELETE /gcc/tournaments/:id/fixtures/:fid
 router.delete("/gcc/tournaments/:id/fixtures/:fid", requireAdmin, async (req, res) => {
   try {

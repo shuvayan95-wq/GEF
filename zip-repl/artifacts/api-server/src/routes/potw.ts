@@ -127,10 +127,16 @@ async function computePlayerStats(playerIds?: number[], matchLimit = 30, season?
       agg.wonAny  = agg.wonAny || (isP1 ? mu.player1Goals > mu.player2Goals : mu.player2Goals > mu.player1Goals);
     }
 
-    // Sort by date desc → take each player's own last 3 distinct matchdays
-    const allMatchEntries = [...byMatch.values()].sort((a, b) => b.matchDate.localeCompare(a.matchDate));
-    const playerDates = [...new Set(allMatchEntries.map(e => e.matchDate))].slice(0, 3);
-    const matchEntries = allMatchEntries.filter(e => playerDates.includes(e.matchDate));
+    // Sort by date desc, then matchId desc (insertion order) — take last 3 matches.
+    // We intentionally do NOT collapse by calendar date because admins often enter
+    // multiple matchdays' results on the same day, which would wrongly merge them.
+    const matchEntries = [...byMatch.entries()]
+      .sort(([idA, a], [idB, b]) => {
+        const cmp = b.matchDate.localeCompare(a.matchDate);
+        return cmp !== 0 ? cmp : idB - idA;
+      })
+      .slice(0, 3)
+      .map(([, agg]) => agg);
 
     result[pid] = {
       goals:   matchEntries.reduce((s, m) => s + m.goals, 0),

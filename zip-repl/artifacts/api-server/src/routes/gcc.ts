@@ -659,6 +659,9 @@ router.put("/gcc/tournaments/:id/fixtures/:fid", requireAdmin, async (req, res) 
     if (hasScore && played !== false && playerMatchups && Array.isArray(playerMatchups) && playerMatchups.length > 0) {
       const validMatchups = playerMatchups.filter((m: any) => m.player1Id && m.player2Id);
       if (validMatchups.length > 0) {
+        // Fetch tournament season so match records are season-filterable for POTW stats
+        const [tourn] = await db.select({ season: gccTournamentsTable.season })
+          .from(gccTournamentsTable).where(eq(gccTournamentsTable.id, tournamentId));
         const today = new Date().toISOString().split("T")[0];
         const [match] = await db.insert(matchesTable).values({
           date: today,
@@ -667,6 +670,7 @@ router.put("/gcc/tournaments/:id/fixtures/:fid", requireAdmin, async (req, res) 
           team1Score: Number(homeScore),
           team2Score: Number(awayScore),
           gccTournamentId: tournamentId,
+          season: tourn?.season ?? null,
           matchType: "gcc",
           notes: `GCC R${f.round}${f.leg > 1 ? ` Leg${f.leg}` : ""} ${f.stage}`,
         }).returning();
@@ -718,6 +722,8 @@ router.post("/gcc/tournaments/:id/fixtures/add", requireAdmin, async (req, res) 
     if (hasScore && playerMatchups && Array.isArray(playerMatchups) && playerMatchups.length > 0) {
       const validMatchups = playerMatchups.filter((m: any) => m.player1Id && m.player2Id);
       if (validMatchups.length > 0) {
+        const [tourn] = await db.select({ season: gccTournamentsTable.season })
+          .from(gccTournamentsTable).where(eq(gccTournamentsTable.id, tournamentId));
         const today = new Date().toISOString().split("T")[0];
         const [match] = await db.insert(matchesTable).values({
           date: today,
@@ -726,6 +732,7 @@ router.post("/gcc/tournaments/:id/fixtures/add", requireAdmin, async (req, res) 
           team1Score: Number(homeScore),
           team2Score: Number(awayScore),
           gccTournamentId: tournamentId,
+          season: tourn?.season ?? null,
           notes: `GCC ${stage} R${round}${leg > 1 ? ` Leg${leg}` : ""} (auto)`,
         }).returning();
 

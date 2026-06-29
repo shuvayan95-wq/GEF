@@ -65,25 +65,36 @@ async function computePlayerStats(playerIds?: number[], matchLimit = 30, season?
 
   if (!candidates.length) return {};
 
-  // ── 3. Season filter (soft — falls back if it would return nothing) ───────
+  // ── 3. Season filter — strict, normalized ─────────────────────────────────
+  //   Normalise "SEASON 2025/26" → "2025/26" so GCC tournaments stored with
+  //   the "SEASON " prefix still match POTW rounds that omit it (and vice-versa).
   if (season) {
-    const [leaguesForSeason, gccForSeason] = await Promise.all([
-      db.select({ id: leaguesTable.id }).from(leaguesTable).where(eq(leaguesTable.season, season)),
-      db.select({ id: gccTournamentsTable.id }).from(gccTournamentsTable).where(eq(gccTournamentsTable.season, season)),
-    ]);
-    const leagueIdSet = new Set(leaguesForSeason.map(l => l.id));
-    const gccIdSet    = new Set(gccForSeason.map(g => g.id));
+    const norm = (s: string) => s.replace(/^season\s*/i, "").trim().toLowerCase();
+    const normSeason = norm(season);
 
-    const filtered = candidates.filter(m =>
-      m.season === season ||
-      (m.leagueId        != null && leagueIdSet.has(m.leagueId)) ||
-      (m.gccTournamentId != null && gccIdSet.has(m.gccTournamentId))
+    // Load ALL leagues & GCC tournaments, filter by normalised season in JS
+    // so that prefix/case differences don't cause an empty result set.
+    const [allLeagues, allGcc] = await Promise.all([
+      db.select({ id: leaguesTable.id, season: leaguesTable.season }).from(leaguesTable),
+      db.select({ id: gccTournamentsTable.id, season: gccTournamentsTable.season }).from(gccTournamentsTable),
+    ]);
+
+    const leagueIdSet = new Set(
+      allLeagues.filter(l => l.season && norm(l.season) === normSeason).map(l => l.id)
+    );
+    const gccIdSet = new Set(
+      allGcc.filter(g => g.season && norm(g.season) === normSeason).map(g => g.id)
     );
 
-    // Only restrict if we actually found matches for this season.
-    // If nothing matched (e.g. match stored without season/leagueId/gccTournamentId),
-    // keep all candidates so stats are never silently wiped.
-    if (filtered.length > 0) candidates = filtered;
+    // Strict filter — no fallback. Old-season matches must not bleed through.
+    candidates = candidates.filter(m => {
+      const mSeason = m.season ? norm(m.season) : "";
+      return (
+        mSeason === normSeason ||
+        (m.leagueId        != null && leagueIdSet.has(m.leagueId)) ||
+        (m.gccTournamentId != null && gccIdSet.has(m.gccTournamentId))
+      );
+    });
   } else if (!playerIds) {
     // Global fallback without season: cap at matchLimit most-recent matches
     candidates = candidates.slice(0, matchLimit);

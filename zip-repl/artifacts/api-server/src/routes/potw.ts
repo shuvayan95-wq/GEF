@@ -221,11 +221,64 @@ router.get("/potw", async (req, res) => {
 router.get("/potw/history", async (_req, res) => {
   try {
     const [past, allPlayers] = await Promise.all([
-      db.select().from(potwRoundsTable).where(eq(potwRoundsTable.isActive, false)).orderBy(desc(potwRoundsTable.createdAt)).limit(10),
+      db.select().from(potwRoundsTable).where(eq(potwRoundsTable.isActive, false)).orderBy(desc(potwRoundsTable.createdAt)).limit(50),
       db.select().from(playersTable),
     ]);
     const playerMap = new Map(allPlayers.map((p) => [p.id, p]));
-    res.json(past.map((r) => ({ ...r, winner: r.winnerId ? (playerMap.get(r.winnerId) ?? null) : null })));
+
+    // Build per-player win + nomination counts
+    const winsMap = new Map<number, number>();
+    const nomMap  = new Map<number, number>();
+    for (const r of past) {
+      const nomineeIds = (r.nomineeIds as number[]) ?? [];
+      for (const nid of nomineeIds) nomMap.set(nid, (nomMap.get(nid) ?? 0) + 1);
+      if (r.winnerId) winsMap.set(r.winnerId, (winsMap.get(r.winnerId) ?? 0) + 1);
+    }
+
+    const leaderboard = [...new Set([...winsMap.keys(), ...nomMap.keys()])]
+      .map(pid => ({
+        player: playerMap.get(pid) ?? null,
+        wins: winsMap.get(pid) ?? 0,
+        nominations: nomMap.get(pid) ?? 0,
+      }))
+      .filter(e => e.player)
+      .sort((a, b) => b.wins - a.wins || b.nominations - a.nominations);
+
+    const rounds = past.map((r) => ({
+      ...r,
+      winner: r.winnerId ? (playerMap.get(r.winnerId) ?? null) : null,
+    }));
+
+    res.json({ rounds, leaderboard });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message });
+  }
+});
+
+// ─── GET /api/potw/player/:id — POTW record for a specific player ─────────────
+router.get("/potw/player/:id", async (req, res) => {
+  try {
+    const playerId = parseInt(req.params.id);
+    if (!playerId) return res.status(400).json({ error: "invalid id" });
+
+    const past = await db
+      .select()
+      .from(potwRoundsTable)
+      .where(eq(potwRoundsTable.isActive, false))
+      .orderBy(desc(potwRoundsTable.createdAt));
+
+    const nominated = past.filter(r => ((r.nomineeIds as number[]) ?? []).includes(playerId));
+    const wins = nominated.filter(r => r.winnerId === playerId);
+
+    res.json({
+      nominations: nominated.length,
+      wins: wins.length,
+      winRounds: wins.map(r => ({
+        weekLabel: r.weekLabel,
+        season: r.season,
+        closedAt: r.closedAt,
+      })),
+    });
   } catch (err: any) {
     res.status(500).json({ error: err?.message });
   }

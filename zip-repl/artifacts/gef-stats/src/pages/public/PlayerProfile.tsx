@@ -532,6 +532,9 @@ export function PlayerProfile() {
               </div>
             )}
 
+            {/* POTW Record */}
+            <PotwRecord playerId={id} />
+
             {/* AI Analysis */}
             <PlayerAIAnalysis
               playerId={id}
@@ -874,6 +877,55 @@ function RivalComparisonSection({
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// ─── POTW Record Component ───────────────────────────────────────────────────
+
+function PotwRecord({ playerId }: { playerId: number }) {
+  const { data, isLoading } = useQuery<{
+    wins: number;
+    nominations: number;
+    winRounds: { weekLabel: string; season: string | null; closedAt: string | null }[];
+  }>({
+    queryKey: ["potw-player", playerId],
+    queryFn: () => fetch(`/api/potw/player/${playerId}`).then(r => r.json()),
+    enabled: playerId > 0,
+    staleTime: 60 * 1000,
+  });
+
+  if (isLoading || !data || (data.wins === 0 && data.nominations === 0)) return null;
+
+  return (
+    <div className="bg-card border border-yellow-500/20 rounded-xl p-6 shadow-lg shadow-yellow-500/5">
+      <h3 className="font-display text-xl font-bold uppercase mb-4 flex items-center gap-2">
+        <Star className="text-yellow-400 w-5 h-5" /> Player of the Week
+      </h3>
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3 text-center">
+          <div className="text-3xl font-black text-yellow-400 tabular-nums">{data.wins}</div>
+          <div className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest mt-0.5 flex items-center justify-center gap-1">
+            <Crown className="w-2.5 h-2.5" /> {data.wins === 1 ? "Win" : "Wins"}
+          </div>
+        </div>
+        <div className="bg-secondary/60 border border-border rounded-lg p-3 text-center">
+          <div className="text-3xl font-black text-foreground tabular-nums">{data.nominations}</div>
+          <div className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest mt-0.5">Nominated</div>
+        </div>
+      </div>
+      {data.winRounds.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest mb-2">Won In</p>
+          {data.winRounds.map((r, i) => (
+            <div key={i} className="flex items-center gap-2 text-xs">
+              <Crown className="w-3 h-3 text-yellow-400 shrink-0" />
+              <span className="text-foreground font-semibold truncate">{r.weekLabel}</span>
+              {r.season && <span className="text-muted-foreground shrink-0">· {r.season}</span>}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import session from "express-session";
 import path from "path";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { registerObjectStorageRoutes } from "./lib/objectStorage/routes.js";
 
 const app: Express = express();
 
@@ -45,6 +46,8 @@ app.use(
 );
 
 app.use("/api", router);
+
+registerObjectStorageRoutes(app);
 
 const frontendDist = path.join(process.cwd(), "../gef-stats/dist/public");
 app.use(express.static(frontendDist));

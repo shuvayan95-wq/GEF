@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import path from "path";
 import { randomUUID } from "crypto";
 import multer from "multer";
+import { ObjectStorageService } from "../lib/objectStorage/index.js";
 
 const router: IRouter = Router();
 
@@ -24,37 +25,30 @@ const upload = multer({
   },
 });
 
-async function uploadToSupabase(
+const objectStorage = new ObjectStorageService();
+
+async function uploadToObjectStorage(
   fileBuffer: Buffer,
   filename: string,
   mimeType: string
 ): Promise<string> {
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const uploadURL = await objectStorage.getObjectEntityUploadURL();
 
-  if (!supabaseUrl || !supabaseKey) {
-    throw new Error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set for image uploads.");
-  }
-
-  const bucket = "player-images";
-  const uploadUrl = `${supabaseUrl}/storage/v1/object/${bucket}/${filename}`;
-
-  const response = await fetch(uploadUrl, {
-    method: "POST",
+  const response = await fetch(uploadURL, {
+    method: "PUT",
     headers: {
-      Authorization: `Bearer ${supabaseKey}`,
       "Content-Type": mimeType,
-      "x-upsert": "true",
     },
     body: fileBuffer,
   });
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`Supabase upload failed: ${response.status} ${text}`);
+    throw new Error(`Object storage upload failed: ${response.status} ${text}`);
   }
 
-  return `${supabaseUrl}/storage/v1/object/public/${bucket}/${filename}`;
+  const objectPath = objectStorage.normalizeObjectEntityPath(uploadURL);
+  return objectPath;
 }
 
 router.post("/upload/image", requireAdmin, upload.single("file"), async (req, res) => {
@@ -64,11 +58,10 @@ router.post("/upload/image", requireAdmin, upload.single("file"), async (req, re
     }
 
     const ext = path.extname(req.file.originalname || ".jpg") || ".jpg";
-    const filename = `player-images/${randomUUID()}${ext}`;
     const mimeType = req.file.mimetype || "image/jpeg";
 
-    const url = await uploadToSupabase(req.file.buffer, filename, mimeType);
-    return res.json({ url });
+    const objectPath = await uploadToObjectStorage(req.file.buffer, req.file.originalname || `upload${ext}`, mimeType);
+    return res.json({ url: objectPath });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

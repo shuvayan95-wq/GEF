@@ -12,6 +12,7 @@ export const matchesTable = pgTable("matches", {
   team2Score: integer("team2_score").notNull().default(0),
   leagueId: integer("league_id").references(() => leaguesTable.id),
   gccTournamentId: integer("gcc_tournament_id"),
+  gccFixtureId: integer("gcc_fixture_id"),
   season: text("season"),
   notes: text("notes"),
   matchType: text("match_type").notNull().default("league"),

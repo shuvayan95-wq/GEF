@@ -659,6 +659,15 @@ router.put("/gcc/tournaments/:id/fixtures/:fid", requireAdmin, async (req, res) 
     if (hasScore && played !== false && playerMatchups && Array.isArray(playerMatchups) && playerMatchups.length > 0) {
       const validMatchups = playerMatchups.filter((m: any) => m.player1Id && m.player2Id);
       if (validMatchups.length > 0) {
+        // Delete any existing match linked to this fixture to prevent double-counting
+        const existingMatches = await db.select({ id: matchesTable.id })
+          .from(matchesTable)
+          .where(eq(matchesTable.gccFixtureId, fid));
+        for (const em of existingMatches) {
+          await db.delete(playerMatchupsTable).where(eq(playerMatchupsTable.matchId, em.id));
+          await db.delete(matchesTable).where(eq(matchesTable.id, em.id));
+        }
+
         // Fetch tournament season so match records are season-filterable for POTW stats
         const [tourn] = await db.select({ season: gccTournamentsTable.season })
           .from(gccTournamentsTable).where(eq(gccTournamentsTable.id, tournamentId));
@@ -670,6 +679,7 @@ router.put("/gcc/tournaments/:id/fixtures/:fid", requireAdmin, async (req, res) 
           team1Score: Number(homeScore),
           team2Score: Number(awayScore),
           gccTournamentId: tournamentId,
+          gccFixtureId: fid,
           season: tourn?.season ?? null,
           matchType: "gcc",
           notes: `GCC R${f.round}${f.leg > 1 ? ` Leg${f.leg}` : ""} ${f.stage}`,
@@ -732,6 +742,7 @@ router.post("/gcc/tournaments/:id/fixtures/add", requireAdmin, async (req, res) 
           team1Score: Number(homeScore),
           team2Score: Number(awayScore),
           gccTournamentId: tournamentId,
+          gccFixtureId: fixture.id,
           season: tourn?.season ?? null,
           notes: `GCC ${stage} R${round}${leg > 1 ? ` Leg${leg}` : ""} (auto)`,
         }).returning();
@@ -812,6 +823,17 @@ router.post("/gcc/tournaments/:id/matchday", requireAdmin, async (req, res) => {
 router.delete("/gcc/tournaments/:id/fixtures/:fid", requireAdmin, async (req, res) => {
   try {
     const fid = Number(req.params.fid);
+
+    // Delete the linked match record (and cascade player_matchups) if one was created
+    const linkedMatches = await db.select({ id: matchesTable.id })
+      .from(matchesTable)
+      .where(eq(matchesTable.gccFixtureId, fid));
+
+    for (const m of linkedMatches) {
+      await db.delete(playerMatchupsTable).where(eq(playerMatchupsTable.matchId, m.id));
+      await db.delete(matchesTable).where(eq(matchesTable.id, m.id));
+    }
+
     await db.delete(gccFixturesTable).where(eq(gccFixturesTable.id, fid));
     res.json({ ok: true });
   } catch (err: any) { res.status(500).json({ error: err.message }); }

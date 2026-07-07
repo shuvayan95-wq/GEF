@@ -24,6 +24,14 @@ function getIp(req: any): string {
   );
 }
 
+// ─── Detect if a POTW round is GCC-specific ───────────────────────────────────
+function gccRoundMatchTypes(weekLabel?: string | null): string[] | undefined {
+  if (!weekLabel) return undefined;
+  const lower = weekLabel.toLowerCase();
+  if (lower.includes("champion") || lower.includes("gcc")) return ["gcc"];
+  return undefined;
+}
+
 // ─── Shared helper: compute last-3-matchday stats per player ──────────────────
 //
 // Strategy (player-centric — avoids missing matches due to broken season chains):
@@ -33,11 +41,12 @@ function getIp(req: any): string {
 //     season (via direct season field, leagueId, or gccTournamentId lookup).
 //     If the season filter would wipe everything (e.g. matches stored without
 //     season/leagueId/gccTournamentId), we fall back gracefully to all matches.
-//  4. Keep only the 3 most-recent distinct match dates.
-//  5. Aggregate goals / wins / MVPs per match (a player can appear in multiple
+//  4. If allowedMatchTypes is specified, further filter to only those match types.
+//  5. Keep only the 3 most-recent distinct match dates.
+//  6. Aggregate goals / wins / MVPs per match (a player can appear in multiple
 //     matchup rows of the same fixture).
 //
-async function computePlayerStats(playerIds?: number[], matchLimit = 30, season?: string) {
+async function computePlayerStats(playerIds?: number[], matchLimit = 30, season?: string, allowedMatchTypes?: string[]) {
   // ── 1. Matchups for the target players ────────────────────────────────────
   let rawMatchups: (typeof playerMatchupsTable.$inferSelect)[];
 
@@ -98,6 +107,11 @@ async function computePlayerStats(playerIds?: number[], matchLimit = 30, season?
   } else if (!playerIds) {
     // Global fallback without season: cap at matchLimit most-recent matches
     candidates = candidates.slice(0, matchLimit);
+  }
+
+  // ── 3b. Match-type filter (e.g. only "gcc" matches for GCC POTW rounds) ──────
+  if (allowedMatchTypes && allowedMatchTypes.length > 0) {
+    candidates = candidates.filter(m => allowedMatchTypes.includes(m.matchType ?? "league"));
   }
 
   // ── 4. Build a lookup: matchId → match record (from season-filtered candidates)
@@ -186,7 +200,7 @@ router.get("/potw", async (req, res) => {
       const votes = await db.select().from(potwVotesTable).where(eq(potwVotesTable.roundId, lastClosed.id));
       const voteCounts: Record<number, number> = {};
       for (const v of votes) voteCounts[v.playerId] = (voteCounts[v.playerId] ?? 0) + 1;
-      const nomineeStats = await computePlayerStats(nomineeIds, 30, lastClosed.season ?? undefined);
+      const nomineeStats = await computePlayerStats(nomineeIds, 30, lastClosed.season ?? undefined, gccRoundMatchTypes(lastClosed.weekLabel));
       return res.json({ round: lastClosed, nominees, voteCounts, hasVoted: true, myVote: lastClosed.winnerId ?? null, totalVotes: votes.length, nomineeStats });
     }
 
@@ -206,7 +220,7 @@ router.get("/potw", async (req, res) => {
       if (tokenVote) { hasVoted = true; myVote = tokenVote.playerId; }
     }
 
-    const nomineeStats = await computePlayerStats(nomineeIds, 30, round.season ?? undefined);
+    const nomineeStats = await computePlayerStats(nomineeIds, 30, round.season ?? undefined, gccRoundMatchTypes(round.weekLabel));
 
     // Hide vote counts from public when round is active and votes not yet revealed
     const publicVoteCounts = round.isActive && !round.votesRevealed ? {} : voteCounts;

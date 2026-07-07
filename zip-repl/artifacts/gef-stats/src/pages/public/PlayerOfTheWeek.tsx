@@ -7,7 +7,7 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import {
   Star, Trophy, CheckCircle2, Vote, Clock, Crown, Medal,
-  Target, Zap, Shield,
+  Target, Zap, Shield, Hash, TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -89,11 +89,12 @@ function PlayerAvatar({ player, size = "md" }: { player: Player; size?: "sm" | "
   );
 }
 
-function StatPill({ icon, value, label, highlight }: { icon: React.ReactNode; value: number; label: string; highlight?: boolean }) {
+function StatPill({ icon, value, label, highlight }: { icon: React.ReactNode; value: number | string; label: string; highlight?: boolean }) {
+  const isPositive = typeof value === "number" ? value > 0 : parseFloat(value) > 0;
   return (
     <div className={cn(
       "flex items-center gap-1 px-2 py-1 rounded-lg border text-xs font-bold",
-      highlight && value > 0
+      highlight && isPositive
         ? "bg-primary/10 border-primary/30 text-primary"
         : "bg-secondary/40 border-border/50 text-muted-foreground"
     )}>
@@ -157,7 +158,7 @@ function NomineeCard({
           </div>
         </div>
 
-        {/* Last 3 match stats */}
+        {/* Last N match stats */}
         {stats.matches > 0 && (
           <div className="space-y-1.5">
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
@@ -165,10 +166,21 @@ function NomineeCard({
             </p>
             <div className="flex flex-wrap gap-1.5">
               <StatPill
+                icon={<Hash className="w-3 h-3" />}
+                value={stats.matches}
+                label="played"
+              />
+              <StatPill
                 icon={<Target className="w-3 h-3" />}
                 value={stats.goals}
                 label="goals"
                 highlight={stats.goals >= 3}
+              />
+              <StatPill
+                icon={<TrendingUp className="w-3 h-3" />}
+                value={(stats.goals / stats.matches).toFixed(1)}
+                label="per game"
+                highlight={stats.goals / stats.matches >= 2}
               />
               <StatPill
                 icon={<Zap className="w-3 h-3" />}

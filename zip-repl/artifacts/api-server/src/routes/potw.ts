@@ -114,25 +114,35 @@ async function computePlayerStats(playerIds?: number[], matchLimit = 30, season?
     candidates = candidates.filter(m => allowedMatchTypes.includes(m.matchType ?? "league"));
   }
 
-  // ── 4. Build a lookup: matchId → match record (from season-filtered candidates)
-  const candidateMatchMap = new Map(candidates.map(m => [m.id, m]));
+  // ── 4. Global window: 3 most-recent distinct matchday DATES across ALL candidates ──
+  //   Each unique date = one matchday slot. Players get their own separate match
+  //   records per date (GCC stores one match record per player pair per round),
+  //   so we group by date to find how many rounds happened vs how many each player
+  //   participated in.
+  const allDates = [...new Set(candidates.map(m => m.date))].sort((a, b) => b.localeCompare(a));
+  const windowDates = new Set(allDates.slice(0, 3));
+  const windowSize = windowDates.size;
 
-  // ── 5. Per-player aggregation with individual last-3-matchday windows ─────
-  //   Each player gets their OWN 3 most-recent distinct dates — this means
-  //   a league-only player (e.g. Sieon) never gets their dates crowded out by
-  //   more-recent GCC dates from other nominees.
-  const result: Record<number, { goals: number; mvps: number; wins: number; matches: number }> = {};
+  // Include all candidate matches whose date falls in the window
+  const windowCandidates = candidates.filter(m => windowDates.has(m.date));
+  const globalWindowSet = new Set(windowCandidates.map(m => m.id));
+  const candidateMatchMap = new Map(windowCandidates.map(m => [m.id, m]));
+
+  // ── 5. Per-player aggregation within the global window ─────────────────────
+  //   matches = number of distinct window-dates the player participated in
+  //   (= "how many of the last N matchdays did they play?")
+  const result: Record<number, { goals: number; mvps: number; wins: number; matches: number; windowSize: number }> = {};
   const ids = playerIds ?? [...new Set([...rawMatchups.flatMap(mu => [mu.player1Id, mu.player2Id])])];
 
   for (const pid of ids) {
-    // All matchups for this player that belong to a season-candidate match
+    // Matchups for this player that fall inside the global window
     const pMatchups = rawMatchups.filter(mu =>
       (mu.player1Id === pid || mu.player2Id === pid) &&
-      candidateMatchMap.has(mu.matchId)
+      globalWindowSet.has(mu.matchId)
     );
 
     if (!pMatchups.length) {
-      result[pid] = { goals: 0, mvps: 0, wins: 0, matches: 0 };
+      result[pid] = { goals: 0, mvps: 0, wins: 0, matches: 0, windowSize };
       continue;
     }
 
@@ -152,22 +162,18 @@ async function computePlayerStats(playerIds?: number[], matchLimit = 30, season?
       agg.wonAny  = agg.wonAny || (isP1 ? mu.player1Goals > mu.player2Goals : mu.player2Goals > mu.player1Goals);
     }
 
-    // Sort by date desc, then matchId desc (insertion order) — take last 3 matches.
-    // We intentionally do NOT collapse by calendar date because admins often enter
-    // multiple matchdays' results on the same day, which would wrongly merge them.
-    const matchEntries = [...byMatch.entries()]
-      .sort(([idA, a], [idB, b]) => {
-        const cmp = b.matchDate.localeCompare(a.matchDate);
-        return cmp !== 0 ? cmp : idB - idA;
-      })
-      .slice(0, 3)
-      .map(([, agg]) => agg);
+    const matchEntries = [...byMatch.values()];
+
+    // Count distinct dates played (one date = one matchday, regardless of how
+    // many individual match records the player has on that date).
+    const datesPlayed = new Set(matchEntries.map(e => e.matchDate)).size;
 
     result[pid] = {
       goals:   matchEntries.reduce((s, m) => s + m.goals, 0),
       mvps:    matchEntries.filter(m => m.isMvp).length,
       wins:    matchEntries.filter(m => m.wonAny).length,
-      matches: matchEntries.length,
+      matches: datesPlayed,
+      windowSize,
     };
   }
   return result;

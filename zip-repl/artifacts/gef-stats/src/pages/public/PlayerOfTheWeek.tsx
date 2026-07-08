@@ -40,7 +40,7 @@ interface Round {
   votesRevealed?: boolean;
 }
 
-interface PlayerStats { goals: number; mvps: number; wins: number; matches: number; }
+interface PlayerStats { goals: number; mvps: number; wins: number; matches: number; windowSize?: number; }
 
 interface PotwData {
   round: Round | null;
@@ -159,10 +159,13 @@ function NomineeCard({
         </div>
 
         {/* Last N match stats */}
-        {stats.matches > 0 && (
+        {(stats.matches > 0 || (stats.windowSize ?? 0) > 0) && (
           <div className="space-y-1.5">
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-              Last {stats.matches} {stats.matches === 1 ? "game" : "games"}
+              {(() => {
+                const w = stats.windowSize ?? stats.matches;
+                return `Last ${w} ${w === 1 ? "game" : "games"}`;
+              })()}
             </p>
             <div className="flex flex-wrap gap-1.5">
               <StatPill

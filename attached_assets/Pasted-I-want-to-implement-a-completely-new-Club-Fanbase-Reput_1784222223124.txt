@@ -1,0 +1,321 @@
+I want to implement a completely new "Club Fanbase & Reputation System" into my GEF (Global EFootball Federation) website.
+
+This system must be fully integrated into the existing database, admin panel, club pages, standings and future features.
+
+=========================
+OVERVIEW
+=========================
+
+Every club in GEF must have a Fanbase.
+
+The fanbase represents the total number of supporters that club has built over time.
+
+This is NOT random.
+
+Fanbase must grow or decrease realistically according to club performance, player performances, transfers, trophies and administrative actions.
+
+This system must be fully editable from the Admin Panel.
+
+The fanbase should become one of the biggest long-term progression systems in GEF.
+
+=========================
+STARTING FANBASE
+=========================
+
+Every new club begins with an initial fanbase assigned by the administrator.
+
+Example:
+
+10,000 Fans
+
+The starting value must NOT be hardcoded.
+
+The Admin should be able to manually assign any starting value.
+
+=========================
+FAN GROWTH
+=========================
+
+Fanbase should increase gradually.
+
+Growth should never feel unrealistic.
+
+Winning one match should never suddenly add thousands of supporters.
+
+Instead, use small realistic increments.
+
+Examples:
+
+League Win
++200 to +500
+
+Draw
++25 to +75
+
+Loss
+-20 to -50
+
+Champions Cup Win
++400 to +800
+
+Winning the League
++1500 to +3000
+
+Winning a Cup
++1200 to +2500
+
+Golden Boot Winner
++250
+
+Best Goalkeeper
++250
+
+Player of the Week
++75
+
+Team of the Week selections
++40 each
+
+Signing a star player
++100 to +500
+
+Releasing a star player
+-100 to -300
+
+Long winning streak
+Bonus growth
+
+Long losing streak
+Small decline
+
+Every fan gain or loss should be recorded inside the system.
+
+=========================
+ADMIN CONTROL
+=========================
+
+Inside the Admin Panel create a complete Fanbase Management section.
+
+The admin must be able to:
+
+Increase fanbase
+
+Decrease fanbase
+
+Set exact fanbase
+
+Reset fanbase
+
+Add notes explaining why the adjustment happened
+
+Example:
+
++500
+Reason:
+Excellent Community Activity
+
+-1000
+Reason:
+Rule Violation
+
+All manual adjustments must be stored in history.
+
+=========================
+FAN HISTORY
+=========================
+
+Every club should have a complete fan history.
+
+Example
+
+Date
+
+Reason
+
+Fan Change
+
+New Total
+
+The history should remain permanently.
+
+=========================
+FAN DIVISIONS
+=========================
+
+Like FIFA Mobile, clubs should belong to Fan Divisions according to their fanbase.
+
+Create divisions.
+
+Example:
+
+Local Club
+
+10,000
+
+Regional Club
+
+25,000
+
+National Club
+
+50,000
+
+Elite Club
+
+100,000
+
+Continental Giant
+
+250,000
+
+World Giant
+
+500,000
+
+Global Powerhouse
+
+1,000,000
+
+The exact thresholds must be editable by the administrator.
+
+When clubs reach a division they should automatically be promoted.
+
+If fans decrease below the threshold they should automatically be relegated.
+
+Display promotion and relegation animations.
+
+=========================
+CLUB PROFILE
+=========================
+
+Every club profile must display:
+
+Current Fanbase
+
+Current Fan Division
+
+Fan Growth This Season
+
+Highest Fanbase Ever
+
+Lowest Fanbase Ever
+
+Largest Fan Gain
+
+Largest Fan Loss
+
+Fan Growth Chart
+
+=========================
+LEADERBOARD
+=========================
+
+Create a Fanbase Rankings page.
+
+Rank every club by fanbase.
+
+Display:
+
+Position
+
+Club
+
+Current Fans
+
+Fan Division
+
+Weekly Growth
+
+Season Growth
+
+Highest Ever
+
+=========================
+ADMIN SETTINGS
+=========================
+
+The Admin should be able to configure:
+
+Growth multipliers
+
+Loss multipliers
+
+Division thresholds
+
+Starting fans
+
+Maximum fan gain per event
+
+Maximum fan loss per event
+
+Enable or disable automatic growth
+
+=========================
+DATABASE
+=========================
+
+Create database tables for:
+
+Club Fanbase
+
+Fan History
+
+Division Thresholds
+
+Manual Adjustments
+
+Automatic Adjustments
+
+Statistics
+
+=========================
+FUTURE SUPPORT
+=========================
+
+Design the system so that future features can use fanbase.
+
+Examples:
+
+Club Valuation
+
+Sponsors
+
+Ticket Revenue
+
+Club Reputation
+
+Owner Reputation
+
+Club Popularity
+
+Merchandise
+
+Club Awards
+
+Media Rankings
+
+The system should already be structured to support these future modules.
+
+=========================
+UI
+=========================
+
+Create a beautiful premium interface.
+
+Use animated counters.
+
+Large fan icon.
+
+Growth arrows.
+
+Green for increases.
+
+Red for decreases.
+
+Interactive charts.
+
+Modern football management style.
+
+Dark theme matching the rest of GEF.
+
+Everything should feel like an official football management simulation rather than a simple statistic.

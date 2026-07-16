@@ -25,6 +25,7 @@ import {
   Sparkles,
   BarChart2,
   DollarSign,
+  Heart,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -65,6 +66,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     { href: "/admin/match-analysis", icon: BarChart2, label: "AI Match Analysis" },
     { href: "/admin/potw", icon: Star, label: "Player of the Week" },
     { href: "/admin/power-rankings", icon: BarChart2, label: "Power Rankings" },
+    { href: "/admin/fanbase", icon: Heart, label: "Fanbase & Reputation" },
     { href: "/admin/import", icon: DatabaseZap, label: "Import Data" },
   ];
 

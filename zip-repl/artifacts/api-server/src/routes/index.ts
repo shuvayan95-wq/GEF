@@ -30,6 +30,7 @@ import potwRouter from "./potw";
 import rivalryRouter from "./rivalry";
 import powerRankingsRouter from "./powerrankings";
 import cupsRouter from "./cups";
+import fanbaseRouter from "./fanbase";
 
 const router: IRouter = Router();
 
@@ -64,5 +65,6 @@ router.use(potwRouter);
 router.use(rivalryRouter);
 router.use(powerRankingsRouter);
 router.use(cupsRouter);
+router.use(fanbaseRouter);
 
 export default router;

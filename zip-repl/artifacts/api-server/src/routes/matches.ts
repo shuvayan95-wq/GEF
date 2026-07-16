@@ -10,6 +10,7 @@ import {
 import { eq, sql, inArray } from "drizzle-orm";
 import { recalculateAllMarketValues } from "../lib/marketValue.js";
 import { recalculateAllTeamIncomes } from "../lib/incomeCalculator.js";
+import { processMatchFans } from "../lib/fanbaseUtils.js";
 
 const router: IRouter = Router();
 
@@ -225,6 +226,7 @@ router.post("/matches", requireAdmin, async (req, res) => {
 
     recalculateAllMarketValues("Match result added").catch(console.error);
     recalculateAllTeamIncomes("Match added").catch(console.error);
+    processMatchFans(Number(team1Id), Number(team2Id), Number(team1Score), Number(team2Score), match.id).catch(console.error);
 
     res.status(201).json(await buildMatch(match));
   } catch (err: any) {

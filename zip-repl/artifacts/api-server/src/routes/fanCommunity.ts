@@ -170,6 +170,65 @@ router.post("/fan-community/generate/:matchId", requireAdmin, async (req, res) =
   }
 });
 
+// POST /fan-community/regenerate-all — admin: wipe all existing content and regenerate with new engine
+router.post("/fan-community/regenerate-all", requireAdmin, async (req, res) => {
+  try {
+    // Delete all existing reactions and articles
+    await db.delete(fanReactionsTable);
+    await db.delete(fanArticlesTable);
+
+    // Find all scored matches
+    const allMatches = await db
+      .select()
+      .from(matchesTable)
+      .orderBy(desc(matchesTable.createdAt));
+
+    const scoredMatches = allMatches.filter(
+      m => m.team1Score !== null && m.team2Score !== null
+    );
+
+    const teams = await db.select().from(teamsTable);
+    const teamMap = new Map(teams.map(t => [t.id, t]));
+
+    res.json({
+      success: true,
+      message: `Regenerating reactions for ${scoredMatches.length} matches in background...`,
+      matchCount: scoredMatches.length,
+    });
+
+    // Process in background — batches of 3 with a small delay to avoid rate limits
+    (async () => {
+      const BATCH = 3;
+      for (let i = 0; i < scoredMatches.length; i += BATCH) {
+        const batch = scoredMatches.slice(i, i + BATCH);
+        await Promise.allSettled(
+          batch.map(m => {
+            const homeTeam = teamMap.get(m.team1Id);
+            const awayTeam = teamMap.get(m.team2Id);
+            if (!homeTeam || !awayTeam) return Promise.resolve();
+            return generateMatchReactions(
+              m.id,
+              m.team1Id,
+              m.team2Id,
+              homeTeam.name,
+              awayTeam.name,
+              m.team1Score ?? 0,
+              m.team2Score ?? 0,
+              (m.matchType ?? "league") as "league" | "gcc"
+            );
+          })
+        );
+        if (i + BATCH < scoredMatches.length) {
+          await new Promise(r => setTimeout(r, 800));
+        }
+      }
+      console.log(`[FanCommunity] Bulk regeneration complete for ${scoredMatches.length} matches`);
+    })().catch(err => console.error("[FanCommunity] Bulk regeneration error:", err?.message));
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message });
+  }
+});
+
 // DELETE /fan-community/reactions/:id — admin: delete a reaction
 router.delete("/fan-community/reactions/:id", requireAdmin, async (req, res) => {
   try {

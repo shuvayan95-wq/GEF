@@ -5,11 +5,14 @@ export const fanReactionsTable = pgTable("fan_reactions", {
   matchId: integer("match_id"),
   teamId: integer("team_id").notNull(),
   eventType: text("event_type").notNull(), // match_win, match_loss, match_draw, gcc_win, gcc_loss, gcc_draw
-  fanPersonality: text("fan_personality").notNull(), // optimistic, angry, sarcastic, tactical, etc
+  fanPersonality: text("fan_personality").notNull(), // optimistic, angry, sarcastic, stats_nerd, etc
   comment: text("comment").notNull(),
   isRival: boolean("is_rival").notNull().default(false),
   rivalTeamId: integer("rival_team_id"),
   isPinned: boolean("is_pinned").notNull().default(false),
+  // Threading: reactions sharing a threadKey form a conversation chain
+  threadKey: text("thread_key"),       // e.g. "t1", "t2" — groups replies together
+  replyOrder: integer("reply_order").notNull().default(0), // 0 = thread starter, 1,2,3 = replies
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

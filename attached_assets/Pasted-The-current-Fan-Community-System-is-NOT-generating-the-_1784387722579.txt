@@ -1,0 +1,326 @@
+The current Fan Community System is NOT generating the experience I want.
+
+Completely redesign the existing system and REPLACE all current fan articles, fan comments and AI-generated reactions with a new generation engine.
+
+IMPORTANT:
+This is NOT a real football simulation.
+
+This is a competitive eFootball franchise league.
+
+Every club fields FIVE individual eFootball players who each play one matchup.
+
+The club with the most individual matchup wins wins the fixture.
+
+Therefore every article, discussion and fan reaction must be based on the INDIVIDUAL PLAYER MATCHUPS and TEAM RESULT instead of real football concepts.
+
+======================================================
+REMOVE REAL FOOTBALL LANGUAGE
+======================================================
+
+Never generate articles mentioning:
+
+• defenders
+• midfield
+• striker
+• winger
+• formation
+• possession
+• pressing
+• defensive line
+• attacking football
+• tactical shape
+• counter attacks
+• build-up play
+
+These concepts do not exist in GEF.
+
+======================================================
+USE GEF DATA ONLY
+======================================================
+
+The AI should automatically read:
+
+• Team rosters
+• Which five players played
+• Which players won
+• Which players lost
+• Individual matchup score
+• Overall team score
+• Player form
+• Winning streaks
+• Losing streaks
+• League standings
+• GCC standings
+• Transfers
+• Awards
+• POTW
+• Golden Boot
+• Best Goalkeeper
+• MVP
+• Team history
+• Rivalries
+• Club fanbase
+• Captain decisions
+
+Every generated article should reference this data naturally.
+
+======================================================
+PLAYER-FOCUSED WRITING
+======================================================
+
+Fans should primarily discuss individual players.
+
+Examples:
+
+"SANI absolutely carried Moneyball today."
+
+"Darkrai keeps delivering every matchday."
+
+"Owen finally bounced back."
+
+"Trineer had a rough matchup today."
+
+"Kenifer is proving why he was worth the transfer fee."
+
+"Guts has quietly become one of the league's most consistent performers."
+
+Instead of saying:
+
+"The team defended well."
+
+Say:
+
+"The roster won four of the five matchups."
+
+Instead of:
+
+"The midfield collapsed."
+
+Say:
+
+"Three players lost their matchups and the team never recovered."
+
+======================================================
+TEAM MATCHUPS
+======================================================
+
+Every match report should reference how the fixture actually unfolded.
+
+Example:
+
+Moneyball FC defeated Storm FC 4-1.
+
+Generate writing like:
+
+"Moneyball won four of the five individual matchups, leaving Storm with almost no chance of recovering."
+
+"SANI and Darkrai secured early victories before Trineer sealed the series."
+
+"The roster looked dominant from start to finish."
+
+======================================================
+ESPORTS STYLE
+======================================================
+
+The tone should feel like:
+
+Dexerto
+
+Liquipedia
+
+Esports Insider
+
+Dot Esports
+
+Competitive gaming Twitter
+
+Competitive Reddit
+
+NOT like BBC Sport.
+
+Use words like:
+
+Roster
+
+Series
+
+Matchup
+
+Clutch
+
+Carry
+
+Bounce Back
+
+Momentum
+
+Form
+
+Upset
+
+Statement Win
+
+Power Ranking
+
+Title Favourite
+
+Elite Performance
+
+Ice Cold
+
+Cracked
+
+Dominated
+
+Folded
+
+Collapsed
+
+Reverse Momentum
+
+Huge Pickup
+
+Roster Upgrade
+
+Monster Performance
+
+======================================================
+FAN REACTIONS
+======================================================
+
+Fans should react naturally.
+
+Examples:
+
+"SANI is farming wins."
+
+"Darkrai is unreal this season."
+
+"This roster is terrifying."
+
+"Storm needs to rethink next week's lineup."
+
+"We actually let Kenifer leave..."
+
+"Our captain cooked this transfer window."
+
+"Three straight losses... this isn't the same team."
+
+"This roster finally looks championship ready."
+
+======================================================
+RIVAL FANS
+======================================================
+
+Never display:
+
+ROMA AQUILAE FC FAN
+(Rival Fan)
+
+Instead generate comments from actual rival clubs.
+
+Examples:
+
+🔥 STORM FC SUPPORTER
+
+💚 MONEYBALL ULTRA
+
+❤️ RED DRAGONS FAN
+
+💜 ECLIPSE ORDER SUPPORTER
+
+The AI should choose rival clubs intelligently based on league rivalries, standings, recent fixtures and transfer history.
+
+======================================================
+THREADS
+======================================================
+
+Instead of isolated comments, generate conversations.
+
+Example:
+
+🔥 STORM FC SUPPORTER
+
+"SANI is farming this league."
+
+↓
+
+💚 MONEYBALL FAN
+
+"He has been unstoppable for weeks."
+
+↓
+
+❤️ RED DRAGONS FAN
+
+"Wait until he faces us."
+
+↓
+
+⚪ Neutral Fan
+
+"Best player this season so far."
+
+======================================================
+MATCH IMPORTANCE
+======================================================
+
+Reaction intensity must scale.
+
+League Match
+→ Normal discussion
+
+Champions Cup
+→ Bigger reactions
+
+Semi Final
+→ Huge community debate
+
+Final
+→ Massive celebrations or criticism
+
+Winning a trophy
+→ Historic posts
+
+Record transfer
+→ Breaking news
+
+======================================================
+FANBASE
+======================================================
+
+Every event should also influence fan growth.
+
+League Win
+
+League Loss
+
+GCC Win
+
+GCC Elimination
+
+Winning streak
+
+Losing streak
+
+Player of the Week
+
+Awards
+
+Major transfers
+
+Trophies
+
+Everything should automatically generate believable fan growth and corresponding community reactions.
+
+======================================================
+REPLACE EXISTING CONTENT
+======================================================
+
+Replace all existing AI-generated fan articles and fan comments with this new generation system.
+
+The old articles and reactions are too generic and sound like a real football simulator.
+
+Regenerate the fan page so every article, headline and comment follows this new esports-oriented system.
+
+The final result should feel like a living competitive eFootball universe where every player, every matchup, every roster move and every result creates realistic community discussion.

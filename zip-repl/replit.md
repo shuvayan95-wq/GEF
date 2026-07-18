@@ -87,3 +87,30 @@ Tables: `players`, `teams`, `matches`, `player_matchups`, `awards`, `leagues`, `
 - API Server: `pnpm --filter @workspace/api-server run dev`
 - Frontend: `pnpm --filter @workspace/gef-stats run dev`
 - Codegen: `pnpm --filter @workspace/api-spec run codegen`
+
+## Running on Replit
+
+Two workflows are configured:
+- **Backend API** — runs Express on port 3000 (`pnpm --filter @workspace/api-server run dev`). On startup it pushes the Drizzle schema to Supabase then starts the server.
+- **Start application** — runs Vite frontend on port 5000 (`pnpm --filter @workspace/gef-stats run dev`).
+
+### Required Secrets (Replit Secrets)
+| Key | Purpose |
+|-----|---------|
+| `SUPABASE_DATABASE_URL` | PostgreSQL connection string (uses SSL) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role JWT for file uploads |
+| `SESSION_SECRET` | Express session signing secret |
+
+### Optional Secrets
+| Key | Purpose |
+|-----|---------|
+| `OPENAI_API_KEY` / `AI_INTEGRATIONS_OPENAI_API_KEY` | AI-powered features |
+| `GROQ_API_KEY` | Groq AI features |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Override default admin credentials |
+
+### Non-Secret Env Vars
+| Key | Value |
+|-----|-------|
+| `SUPABASE_URL` | `https://vnidzmtmjyoncpvecact.supabase.co` |
+
+Note: `DATABASE_URL` is runtime-managed by Replit and is NOT used; `SUPABASE_DATABASE_URL` takes priority in the DB connection.

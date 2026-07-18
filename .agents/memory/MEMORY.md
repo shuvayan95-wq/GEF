@@ -1,1 +1,2 @@
 - [Express route ordering](express-route-ordering.md) — `/players/:id` catches `/players/list`; new list endpoints must use distinct paths like `/players-dropdown`.
+- [Fan community tables](fan-community-tables.md) — `fan_reactions` and `fan_articles` tables added; AI reactions auto-generated async on match result; template fallback when no AI available.

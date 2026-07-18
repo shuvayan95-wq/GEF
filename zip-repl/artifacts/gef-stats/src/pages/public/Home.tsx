@@ -7,7 +7,7 @@ import {
   ArrowRight, CalendarDays, MapPin, Clock, Flame,
   BookOpen, Megaphone, Newspaper, Zap, Users, Shield,
   Swords, Trophy, ArrowLeftRight, Star, Skull, TrendingUp,
-  Globe, Handshake, Crown, BarChart2, AlertTriangle,
+  Globe, Handshake, Crown, BarChart2, AlertTriangle, MessageCircle,
 } from "lucide-react";
 import { getApiUrl } from "@/lib/api";
 import { format, isPast } from "date-fns";
@@ -187,6 +187,133 @@ function WinBar({ aWins, bWins, draws }: { aWins: number; bWins: number; draws: 
       <div className="bg-yellow-500/60 transition-all" style={{ width: `${dPct}%` }} />
       <div className="bg-red-500 transition-all" style={{ width: `${bPct}%` }} />
     </div>
+  );
+}
+
+// ── Fan Community Section ─────────────────────────────────────────────────────
+
+function FanCommunitySection() {
+  const { data: feed } = useQuery<{ articles: any[]; reactions: any[] }>({
+    queryKey: ["home-fan-community"],
+    queryFn: () => fetch("/api/fan-community/feed?limit=6").then(r => r.ok ? r.json() : { articles: [], reactions: [] }),
+    staleTime: 60_000,
+  });
+  const { data: fanbase = [] } = useQuery<any[]>({
+    queryKey: ["fanbase-leaderboard"],
+    queryFn: () => fetch("/api/fanbase/leaderboard").then(r => r.json()).then(d => Array.isArray(d) ? d : []),
+  });
+
+  const articles = feed?.articles ?? [];
+  const reactions = feed?.reactions ?? [];
+  const totalFans = fanbase.reduce((s: number, c: any) => s + (c.currentFans || 0), 0);
+
+  if (articles.length === 0 && reactions.length === 0) return null;
+
+  const PERSONALITY_EMOJI: Record<string, string> = {
+    optimistic: "😄", angry: "😤", sarcastic: "😏", tactical: "📊",
+    transfer_addict: "💰", young_supporter: "🔥", old_guard: "🧓",
+    glory_hunter: "🏆", die_hard: "❤️", media_pundit: "🎙️",
+    legend: "👑", neutral_observer: "🤷", frustrated: "😞", neutral: "🤷",
+  };
+
+  return (
+    <section>
+      <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
+        <div>
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-primary mb-1">
+            <span className="relative flex w-2 h-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
+            </span>
+            Virtual Fan Community
+          </div>
+          <h2 className="text-3xl font-display font-black uppercase flex items-center gap-3">
+            <MessageCircle className="w-7 h-7 text-primary" /> Fan Hub
+          </h2>
+          {totalFans > 0 && (
+            <p className="text-sm text-muted-foreground mt-1">{totalFans.toLocaleString()} total supporters across {fanbase.length} clubs</p>
+          )}
+        </div>
+        <Link href="/fan-community">
+          <Button variant="outline" size="sm" className="gap-1.5">Fan Community <ArrowRight className="w-4 h-4" /></Button>
+        </Link>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        {/* Latest match article */}
+        {articles[0] && (
+          <div className="lg:col-span-3">
+            <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
+              <Newspaper className="w-3.5 h-3.5" /> Latest Match Report
+            </div>
+            <Link href="/fan-community">
+              <motion.div
+                initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+                className={`bg-card border rounded-2xl p-5 cursor-pointer hover:border-primary/40 transition-all group ${articles[0].matchType === "gcc" ? "border-amber-500/30" : "border-border"}`}
+              >
+                {/* Scoreline */}
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
+                    {articles[0].homeTeam?.logoUrl && <img src={articles[0].homeTeam.logoUrl} className="w-7 h-7 object-contain shrink-0" alt="" />}
+                    <span className="font-bold text-sm truncate">{articles[0].homeTeam?.name ?? "?"}</span>
+                  </div>
+                  <div className="text-center shrink-0">
+                    <div className="text-xl font-black tabular-nums">{articles[0].homeScore}-{articles[0].awayScore}</div>
+                    <div className="text-[9px] text-muted-foreground uppercase tracking-wider">{articles[0].matchType === "gcc" ? "🏆 Cup" : "⚽ League"}</div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <span className="font-bold text-sm truncate">{articles[0].awayTeam?.name ?? "?"}</span>
+                    {articles[0].awayTeam?.logoUrl && <img src={articles[0].awayTeam.logoUrl} className="w-7 h-7 object-contain shrink-0" alt="" />}
+                  </div>
+                </div>
+                <h3 className="font-display font-black uppercase text-xl sm:text-2xl leading-tight mb-3 group-hover:text-primary transition-colors">
+                  {articles[0].headline}
+                </h3>
+                <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">{articles[0].summary}</p>
+                {articles[0].talkingPoint && (
+                  <div className="mt-3 bg-secondary/50 rounded-xl p-3">
+                    <span className="text-xs text-muted-foreground font-bold uppercase tracking-wide">💬 </span>
+                    <span className="text-xs text-muted-foreground">{articles[0].talkingPoint}</span>
+                  </div>
+                )}
+                <div className="mt-3 text-xs font-bold text-primary flex items-center gap-1">
+                  Read full report <ArrowRight className="w-3 h-3" />
+                </div>
+              </motion.div>
+            </Link>
+          </div>
+        )}
+
+        {/* Fan reactions */}
+        <div className={articles[0] ? "lg:col-span-2" : "lg:col-span-5"}>
+          <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
+            <MessageCircle className="w-3.5 h-3.5" /> Latest Reactions
+          </div>
+          <div className="space-y-2.5">
+            {reactions.slice(0, 5).map((r: any, i: number) => (
+              <motion.div
+                key={r.id}
+                initial={{ opacity: 0, x: 8 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.05 }}
+                className={`bg-card border rounded-xl p-3 ${r.isRival ? "border-red-500/20" : "border-border"}`}
+              >
+                <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                  {r.team?.logoUrl && <img src={r.team.logoUrl} className="w-4 h-4 object-contain shrink-0" alt="" />}
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase truncate max-w-[100px]">{r.team?.name ?? "Fan"}</span>
+                  {r.isRival && <span className="text-[9px] text-red-400 font-bold">⚔️ Rival</span>}
+                  <span className="text-[10px] text-muted-foreground ml-auto">{PERSONALITY_EMOJI[r.fanPersonality] ?? "💬"}</span>
+                </div>
+                <p className="text-xs text-foreground leading-relaxed line-clamp-2">{r.comment}</p>
+              </motion.div>
+            ))}
+          </div>
+          <Link href="/fan-community">
+            <button className="mt-3 w-full text-center text-xs text-primary hover:text-primary/80 font-bold py-2 border border-primary/20 rounded-xl hover:border-primary/40 transition-all">
+              View All Fan Reactions →
+            </button>
+          </Link>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -482,6 +609,9 @@ export function Home() {
             )}
           </section>
         )}
+
+        {/* ── FAN COMMUNITY TEASER ──────────────────────────────────────────── */}
+        <FanCommunitySection />
 
         {/* ── TOP RIVALS ────────────────────────────────────────────────────── */}
         <section>

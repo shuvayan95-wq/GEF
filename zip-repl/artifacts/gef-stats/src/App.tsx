@@ -71,6 +71,7 @@ import { PowerRankings } from "@/pages/public/PowerRankings";
 import { ManageMatchAnalysis } from "@/pages/admin/ManageMatchAnalysis";
 import { MatchAnalysis } from "@/pages/public/MatchAnalysis";
 import { Fanbase } from "@/pages/public/Fanbase";
+import { FanCommunity } from "@/pages/public/FanCommunity";
 import { ManageFanbase } from "@/pages/admin/ManageFanbase";
 
 const queryClient = new QueryClient({
@@ -155,6 +156,7 @@ function Router() {
       <Route path="/admin/match-analysis" component={ManageMatchAnalysis} />
       <Route path="/match-analysis/:matchId" component={MatchAnalysis} />
       <Route path="/fanbase" component={Fanbase} />
+      <Route path="/fan-community" component={FanCommunity} />
       <Route path="/admin/fanbase" component={ManageFanbase} />
 
       <Route component={NotFound} />

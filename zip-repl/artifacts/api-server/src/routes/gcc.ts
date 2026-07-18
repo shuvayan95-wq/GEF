@@ -3,6 +3,8 @@ import { db } from "@workspace/db";
 import { gccTournamentsTable, gccEntriesTable, gccFixturesTable, teamsTable, matchesTable, playerMatchupsTable } from "@workspace/db";
 import { eq, and, inArray, sql } from "drizzle-orm";
 import { playersTable } from "@workspace/db";
+import { processMatchFans } from "../lib/fanbaseUtils.js";
+import { generateMatchReactions } from "../lib/fanCommunityUtils.js";
 
 const router: IRouter = Router();
 
@@ -698,6 +700,23 @@ router.put("/gcc/tournaments/:id/fixtures/:fid", requireAdmin, async (req, res) 
       }
     }
 
+    // Fan growth + AI reactions for GCC results
+    if (hasScore && played !== false) {
+      const homeTeams = await db.select().from(teamsTable).where(eq(teamsTable.id, f.homeTeamId));
+      const awayTeams = await db.select().from(teamsTable).where(eq(teamsTable.id, f.awayTeamId));
+      const homeTeam = homeTeams[0] ?? null;
+      const awayTeam = awayTeams[0] ?? null;
+      // Use cup fan settings for GCC
+      processMatchFans(f.homeTeamId, f.awayTeamId, Number(homeScore), Number(awayScore), f.id, "gcc" as any).catch(console.error);
+      if (homeTeam && awayTeam) {
+        // Generate AI reactions linked to match record if available
+        const linkedMatchId = (match as any)?.id ?? null;
+        if (linkedMatchId) {
+          generateMatchReactions(linkedMatchId, f.homeTeamId, f.awayTeamId, homeTeam.name, awayTeam.name, Number(homeScore), Number(awayScore), "gcc").catch(console.error);
+        }
+      }
+    }
+
     res.json({ fixture: f });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
@@ -757,6 +776,22 @@ router.post("/gcc/tournaments/:id/fixtures/add", requireAdmin, async (req, res) 
             mvpPlayerId: m.mvpPlayerId ? Number(m.mvpPlayerId) : null,
           }))
         );
+      }
+    }
+
+    // Fan growth + AI reactions for directly-added GCC results
+    if (hasScore) {
+      const allTeamIds2 = [Number(homeTeamId), Number(awayTeamId)];
+      const teamRows = await db.select().from(teamsTable).where(inArray(teamsTable.id, allTeamIds2));
+      const teamMap2 = new Map(teamRows.map(t => [t.id, t]));
+      const hTeam = teamMap2.get(Number(homeTeamId));
+      const aTeam = teamMap2.get(Number(awayTeamId));
+      processMatchFans(Number(homeTeamId), Number(awayTeamId), Number(homeScore), Number(awayScore), fixture.id, "gcc" as any).catch(console.error);
+      if (hTeam && aTeam) {
+        const linkedMatch = (match as any) ?? null;
+        if (linkedMatch?.id) {
+          generateMatchReactions(linkedMatch.id, Number(homeTeamId), Number(awayTeamId), hTeam.name, aTeam.name, Number(homeScore), Number(awayScore), "gcc").catch(console.error);
+        }
       }
     }
 

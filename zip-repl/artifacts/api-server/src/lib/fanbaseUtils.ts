@@ -144,7 +144,8 @@ export async function processMatchFans(
   team2Id: number,
   team1Score: number,
   team2Score: number,
-  matchId: number
+  matchId: number,
+  matchType: "league" | "gcc" = "league"
 ): Promise<void> {
   try {
     const settings = await getSettings();
@@ -152,18 +153,29 @@ export async function processMatchFans(
 
     const isDraw = team1Score === team2Score;
     const team1Won = team1Score > team2Score;
+    const isGCC = matchType === "gcc";
 
     if (isDraw) {
       const gain = randBetween(Number(settings.match_draw_min), Number(settings.match_draw_max));
-      await applyFanChange(team1Id, gain, "Match draw", "match_draw", matchId);
-      await applyFanChange(team2Id, gain, "Match draw", "match_draw", matchId);
+      const reason = isGCC ? "Champions Cup draw" : "Match draw";
+      const evtType = isGCC ? "gcc_draw" : "match_draw";
+      await applyFanChange(team1Id, gain, reason, evtType, matchId);
+      await applyFanChange(team2Id, gain, reason, evtType, matchId);
     } else {
       const winnerId = team1Won ? team1Id : team2Id;
       const loserId = team1Won ? team2Id : team1Id;
-      const winGain = randBetween(Number(settings.match_win_min), Number(settings.match_win_max));
-      const lossLoss = randBetween(Number(settings.match_loss_min), Number(settings.match_loss_max));
-      await applyFanChange(winnerId, winGain, "Match victory", "match_win", matchId);
-      await applyFanChange(loserId, lossLoss, "Match defeat", "match_loss", matchId);
+      const winMin = isGCC ? Number(settings.cup_win_min) : Number(settings.match_win_min);
+      const winMax = isGCC ? Number(settings.cup_win_max) : Number(settings.match_win_max);
+      const lossMin = Number(settings.match_loss_min);
+      const lossMax = Number(settings.match_loss_max);
+      const winGain = randBetween(winMin, winMax);
+      const lossChange = randBetween(lossMin, lossMax);
+      const winReason = isGCC ? "Champions Cup victory" : "Match victory";
+      const lossReason = isGCC ? "Champions Cup defeat" : "Match defeat";
+      const winEvt = isGCC ? "gcc_win" : "match_win";
+      const lossEvt = isGCC ? "gcc_loss" : "match_loss";
+      await applyFanChange(winnerId, winGain, winReason, winEvt, matchId);
+      await applyFanChange(loserId, lossChange, lossReason, lossEvt, matchId);
     }
   } catch (err: any) {
     console.error("[Fanbase] processMatchFans error:", err?.message);

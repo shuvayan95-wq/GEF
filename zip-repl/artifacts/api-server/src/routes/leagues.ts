@@ -7,6 +7,8 @@ import {
 import { eq, sql, inArray } from "drizzle-orm";
 import { recalculateAllMarketValues } from "../lib/marketValue.js";
 import { recalculateAllTeamIncomes } from "../lib/incomeCalculator.js";
+import { processMatchFans } from "../lib/fanbaseUtils.js";
+import { generateMatchReactions } from "../lib/fanCommunityUtils.js";
 
 const router: IRouter = Router();
 
@@ -486,6 +488,17 @@ router.patch("/fixture-schedule/:id/result", requireAdmin, async (req, res) => {
 
     recalculateAllMarketValues("Fixture result entered").catch(console.error);
     recalculateAllTeamIncomes("Fixture result entered").catch(console.error);
+
+    // Fan growth + AI reactions (only on first result entry, not re-entry)
+    const isFirstResult = !fixture.matchId;
+    if (isFirstResult) {
+      const homeTeam = await db.select().from(teamsTable).where(eq(teamsTable.id, fixture.homeTeamId)).then(r => r[0] ?? null);
+      const awayTeam = await db.select().from(teamsTable).where(eq(teamsTable.id, fixture.awayTeamId)).then(r => r[0] ?? null);
+      processMatchFans(fixture.homeTeamId, fixture.awayTeamId, Number(homeScore), Number(awayScore), matchId!).catch(console.error);
+      if (homeTeam && awayTeam && matchId) {
+        generateMatchReactions(matchId, fixture.homeTeamId, fixture.awayTeamId, homeTeam.name, awayTeam.name, Number(homeScore), Number(awayScore), "league").catch(console.error);
+      }
+    }
 
     res.json({ success: true, matchId });
   } catch (err: any) {

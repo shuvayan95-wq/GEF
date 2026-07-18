@@ -1,0 +1,487 @@
+I want to build a completely dynamic AI-powered Fan Community System for my GEF (Global EFootball Federation) website.
+
+This is NOT a normal comment section.
+
+This is a virtual football community made up of AI-generated supporters who react to everything happening in the league.
+
+The goal is to make the website feel like a real football ecosystem where clubs have fanbases and supporters who discuss, celebrate, criticize and debate every event.
+
+==================================================
+
+SYSTEM OVERVIEW
+
+==================================================
+
+Every club has its own virtual fanbase.
+
+These fans are NOT real users.
+
+The system automatically generates realistic fan reactions based on events happening throughout GEF.
+
+No event should ever feel ignored.
+
+Every important action should create discussion.
+
+==================================================
+
+EVENTS THAT MUST TRIGGER FAN REACTIONS
+
+==================================================
+
+League Match Completed
+
+GEF Champions Cup Match Completed
+
+Player of the Week
+
+Team of the Week
+
+Golden Boot
+
+Best Goalkeeper
+
+Player Transfer In
+
+Player Transfer Out
+
+Record Signing
+
+Club Release
+
+Winning Streak
+
+Losing Streak
+
+League Table Movement
+
+Top of League
+
+Relegation Zone
+
+Champions Cup Qualification
+
+Champions Cup Elimination
+
+Cup Final Qualification
+
+Winning League
+
+Winning Cup
+
+Manager Appointment
+
+Manager Sacked
+
+Owner Changes
+
+Budget Increase
+
+Financial Penalty
+
+Rule Violation
+
+Suspension
+
+Red Card
+
+Historic Milestone
+
+Club Anniversary
+
+Player Milestones
+
+==================================================
+
+MATCH ANALYSIS
+
+==================================================
+
+Every completed fixture should automatically generate a Match Reaction Article.
+
+Example
+
+Moneyball FC defeat Storm FC 4-1
+
+The system automatically generates:
+
+Headline
+
+Match Summary
+
+Star Player
+
+Biggest Talking Point
+
+Fan Reactions
+
+Media Rating
+
+Momentum Change
+
+Fanbase Growth
+
+==================================================
+
+DYNAMIC FAN COMMENTS
+
+==================================================
+
+This is the most important feature.
+
+The fan comments must NEVER repeat.
+
+Never generate generic comments like:
+
+"Great win."
+
+"Nice game."
+
+"Well played."
+
+Instead create thousands of unique combinations.
+
+Fans should have personalities.
+
+Examples
+
+Optimistic fans
+
+Angry fans
+
+Funny fans
+
+Sarcastic fans
+
+Tactical fans
+
+Football experts
+
+Transfer addicts
+
+Young supporters
+
+Old supporters
+
+Club legends
+
+Rival supporters
+
+Neutral supporters
+
+Every event should produce different emotions.
+
+Examples after losing
+
+"This defence has completely collapsed."
+
+"We can't keep conceding like this."
+
+"The manager has serious questions to answer."
+
+"Still proud of the boys."
+
+"One bad night doesn't define this club."
+
+After winning
+
+"Statement victory."
+
+"We're becoming unstoppable."
+
+"The league should start worrying."
+
+"This is championship football."
+
+"We've finally found our rhythm."
+
+After signing a player
+
+"What a signing."
+
+"This changes everything."
+
+"Best transfer of the season."
+
+"I've waited months for this."
+
+"I can't believe we actually signed him."
+
+After selling a player
+
+"We should never have let him leave."
+
+"Hope the money was worth it."
+
+"This could backfire."
+
+"Manager knows something we don't."
+
+When a player performs badly
+
+"He disappeared today."
+
+"Needs to improve."
+
+"Not good enough."
+
+"Everyone has bad days."
+
+"I still believe in him."
+
+When winning Player of the Week
+
+"Fully deserved."
+
+"Nobody was better."
+
+"Our star."
+
+"Carry us to the title."
+
+"Future club legend."
+
+==================================================
+
+RIVAL FANS
+
+==================================================
+
+Fans from rival clubs should also react.
+
+Example
+
+Storm FC fans mocking Moneyball.
+
+Moneyball fans mocking Storm.
+
+Neutral fans debating.
+
+Comments should create football rivalry.
+
+==================================================
+
+MEDIA ARTICLES
+
+==================================================
+
+Automatically generate football news.
+
+Examples
+
+"SANI inspires Moneyball to another victory."
+
+"Storm FC suffer another disappointing defeat."
+
+"Champions Cup qualification race heats up."
+
+"Moneyball extend unbeaten run."
+
+"The title race is officially alive."
+
+==================================================
+
+FAN SENTIMENT
+
+==================================================
+
+Every club has a live Fan Mood.
+
+Ecstatic
+
+Happy
+
+Satisfied
+
+Neutral
+
+Concerned
+
+Frustrated
+
+Angry
+
+Furious
+
+This mood changes automatically based on performances.
+
+==================================================
+
+FANBASE CHANGES
+
+==================================================
+
+Every important event should automatically modify the club fanbase.
+
+League Win
+
+Small increase
+
+League Loss
+
+Small decrease
+
+Champions Cup Win
+
+Higher increase
+
+Winning Trophy
+
+Large increase
+
+Winning POTW
+
+Small increase
+
+Winning Golden Boot
+
+Increase
+
+Big Transfer
+
+Increase
+
+Selling Star Player
+
+Decrease
+
+Violations
+
+Decrease
+
+Long Winning Streak
+
+Bonus growth
+
+Long Losing Streak
+
+Gradual decline
+
+Everything must automatically update the club fanbase database.
+
+==================================================
+
+REALISTIC GROWTH
+
+==================================================
+
+Fan growth must feel realistic.
+
+Never add thousands of fans for a normal league win.
+
+Create configurable values.
+
+Admin can edit all values.
+
+==================================================
+
+ADMIN CONTROL
+
+==================================================
+
+Admin can:
+
+Enable automatic fan reactions
+
+Disable automatic reactions
+
+Regenerate reactions
+
+Delete reactions
+
+Pin reactions
+
+Create manual articles
+
+Create announcements
+
+Adjust fanbase manually
+
+Override AI reactions
+
+==================================================
+
+VARIETY
+
+==================================================
+
+The AI must NEVER generate the same wording repeatedly.
+
+It should randomly vary:
+
+Sentence structure
+
+Vocabulary
+
+Emotion
+
+Length
+
+Writing style
+
+Humour
+
+Criticism
+
+Optimism
+
+Every page refresh should still show the same saved comments.
+
+Only newly created events generate new reactions.
+
+==================================================
+
+MATCH IMPORTANCE
+
+==================================================
+
+The reaction intensity should depend on the importance of the event.
+
+League match
+
+Normal discussion.
+
+Champions Cup
+
+Higher excitement.
+
+Semi Final
+
+Huge reactions.
+
+Final
+
+Massive articles.
+
+Winning the league
+
+Explosive celebrations.
+
+Relegation
+
+Emotional reactions.
+
+Historic signing
+
+Breaking news.
+
+==================================================
+
+GOAL
+
+==================================================
+
+I want visitors to feel like they are reading football Twitter, Reddit, BBC Sport, OneFootball and Goal.com combined.
+
+The website should feel alive.
+
+Every club should have supporters.
+
+Every result should create discussion.
+
+Every transfer should create debate.
+
+Every trophy should create history.
+
+No page should ever feel static.
+
+Everything should look like a living football world.

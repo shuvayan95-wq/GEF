@@ -20,3 +20,4 @@ export * from "./cups";
 export * from "./fixtures";
 export * from "./captains";
 export * from "./fanbase";
+export * from "./fanReactions";

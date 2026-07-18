@@ -29,6 +29,7 @@ const NAV_LINKS = [
   { href: "/player-of-the-week", label: "⭐ POTW" },
   { href: "/rivalry", label: "⚔️ Rivalry" },
   { href: "/power-rankings", label: "📊 Power Rankings" },
+  { href: "/fan-community", label: "🔥 Fan Hub" },
   { href: "/fanbase", label: "👥 Fanbase" },
 ];
 

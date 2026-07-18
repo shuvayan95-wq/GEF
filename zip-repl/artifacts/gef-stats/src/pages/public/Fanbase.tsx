@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect, useRef } from "react";
-import { Trophy, Users, TrendingUp, TrendingDown, Crown, Star, ChevronUp, ChevronDown, Minus } from "lucide-react";
+import { Link } from "wouter";
+import { Trophy, Users, TrendingUp, TrendingDown, Crown, Star, ChevronUp, ChevronDown, Minus, MessageCircle } from "lucide-react";
 
 const API = import.meta.env.VITE_API_URL ?? "";
 
@@ -81,35 +82,42 @@ export function Fanbase() {
       {/* Hero */}
       <div className="relative overflow-hidden bg-gradient-to-b from-gray-900 to-gray-950 border-b border-gray-800">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-900/20 via-transparent to-transparent" />
-        <div className="relative max-w-6xl mx-auto px-4 py-16 text-center">
+        <div className="relative max-w-6xl mx-auto px-4 py-12 sm:py-16 text-center">
           <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/30 rounded-full px-4 py-1.5 mb-6 text-blue-400 text-sm font-medium">
             <Users size={14} />
             Club Fanbase System
           </div>
-          <h1 className="text-5xl font-black tracking-tight mb-4 bg-gradient-to-r from-white via-gray-100 to-gray-400 bg-clip-text text-transparent">
+          <h1 className="text-4xl sm:text-5xl font-black tracking-tight mb-4 bg-gradient-to-r from-white via-gray-100 to-gray-400 bg-clip-text text-transparent">
             GEF Fanbase Rankings
           </h1>
-          <p className="text-gray-400 text-lg mb-10 max-w-2xl mx-auto">
+          <p className="text-gray-400 text-base sm:text-lg mb-8 max-w-2xl mx-auto">
             Every supporter counts. Track how fan empires are built, match by match.
           </p>
-          <div className="inline-flex flex-col items-center gap-1 bg-gray-900 border border-gray-700 rounded-2xl px-10 py-6">
+          <div className="inline-flex flex-col items-center gap-1 bg-gray-900 border border-gray-700 rounded-2xl px-8 sm:px-10 py-5 sm:py-6 mb-6">
             <span className="text-gray-500 text-sm uppercase tracking-widest font-semibold">Total GEF Supporters</span>
-            <span className="text-5xl font-black text-emerald-400">
+            <span className="text-4xl sm:text-5xl font-black text-emerald-400">
               <AnimatedCounter value={totalFans} />
             </span>
             <span className="text-gray-500 text-sm">across {leaderboard.length} clubs</span>
+          </div>
+          <div className="flex justify-center">
+            <Link href="/fan-community">
+              <button className="inline-flex items-center gap-2 bg-blue-600/20 border border-blue-600/40 text-blue-400 hover:bg-blue-600/30 transition-colors rounded-full px-4 py-2 text-sm font-bold">
+                <MessageCircle size={14} /> Visit Fan Community Hub →
+              </button>
+            </Link>
           </div>
         </div>
       </div>
 
       <div className="max-w-6xl mx-auto px-4 py-8">
-        {/* Division pills */}
-        <div className="flex gap-2 flex-wrap mb-6">
-          {divisionNames.map(d => (
+        {/* Division pills — scrollable on mobile */}
+        <div className="flex gap-2 flex-wrap mb-6 overflow-x-auto pb-1 -mx-1 px-1">
+          {(divisionNames as string[]).map(d => (
             <button
               key={d}
               onClick={() => setDivFilter(d)}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all shrink-0 ${
                 divFilter === d
                   ? "bg-blue-600 text-white"
                   : "bg-gray-800 text-gray-400 hover:bg-gray-700"
@@ -134,8 +142,8 @@ export function Fanbase() {
           <div className="flex items-center justify-center h-48 text-gray-500">Loading rankings...</div>
         ) : (
           <div className="bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden">
-            {/* Header */}
-            <div className="grid grid-cols-[60px_1fr_160px_160px_140px_160px] gap-4 px-6 py-3 border-b border-gray-800 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+            {/* Desktop Header */}
+            <div className="hidden lg:grid lg:grid-cols-[48px_1fr_140px_160px_130px_140px] gap-4 px-6 py-3 border-b border-gray-800 text-xs font-semibold text-gray-500 uppercase tracking-wider">
               <span>#</span>
               <span>Club</span>
               <span className="text-right">Fans</span>
@@ -143,66 +151,98 @@ export function Fanbase() {
               <span className="text-right">Season Growth</span>
               <span className="text-right">Highest Ever</span>
             </div>
+            {/* Mobile Header */}
+            <div className="grid grid-cols-[40px_1fr_100px] gap-3 lg:hidden px-4 py-3 border-b border-gray-800 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              <span>#</span>
+              <span>Club</span>
+              <span className="text-right">Fans</span>
+            </div>
 
             {filtered.length === 0 && (
               <div className="py-16 text-center text-gray-500">No clubs with fanbase data yet</div>
             )}
 
-            {filtered.map((club: any, idx: number) => (
-              <div
-                key={club.teamId}
-                className="grid grid-cols-[60px_1fr_160px_160px_140px_160px] gap-4 px-6 py-4 border-b border-gray-800/50 hover:bg-gray-800/40 transition-colors items-center group"
-              >
-                {/* Rank */}
-                <div className="flex items-center">
-                  {club.rank <= 3 ? (
-                    <span className={`text-xl font-black ${club.rank === 1 ? "text-yellow-400" : club.rank === 2 ? "text-gray-300" : "text-amber-600"}`}>
-                      {club.rank === 1 ? "🥇" : club.rank === 2 ? "🥈" : "🥉"}
+            {filtered.map((club: any) => (
+              <div key={club.teamId} className="border-b border-gray-800/50 hover:bg-gray-800/40 transition-colors group">
+                {/* Desktop Row */}
+                <div className="hidden lg:grid lg:grid-cols-[48px_1fr_140px_160px_130px_140px] gap-4 px-6 py-4 items-center">
+                  {/* Rank */}
+                  <div className="flex items-center">
+                    {club.rank <= 3 ? (
+                      <span className={`text-xl font-black ${club.rank === 1 ? "text-yellow-400" : club.rank === 2 ? "text-gray-300" : "text-amber-600"}`}>
+                        {club.rank === 1 ? "🥇" : club.rank === 2 ? "🥈" : "🥉"}
+                      </span>
+                    ) : (
+                      <span className="text-gray-500 font-bold text-sm">{club.rank}</span>
+                    )}
+                  </div>
+                  {/* Club */}
+                  <div className="flex items-center gap-3 min-w-0">
+                    {club.logoUrl ? (
+                      <img src={club.logoUrl} alt="" className="w-9 h-9 object-contain flex-shrink-0" />
+                    ) : (
+                      <div className="w-9 h-9 rounded-full bg-gray-700 flex items-center justify-center text-gray-400 flex-shrink-0">
+                        <Users size={16} />
+                      </div>
+                    )}
+                    <span className="font-semibold text-white truncate group-hover:text-blue-300 transition-colors">
+                      {club.teamName}
                     </span>
-                  ) : (
-                    <span className="text-gray-500 font-bold text-sm">{club.rank}</span>
-                  )}
+                  </div>
+                  {/* Fans */}
+                  <div className="text-right">
+                    <span className="text-white font-bold text-lg"><AnimatedCounter value={club.currentFans} /></span>
+                  </div>
+                  {/* Division */}
+                  <div className="flex justify-end">
+                    <span
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
+                      style={{ backgroundColor: `${club.divisionColor}20`, color: club.divisionColor, border: `1px solid ${club.divisionColor}40` }}
+                    >
+                      {DIVISION_ICONS[club.division] ?? "🏆"} {club.division}
+                    </span>
+                  </div>
+                  {/* Season Growth */}
+                  <div className="text-right"><GrowthBadge value={club.seasonGrowth} /></div>
+                  {/* Highest Ever */}
+                  <div className="text-right text-gray-400 text-sm">{club.highestEver.toLocaleString()}</div>
                 </div>
 
-                {/* Club */}
-                <div className="flex items-center gap-3 min-w-0">
-                  {club.logoUrl ? (
-                    <img src={club.logoUrl} alt="" className="w-9 h-9 object-contain flex-shrink-0" />
-                  ) : (
-                    <div className="w-9 h-9 rounded-full bg-gray-700 flex items-center justify-center text-gray-400 flex-shrink-0">
-                      <Users size={16} />
+                {/* Mobile Row */}
+                <div className="grid grid-cols-[40px_1fr_100px] gap-3 lg:hidden px-4 py-3 items-center">
+                  {/* Rank */}
+                  <div>
+                    {club.rank <= 3 ? (
+                      <span className="text-base font-black">
+                        {club.rank === 1 ? "🥇" : club.rank === 2 ? "🥈" : "🥉"}
+                      </span>
+                    ) : (
+                      <span className="text-gray-500 font-bold text-sm">{club.rank}</span>
+                    )}
+                  </div>
+                  {/* Club */}
+                  <div className="flex items-center gap-2 min-w-0">
+                    {club.logoUrl ? (
+                      <img src={club.logoUrl} alt="" className="w-7 h-7 object-contain flex-shrink-0" />
+                    ) : (
+                      <div className="w-7 h-7 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0">
+                        <Users size={12} className="text-gray-400" />
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <div className="font-semibold text-white text-sm truncate">{club.teamName}</div>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <span className="text-[10px] font-medium truncate" style={{ color: club.divisionColor }}>
+                          {DIVISION_ICONS[club.division] ?? "🏆"} {club.division}
+                        </span>
+                      </div>
                     </div>
-                  )}
-                  <span className="font-semibold text-white truncate group-hover:text-blue-300 transition-colors">
-                    {club.teamName}
-                  </span>
-                </div>
-
-                {/* Fans */}
-                <div className="text-right">
-                  <span className="text-white font-bold text-lg">
-                    <AnimatedCounter value={club.currentFans} />
-                  </span>
-                </div>
-
-                {/* Division */}
-                <div className="flex justify-end">
-                  <span
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
-                    style={{ backgroundColor: `${club.divisionColor}20`, color: club.divisionColor, border: `1px solid ${club.divisionColor}40` }}
-                  >
-                    {DIVISION_ICONS[club.division] ?? "🏆"} {club.division}
-                  </span>
-                </div>
-
-                {/* Season Growth */}
-                <div className="text-right">
-                  <GrowthBadge value={club.seasonGrowth} />
-                </div>
-
-                {/* Highest Ever */}
-                <div className="text-right text-gray-400 text-sm">
-                  {club.highestEver.toLocaleString()}
+                  </div>
+                  {/* Fans + growth */}
+                  <div className="text-right">
+                    <div className="text-white font-bold text-sm"><AnimatedCounter value={club.currentFans} /></div>
+                    <div className="mt-0.5"><GrowthBadge value={club.seasonGrowth} /></div>
+                  </div>
                 </div>
               </div>
             ))}

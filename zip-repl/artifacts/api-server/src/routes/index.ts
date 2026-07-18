@@ -31,6 +31,7 @@ import rivalryRouter from "./rivalry";
 import powerRankingsRouter from "./powerrankings";
 import cupsRouter from "./cups";
 import fanbaseRouter from "./fanbase";
+import fanCommunityRouter from "./fanCommunity";
 
 const router: IRouter = Router();
 
@@ -66,5 +67,6 @@ router.use(rivalryRouter);
 router.use(powerRankingsRouter);
 router.use(cupsRouter);
 router.use(fanbaseRouter);
+router.use(fanCommunityRouter);
 
 export default router;

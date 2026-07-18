@@ -5,8 +5,9 @@ import {
   fanArticlesTable,
   teamsTable,
   matchesTable,
+  gccFixturesTable,
 } from "@workspace/db";
-import { eq, desc, and, isNotNull } from "drizzle-orm";
+import { eq, desc, inArray } from "drizzle-orm";
 import { generateMatchReactions } from "../lib/fanCommunityUtils.js";
 
 const router: IRouter = Router();
@@ -170,60 +171,107 @@ router.post("/fan-community/generate/:matchId", requireAdmin, async (req, res) =
   }
 });
 
-// POST /fan-community/regenerate-all — admin: wipe all existing content and regenerate with new engine
-router.post("/fan-community/regenerate-all", requireAdmin, async (req, res) => {
+// POST /fan-community/generate-gcc-fixture/:fixtureId — admin: generate reactions for a GCC fixture (no match record needed)
+router.post("/fan-community/generate-gcc-fixture/:fixtureId", requireAdmin, async (req, res) => {
   try {
-    // Delete all existing reactions and articles
+    const fixtureId = parseInt(req.params.fixtureId);
+    const fixture = await db.select().from(gccFixturesTable).where(eq(gccFixturesTable.id, fixtureId)).then(r => r[0] ?? null);
+    if (!fixture) return res.status(404).json({ error: "Fixture not found" });
+    if (!fixture.played || fixture.homeScore === null || fixture.awayScore === null) {
+      return res.status(400).json({ error: "Fixture has no result yet" });
+    }
+
+    const teams = await db.select().from(teamsTable);
+    const teamMap = new Map(teams.map(t => [t.id, t]));
+    const homeTeam = teamMap.get(fixture.homeTeamId);
+    const awayTeam = teamMap.get(fixture.awayTeamId);
+    if (!homeTeam || !awayTeam) return res.status(400).json({ error: "Teams not found" });
+
+    // Use negative fixture ID as a pseudo-matchId so it doesn't collide with real match records
+    const pseudoMatchId = -fixtureId;
+    await db.delete(fanReactionsTable).where(eq(fanReactionsTable.matchId, pseudoMatchId));
+    await db.delete(fanArticlesTable).where(eq(fanArticlesTable.matchId, pseudoMatchId));
+
+    generateMatchReactions(
+      pseudoMatchId,
+      fixture.homeTeamId,
+      fixture.awayTeamId,
+      homeTeam.name,
+      awayTeam.name,
+      fixture.homeScore,
+      fixture.awayScore,
+      "gcc"
+    ).catch(console.error);
+
+    res.json({ success: true, message: `Generating reactions for GCC fixture ${fixtureId} in background...`, pseudoMatchId });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message });
+  }
+});
+
+// POST /fan-community/regenerate-targeted — admin: wipe all and regenerate ONLY specific match IDs + GCC fixture IDs
+router.post("/fan-community/regenerate-targeted", requireAdmin, async (req, res) => {
+  try {
+    const { matchIds = [], gccFixtureIds = [] } = req.body as { matchIds: number[]; gccFixtureIds: number[] };
+
+    // Wipe everything
     await db.delete(fanReactionsTable);
     await db.delete(fanArticlesTable);
-
-    // Find all scored matches
-    const allMatches = await db
-      .select()
-      .from(matchesTable)
-      .orderBy(desc(matchesTable.createdAt));
-
-    const scoredMatches = allMatches.filter(
-      m => m.team1Score !== null && m.team2Score !== null
-    );
 
     const teams = await db.select().from(teamsTable);
     const teamMap = new Map(teams.map(t => [t.id, t]));
 
+    // Load the requested match records
+    const matchRows = matchIds.length > 0
+      ? await db.select().from(matchesTable).where(inArray(matchesTable.id, matchIds))
+      : [];
+
+    // Load the requested GCC fixtures
+    const fixtureRows = gccFixtureIds.length > 0
+      ? await db.select().from(gccFixturesTable).where(inArray(gccFixturesTable.id, gccFixtureIds))
+      : [];
+
     res.json({
       success: true,
-      message: `Regenerating reactions for ${scoredMatches.length} matches in background...`,
-      matchCount: scoredMatches.length,
+      message: `Wiped all content. Regenerating ${matchRows.length} league matches + ${fixtureRows.length} GCC fixtures in background...`,
+      matchCount: matchRows.length,
+      fixtureCount: fixtureRows.length,
     });
 
-    // Process in background — batches of 3 with a small delay to avoid rate limits
+    // Process in background
     (async () => {
       const BATCH = 3;
-      for (let i = 0; i < scoredMatches.length; i += BATCH) {
-        const batch = scoredMatches.slice(i, i + BATCH);
-        await Promise.allSettled(
-          batch.map(m => {
-            const homeTeam = teamMap.get(m.team1Id);
-            const awayTeam = teamMap.get(m.team2Id);
-            if (!homeTeam || !awayTeam) return Promise.resolve();
-            return generateMatchReactions(
-              m.id,
-              m.team1Id,
-              m.team2Id,
-              homeTeam.name,
-              awayTeam.name,
-              m.team1Score ?? 0,
-              m.team2Score ?? 0,
-              (m.matchType ?? "league") as "league" | "gcc"
-            );
-          })
-        );
-        if (i + BATCH < scoredMatches.length) {
-          await new Promise(r => setTimeout(r, 800));
-        }
+      const DELAY = 600;
+
+      // League / regular matches
+      for (let i = 0; i < matchRows.length; i += BATCH) {
+        const batch = matchRows.slice(i, i + BATCH);
+        await Promise.allSettled(batch.map(m => {
+          const h = teamMap.get(m.team1Id);
+          const a = teamMap.get(m.team2Id);
+          if (!h || !a) return Promise.resolve();
+          return generateMatchReactions(m.id, m.team1Id, m.team2Id, h.name, a.name,
+            m.team1Score ?? 0, m.team2Score ?? 0, (m.matchType ?? "league") as "league" | "gcc");
+        }));
+        if (i + BATCH < matchRows.length) await new Promise(r => setTimeout(r, DELAY));
       }
-      console.log(`[FanCommunity] Bulk regeneration complete for ${scoredMatches.length} matches`);
-    })().catch(err => console.error("[FanCommunity] Bulk regeneration error:", err?.message));
+
+      // GCC fixtures without a match record (use negative fixture ID as pseudo matchId)
+      for (let i = 0; i < fixtureRows.length; i += BATCH) {
+        const batch = fixtureRows.slice(i, i + BATCH);
+        await Promise.allSettled(batch.map(f => {
+          if (!f.played || f.homeScore === null || f.awayScore === null) return Promise.resolve();
+          const h = teamMap.get(f.homeTeamId);
+          const a = teamMap.get(f.awayTeamId);
+          if (!h || !a) return Promise.resolve();
+          return generateMatchReactions(-f.id, f.homeTeamId, f.awayTeamId, h.name, a.name,
+            f.homeScore, f.awayScore, "gcc");
+        }));
+        if (i + BATCH < fixtureRows.length) await new Promise(r => setTimeout(r, DELAY));
+      }
+
+      console.log(`[FanCommunity] Targeted regeneration complete`);
+    })().catch(err => console.error("[FanCommunity] Targeted regeneration error:", err?.message));
   } catch (err: any) {
     res.status(500).json({ error: err?.message });
   }

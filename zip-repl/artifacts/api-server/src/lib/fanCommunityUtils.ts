@@ -102,8 +102,9 @@ async function buildMatchupContext(
     const p2: any = playerMap.get(m.player2Id);
     const mvp: any = m.mvpPlayerId ? playerMap.get(m.mvpPlayerId) : null;
 
-    // Determine which player belongs to home team
-    const p1IsHome = p1?.teamId === homeTeamId;
+    // player1 is always team1 (home) by convention — do NOT use current teamId
+    // (current teamId breaks if a player was transferred after this match was recorded)
+    const p1IsHome = true;
     const p1Goals = m.player1Goals;
     const p2Goals = m.player2Goals;
     const isDraw = p1Goals === p2Goals;
@@ -613,7 +614,9 @@ async function generateTemplateArticle(
     starPlayer: mvp ? `${mvp} took MVP honours in a standout individual performance` : null,
     talkingPoint: isDraw
       ? `Both clubs leave with a point — but the standings don't care about moral victories.`
-      : `${winner} won ${winnerMatchups} of ${matchupData.lines.length || 5} matchups. ${loser} need to look at their roster before the next fixture.`,
+      : matchupData.lines.length > 0
+        ? `${winner} won ${winnerMatchups} of ${matchupData.lines.length} matchups. ${loser} need answers before the next fixture.`
+        : `${winner} took the series ${Math.max(homeScore, awayScore)}-${Math.min(homeScore, awayScore)}. All eyes on ${loser}'s next fixture.`,
     mediaRating: isDraw ? 6 : margin >= 3 ? 8 : 7,
     winnerMood: isDraw ? "satisfied" : margin >= 3 ? "ecstatic" : "happy",
     loserMood: isDraw ? "satisfied" : Math.min(homeScore, awayScore) === 0 ? "furious" : "frustrated",

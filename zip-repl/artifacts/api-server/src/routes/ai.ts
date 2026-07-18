@@ -511,15 +511,16 @@ YOUR ABSOLUTE RULES:
 - Current season is: ${currentSeason ?? "unknown — use all available data"}. Write about THIS season only.
 - Reference SPECIFIC numbers (goals, points, win rates, GD, exact scores, OVR) exactly as provided.
 - Each article must be a proper long-form piece: 3 paragraphs, each 2-4 sentences long.
-- Include at least 1 fictional direct quote per article (player, manager/team leader, or "GEF insider") formatted as: "Quote." — Name
+- Include at least 1 fictional direct quote per article (player, team captain, or "GEF insider") formatted as: "Quote." — Name
 - ROAST: use the subject's own numbers against them. Devastating and specific.
 - PRAISE: cite exact stats that make them elite. Reverence, historical context in esports terms.
 - RIVALRY: contrast two teams'/players' head-to-head stats exactly. Who leads and by how much?
-- ANALYSIS: explain WHY a team performs as they do — cite GD, win rate, goals conceded in-game.
+- ANALYSIS: explain WHY a team performs as they do — cite GD, win rate, goals scored/conceded in the game.
 - BREAKING: frame as a shocking revelation using actual data turning points.
 - Headlines must be ALL CAPS — punchy, front-page quality.
 - Cover a MIX of leagues, the Champions Cup, Ballon d'Or, and player spotlights.
 - Never repeat the same subject twice.
+- FORBIDDEN WORDS — never use: defender, midfielder, striker, formation, pressing, possession, defensive line, high line, full back, winger, tactical shape, counter attack, or any real-world football tactics. GEF is an eFootball esports franchise league — write about individual player results, roster performance, scorelines, win streaks, standings, transfers, captain decisions, and trophy races ONLY.
 
 === GEF DATA — CURRENT SEASON: ${currentSeason ?? "ALL TIME"} ===
 

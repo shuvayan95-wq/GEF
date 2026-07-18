@@ -97,9 +97,15 @@ export async function generateMatchReactions(
         messages: [
           {
             role: "system",
-            content: `You are generating virtual fan reactions for GEF (Global eFootball Federation) — a 5v5 eFootball esports tournament where players compete in the eFootball video game.
+            content: `You are generating virtual fan reactions for GEF (Global eFootball Federation) — a 5v5 eFootball esports franchise league where each club fields five individual players competing in the eFootball video game.
 
-Your job is to generate realistic, varied fan comments that feel like a real football Twitter/Reddit feed. NEVER use generic phrases like "Great win", "Nice game", "Well played", or "Good effort". Every comment must be specific to the match, teams, and context.
+Write like a real esports community: Reddit threads, Twitter/X posts, and Discord messages from passionate GEF fans. Comments should feel like competitive gaming culture — not real football punditry.
+
+NEVER use generic phrases like "Great win", "Nice game", "Well played", or "Good effort". Every comment must be specific to the match, teams, and context provided.
+
+FORBIDDEN — never mention these real football concepts: defenders, midfielders, strikers, formation, pressing, possession, defensive line, high line, full backs, wingers, tactical shape, counter attack, or any real-world football tactics. None of these exist in GEF.
+
+Instead, fans talk about: which players scored, individual player performance and form, winning/losing streaks, roster moves and transfers, captain decisions, league table positions, GCC standings, trophy races, player rivalries, and matchup results.
 
 Return ONLY a valid JSON array, no other text.`
           },
@@ -108,20 +114,20 @@ Return ONLY a valid JSON array, no other text.`
             content: `Match: ${ctx.scoreline} (${ctx.competitionLabel})
 ${ctx.isDraw ? `Both teams drew ${homeScore}-${awayScore}.` : `${ctx.winner} beat ${ctx.loser} ${ctx.winnerScore}-${ctx.loserScore}.`}
 
-Generate exactly 14 fan comments. Vary personalities dramatically:
-- 4 comments from ${ctx.isDraw ? homeTeamName : ctx.winner} fans
-- 3 comments from ${ctx.isDraw ? awayTeamName : ctx.loser} fans  
-- 2 rival fan comments mocking the opponent
-- 2 neutral observers/pundits
-- 2 tactical analysts
-- 1 transfer-obsessed fan
+Generate exactly 14 fan comments from the GEF community. Vary personalities dramatically:
+- 4 comments from ${ctx.isDraw ? homeTeamName : ctx.winner} fans (hype, relief, celebration, or cautious optimism about standings)
+- 3 comments from ${ctx.isDraw ? awayTeamName : ctx.loser} fans (frustration about the result, player criticism, or concern about the table)
+- 2 rival fan comments mocking the opponent's result or their players' form
+- 2 neutral observers / GEF community analysts talking about what this result means for the standings or trophy race
+- 2 esports stats nerds breaking down player scores and form from the match data
+- 1 transfer-obsessed fan speculating about roster changes or signings after this result
 
-Each comment must be specific, varied in length (some short, some long), and feel authentic. Reference team names directly.
+Each comment must feel authentic to competitive gaming communities. Some short (one-liners), some longer (2-3 sentences). Reference team names and the scoreline directly.
 
 Return JSON array:
-[{"personality": "optimistic|angry|sarcastic|tactical|transfer_addict|neutral|die_hard|media_pundit", "teamId": ${homeTeamId}|${awayTeamId}|null, "comment": "...", "isRival": true|false, "rivalTeamId": ${homeTeamId}|${awayTeamId}|null}]
+[{"personality": "optimistic|angry|sarcastic|stats_nerd|transfer_addict|neutral|die_hard|media_pundit", "teamId": ${homeTeamId}|${awayTeamId}|null, "comment": "...", "isRival": true|false, "rivalTeamId": ${homeTeamId}|${awayTeamId}|null}]
 
-Note: isRival=true means this fan is FROM the rival team mocking. rivalTeamId is the team they support. teamId for non-rivals is their own team.`
+Note: isRival=true means this fan supports the rival team and is mocking. rivalTeamId is the team they support. teamId for non-rivals is their own team.`
           }
         ],
         max_tokens: 2000,
@@ -132,23 +138,27 @@ Note: isRival=true means this fan is FROM the rival team mocking. rivalTeamId is
         messages: [
           {
             role: "system",
-            content: `You are a football journalist writing for GEF (Global eFootball Federation) — a 5v5 eFootball esports platform. Write in the style of BBC Sport / OneFootball. Be dramatic but factual. Return ONLY valid JSON.`
+            content: `You are a GEF esports journalist writing match reaction pieces for the Global eFootball Federation community. GEF is a 5v5 eFootball franchise league — each club fields five individual players who compete in the eFootball video game. Write in the style of an esports media outlet, not a real football newspaper.
+
+FORBIDDEN — never mention: defenders, midfielders, strikers, formation, pressing, possession, defensive line, high line, full backs, wingers, tactical shape, counter attack. These concepts do not exist in GEF.
+
+Instead write about: individual player scores, team roster strength, player form and streaks, standings impact, trophy race implications, captain performance, and the overall match scoreline. Be dramatic, specific, and fan-focused. Return ONLY valid JSON.`
           },
           {
             role: "user",
             content: `Write a match reaction article for: ${ctx.scoreline} (${ctx.competitionLabel})
-${ctx.isDraw ? "The match ended in a draw." : `${ctx.winner} won convincingly${ctx.winnerScore - ctx.loserScore >= 3 ? " with a dominant performance" : ""}.`}
+${ctx.isDraw ? "The match ended in a draw." : `${ctx.winner} won convincingly${ctx.winnerScore - ctx.loserScore >= 3 ? " with a dominant display from their roster" : ""}.`}
 
 Return JSON:
 {
-  "headline": "Punchy 6-10 word headline like a real newspaper",
-  "summary": "2-3 sentence match summary. Be specific and dramatic.",
-  "starPlayer": "Generic description of star performer (no specific player name needed, just role like 'the ${homeTeamName} striker')",
-  "talkingPoint": "The biggest talking point from this match in 1-2 sentences",
+  "headline": "Punchy 6-10 word esports headline",
+  "summary": "2-3 sentence match summary focused on the result, the scoreline, and what it means for the standings. Be specific and dramatic.",
+  "starPlayer": "Generic description of the standout performer — reference their club, not a real football position (e.g. '${homeTeamName}'s captain delivered' or '${ctx.isDraw ? homeTeamName : ctx.winner}'s top scorer stepped up')",
+  "talkingPoint": "The biggest talking point from this match — roster decisions, player form, standings implications, or the scoreline itself. 1-2 sentences.",
   "mediaRating": ${ctx.isDraw ? "6" : ctx.winnerScore - ctx.loserScore >= 3 ? "9" : "7"},
   "winnerMood": "${ctx.isDraw ? "satisfied" : "ecstatic"}",
   "loserMood": "${ctx.isDraw ? "satisfied" : ctx.loserScore === 0 ? "furious" : ctx.winnerScore - ctx.loserScore >= 3 ? "angry" : "frustrated"}",
-  "momentumChange": "One sentence on how this result affects momentum/standings"
+  "momentumChange": "One sentence on how this result shifts the standings or trophy race."
 }`
           }
         ],
@@ -232,18 +242,18 @@ async function generateTemplateReactions(
 ) {
   const templates = ctx.isDraw
     ? [
-        { teamId: homeTeamId, personality: "frustrated", comment: `A draw? After all that possession, ${ctx.homeWon ? "" : ctx.winner} should be doing better.`, isRival: false },
-        { teamId: awayTeamId, personality: "tactical", comment: `A point away from home is never bad. We take it and move on.`, isRival: false },
-        { teamId: homeTeamId, personality: "optimistic", comment: `The resilience shown today gives me hope. We'll get the wins soon.`, isRival: false },
-        { teamId: awayTeamId, personality: "sarcastic", comment: `A draw. The most boring outcome in eFootball. Both teams bottled it.`, isRival: false },
+        { teamId: homeTeamId, personality: "frustrated", comment: `A draw?? ${homeTeamName} needed those three points. The standings aren't going to fix themselves.`, isRival: false },
+        { teamId: awayTeamId, personality: "stats_nerd", comment: `A point on the road is still a point. We stay alive in the table and move on.`, isRival: false },
+        { teamId: homeTeamId, personality: "optimistic", comment: `Look at the scoreline and look at where we are in the table. We're fine. Trust the roster.`, isRival: false },
+        { teamId: awayTeamId, personality: "sarcastic", comment: `${homeTeamName} vs ${awayTeamName} and it ends ${homeScore}-${awayScore}. Both clubs left points on the board today.`, isRival: false },
       ]
     : [
-        { teamId: homeTeamId, personality: ctx.homeWon ? "optimistic" : "angry", comment: ctx.homeWon ? `${ctx.winner} are on another level right now. The table is starting to look very interesting.` : `That was an absolute disaster. We need to do better.`, isRival: false },
-        { teamId: awayTeamId, personality: ctx.homeWon ? "angry" : "optimistic", comment: ctx.homeWon ? `Terrible result. There's no excuse for losing like that.` : `${ctx.winner} showing they mean business this season.`, isRival: false },
-        { teamId: ctx.homeWon ? awayTeamId : homeTeamId, personality: "sarcastic", comment: `${ctx.loser} tried their best. It just wasn't good enough. Again.`, isRival: true, rivalTeamId: ctx.homeWon ? homeTeamId : awayTeamId },
-        { teamId: ctx.homeWon ? homeTeamId : awayTeamId, personality: "die_hard", comment: `${ctx.winner}! The way we played today was something special. Onwards!`, isRival: false },
-        { teamId: ctx.homeWon ? awayTeamId : homeTeamId, personality: "tactical", comment: `The defensive shape completely fell apart in the second half. Manager needs to address this immediately.`, isRival: false },
-        { teamId: ctx.homeWon ? homeTeamId : awayTeamId, personality: "media_pundit", comment: `${ctx.winner} ${ctx.winnerScore - ctx.loserScore >= 3 ? "emphatically" : "narrowly"} claim all three points. A result that tells a story beyond just the scoreline.`, isRival: false },
+        { teamId: homeTeamId, personality: ctx.homeWon ? "optimistic" : "angry", comment: ctx.homeWon ? `${ctx.winner} are cooking right now. That scoreline doesn't lie — the whole roster showed up.` : `${ctx.loserScore === 0 ? "Blanked. Zero." : `${ctx.loserScore} goals and still lost.`} We need to fix this roster before it's too late.`, isRival: false },
+        { teamId: awayTeamId, personality: ctx.homeWon ? "angry" : "optimistic", comment: ctx.homeWon ? `${ctx.winnerScore - ctx.loserScore >= 3 ? `Down ${ctx.winnerScore - ctx.loserScore}. No excuses.` : "Frustrating result."} That's points we can't get back.` : `${ctx.winner} on a run right now. Roster looking dangerous this season.`, isRival: false },
+        { teamId: ctx.homeWon ? awayTeamId : homeTeamId, personality: "sarcastic", comment: `${ctx.loser} fans really thought they had this one 💀 ${ctx.winnerScore}-${ctx.loserScore} says otherwise.`, isRival: true, rivalTeamId: ctx.homeWon ? homeTeamId : awayTeamId },
+        { teamId: ctx.homeWon ? homeTeamId : awayTeamId, personality: "die_hard", comment: `LET'S GOOO ${ctx.winner}!! ${ctx.winnerScore}-${ctx.loserScore} and it wasn't even close. This club is built different.`, isRival: false },
+        { teamId: ctx.homeWon ? awayTeamId : homeTeamId, personality: "stats_nerd", comment: `${ctx.loser} conceded ${ctx.winnerScore} goals and only scored ${ctx.loserScore}. That GD is going to hurt in the standings at the end of the season.`, isRival: false },
+        { teamId: ctx.homeWon ? homeTeamId : awayTeamId, personality: "media_pundit", comment: `${ctx.winner} take all three points with a ${ctx.winnerScore - ctx.loserScore >= 3 ? "dominant" : "clinical"} ${ctx.winnerScore}-${ctx.loserScore} result. The standings are shifting and this club knows it.`, isRival: false },
       ];
 
   await db.insert(fanReactionsTable).values(
@@ -270,10 +280,13 @@ async function generateTemplateArticle(
   matchType: string
 ) {
   const headlines = ctx.isDraw
-    ? [`${ctx.homeWon ? "" : `${homeScore}-${awayScore}`} — Honours Even As Both Sides Cancel Out`, `${homeScore}-${homeScore} Draw Settles Nothing In Fiercely Contested Clash`]
+    ? [
+        `${homeScore}-${awayScore}: ${homeTeamName} And ${awayTeamName} Share The Points In ${ctx.isGCC ? "Champions Cup" : "GEF"} Clash`,
+        `Honours Even — ${homeTeamName} vs ${awayTeamName} Ends All Square`,
+      ]
     : [
-        `${ctx.winner} ${ctx.winnerScore >= 4 ? "Demolish" : ctx.winnerScore - ctx.loserScore >= 2 ? "Overcome" : "Edge Past"} ${ctx.loser} In ${ctx.isGCC ? "Champions Cup" : "League"} Showdown`,
-        `${ctx.winner} Claim All Three Points As ${ctx.loser} Suffer Another Setback`,
+        `${ctx.winner} ${ctx.winnerScore >= 4 ? "Dominate" : ctx.winnerScore - ctx.loserScore >= 2 ? "Beat" : "Edge"} ${ctx.loser} ${ctx.winnerScore}-${ctx.loserScore} In ${ctx.isGCC ? "Champions Cup" : "GEF League"} Fixture`,
+        `${ctx.winner} Take All Three Points As ${ctx.loser} Drop More Ground`,
       ];
 
   await db.insert(fanArticlesTable).values({
@@ -284,18 +297,18 @@ async function generateTemplateArticle(
     awayScore,
     headline: headlines[0],
     summary: ctx.isDraw
-      ? `${homeTeamId === awayTeamId ? "The" : `${ctx.homeWon ? "Home side" : "Both sides"}`} cancel each other out in a closely-contested ${ctx.competitionLabel}. Neither team could find a decisive moment as the spoils were shared.`
-      : `${ctx.winner} secured a ${ctx.winnerScore - ctx.loserScore >= 3 ? "commanding" : "hard-fought"} victory over ${ctx.loser} in today's ${ctx.competitionLabel}. ${ctx.loser} will need to regroup quickly as the pressure mounts.`,
+      ? `${homeTeamName} and ${awayTeamName} split the points ${homeScore}-${awayScore} in today's ${ctx.competitionLabel}. Neither roster could separate themselves on the scoreline, leaving both clubs with one point each.`
+      : `${ctx.winner} ran out ${ctx.winnerScore - ctx.loserScore >= 3 ? "comfortable" : "narrow"} ${ctx.winnerScore}-${ctx.loserScore} winners over ${ctx.loser} in this ${ctx.competitionLabel}. The result moves ${ctx.winner} in the right direction while ${ctx.loser} will need to bounce back quickly.`,
     starPlayer: null,
     talkingPoint: ctx.isDraw
-      ? `Can either side build enough momentum from this draw to mount a genuine challenge?`
-      : `${ctx.winner}'s ability to ${ctx.loserScore === 0 ? "keep a clean sheet" : "find the net consistently"} is becoming a real weapon this season.`,
+      ? `Both clubs leave with a point — but who needed the win more, and what does it mean for their trophy race ambitions?`
+      : `${ctx.winner} move the scoreboard${ctx.loserScore === 0 ? " and hold ${ctx.loser} scoreless" : ` to ${ctx.winnerScore}`} — a statement result in the ${ctx.competitionLabel} standings.`,
     mediaRating: ctx.isDraw ? 6 : ctx.winnerScore - ctx.loserScore >= 3 ? 8 : 7,
     winnerMood: ctx.isDraw ? "satisfied" : ctx.winnerScore - ctx.loserScore >= 3 ? "ecstatic" : "happy",
     loserMood: ctx.isDraw ? "satisfied" : ctx.loserScore === 0 ? "furious" : "frustrated",
     momentumChange: ctx.isDraw
-      ? `Both teams share the points and remain level in the standings.`
-      : `${ctx.winner} extend their positive run while ${ctx.loser} face questions about their form.`,
+      ? `Both clubs share a point and the standings stay tight heading into the next round of fixtures.`
+      : `${ctx.winner} build on their run of results while ${ctx.loser} slide further from where they need to be.`,
     matchType,
   });
 }

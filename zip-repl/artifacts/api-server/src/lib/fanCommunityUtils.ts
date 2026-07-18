@@ -30,7 +30,7 @@ async function getOpenAI() {
 }
 
 function getModel() {
-  return process.env.GROQ_API_KEY ? "llama-3.1-70b-versatile" : "gpt-4o-mini";
+  return process.env.GROQ_API_KEY ? "llama-3.3-70b-versatile" : "gpt-4o-mini";
 }
 
 // ─── Match intensity (affects reaction volume + drama) ────────────────────────

@@ -7,10 +7,13 @@ if (!url) {
   throw new Error("DATABASE_URL must be set");
 }
 
+const useSupabase = !!process.env.SUPABASE_DATABASE_URL;
+
 export default defineConfig({
   schema: path.join(__dirname, "./src/schema/index.ts"),
   dialect: "postgresql",
   dbCredentials: {
     url,
+    ssl: useSupabase ? "require" : undefined,
   },
 });

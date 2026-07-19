@@ -192,10 +192,27 @@ function WinBar({ aWins, bWins, draws }: { aWins: number; bWins: number; draws: 
 
 // ── Fan Community Section ─────────────────────────────────────────────────────
 
+const PERSONALITY_CFG: Record<string, { emoji: string; label: string; color: string }> = {
+  optimistic:       { emoji: "😄", label: "Optimist",    color: "text-emerald-400 bg-emerald-400/10 border-emerald-400/25" },
+  angry:            { emoji: "😤", label: "Furious",     color: "text-red-400 bg-red-400/10 border-red-400/25" },
+  sarcastic:        { emoji: "😏", label: "Sarcastic",   color: "text-purple-400 bg-purple-400/10 border-purple-400/25" },
+  tactical:         { emoji: "📊", label: "Tactician",   color: "text-sky-400 bg-sky-400/10 border-sky-400/25" },
+  transfer_addict:  { emoji: "💰", label: "Transfer MD", color: "text-yellow-400 bg-yellow-400/10 border-yellow-400/25" },
+  young_supporter:  { emoji: "🔥", label: "Young Fan",   color: "text-orange-400 bg-orange-400/10 border-orange-400/25" },
+  old_guard:        { emoji: "🧓", label: "Old Guard",   color: "text-stone-400 bg-stone-400/10 border-stone-400/25" },
+  glory_hunter:     { emoji: "🏆", label: "Glory Hunter",color: "text-amber-400 bg-amber-400/10 border-amber-400/25" },
+  die_hard:         { emoji: "❤️", label: "Die Hard",    color: "text-rose-400 bg-rose-400/10 border-rose-400/25" },
+  media_pundit:     { emoji: "🎙️", label: "Pundit",      color: "text-indigo-400 bg-indigo-400/10 border-indigo-400/25" },
+  legend:           { emoji: "👑", label: "Legend",      color: "text-amber-300 bg-amber-300/10 border-amber-300/25" },
+  neutral_observer: { emoji: "🤷", label: "Neutral",     color: "text-gray-400 bg-gray-400/10 border-gray-400/25" },
+  frustrated:       { emoji: "😞", label: "Frustrated",  color: "text-red-300 bg-red-300/10 border-red-300/25" },
+  neutral:          { emoji: "🤷", label: "Neutral",     color: "text-gray-400 bg-gray-400/10 border-gray-400/25" },
+};
+
 function FanCommunitySection() {
   const { data: feed } = useQuery<{ articles: any[]; reactions: any[] }>({
     queryKey: ["home-fan-community"],
-    queryFn: () => fetch("/api/fan-community/feed?limit=6").then(r => r.ok ? r.json() : { articles: [], reactions: [] }),
+    queryFn: () => fetch("/api/fan-community/feed?limit=8").then(r => r.ok ? r.json() : { articles: [], reactions: [] }),
     staleTime: 60_000,
   });
   const { data: fanbase = [] } = useQuery<any[]>({
@@ -209,106 +226,167 @@ function FanCommunitySection() {
 
   if (articles.length === 0 && reactions.length === 0) return null;
 
-  const PERSONALITY_EMOJI: Record<string, string> = {
-    optimistic: "😄", angry: "😤", sarcastic: "😏", tactical: "📊",
-    transfer_addict: "💰", young_supporter: "🔥", old_guard: "🧓",
-    glory_hunter: "🏆", die_hard: "❤️", media_pundit: "🎙️",
-    legend: "👑", neutral_observer: "🤷", frustrated: "😞", neutral: "🤷",
-  };
+  const featured = articles[0];
+  const isDraw = featured ? featured.homeScore === featured.awayScore : false;
+  const homeWon = featured ? featured.homeScore > featured.awayScore : false;
 
   return (
     <section>
+      {/* Section header */}
       <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
         <div>
-          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-primary mb-1">
+          <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-primary mb-2">
             <span className="relative flex w-2 h-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
             </span>
-            Virtual Fan Community
+            Live · Virtual Fan Community
           </div>
-          <h2 className="text-3xl font-display font-black uppercase flex items-center gap-3">
-            <MessageCircle className="w-7 h-7 text-primary" /> Fan Hub
+          <h2 className="font-display font-black uppercase text-3xl sm:text-4xl tracking-tight flex items-center gap-3">
+            <Users className="w-8 h-8 text-primary" />
+            <span>Fan <span className="text-primary">Hub</span></span>
           </h2>
           {totalFans > 0 && (
-            <p className="text-sm text-muted-foreground mt-1">{totalFans.toLocaleString()} total supporters across {fanbase.length} clubs</p>
+            <p className="text-sm text-muted-foreground mt-1.5 font-medium">
+              <span className="text-primary font-black">{totalFans.toLocaleString()}</span> supporters across {fanbase.length} clubs
+            </p>
           )}
         </div>
         <Link href="/fan-community">
-          <Button variant="outline" size="sm" className="gap-1.5">Fan Community <ArrowRight className="w-4 h-4" /></Button>
+          <Button variant="outline" size="sm" className="gap-2 border-primary/25 hover:border-primary/50 hover:bg-primary/5">
+            <MessageCircle className="w-4 h-4" /> Full Fan Hub <ArrowRight className="w-3.5 h-3.5" />
+          </Button>
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* Latest match article */}
-        {articles[0] && (
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+
+        {/* ── Featured article (3 cols) ── */}
+        {featured && (
           <div className="lg:col-span-3">
-            <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
-              <Newspaper className="w-3.5 h-3.5" /> Latest Match Report
+            <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
+              <Newspaper className="w-3.5 h-3.5 text-primary" />
+              <span>Latest Match Report</span>
             </div>
             <Link href="/fan-community">
               <motion.div
                 initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-                className={`bg-card border rounded-2xl p-5 cursor-pointer hover:border-primary/40 transition-all group ${articles[0].matchType === "gcc" ? "border-amber-500/30" : "border-border"}`}
+                className={`relative overflow-hidden bg-card border rounded-2xl cursor-pointer group transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/5 ${featured.matchType === "gcc" ? "border-amber-500/25" : "border-border"}`}
               >
-                {/* Scoreline */}
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
-                    {articles[0].homeTeam?.logoUrl && <img src={articles[0].homeTeam.logoUrl} className="w-7 h-7 object-contain shrink-0" alt="" />}
-                    <span className="font-bold text-sm truncate">{articles[0].homeTeam?.name ?? "?"}</span>
-                  </div>
-                  <div className="text-center shrink-0">
-                    <div className="text-xl font-black tabular-nums">{articles[0].homeScore}-{articles[0].awayScore}</div>
-                    <div className="text-[9px] text-muted-foreground uppercase tracking-wider">{articles[0].matchType === "gcc" ? "🏆 Cup" : "⚽ League"}</div>
-                  </div>
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <span className="font-bold text-sm truncate">{articles[0].awayTeam?.name ?? "?"}</span>
-                    {articles[0].awayTeam?.logoUrl && <img src={articles[0].awayTeam.logoUrl} className="w-7 h-7 object-contain shrink-0" alt="" />}
-                  </div>
-                </div>
-                <h3 className="font-display font-black uppercase text-xl sm:text-2xl leading-tight mb-3 group-hover:text-primary transition-colors">
-                  {articles[0].headline}
-                </h3>
-                <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">{articles[0].summary}</p>
-                {articles[0].talkingPoint && (
-                  <div className="mt-3 bg-secondary/50 rounded-xl p-3">
-                    <span className="text-xs text-muted-foreground font-bold uppercase tracking-wide">💬 </span>
-                    <span className="text-xs text-muted-foreground">{articles[0].talkingPoint}</span>
-                  </div>
+                {featured.matchType === "gcc" && (
+                  <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent pointer-events-none" />
                 )}
-                <div className="mt-3 text-xs font-bold text-primary flex items-center gap-1">
-                  Read full report <ArrowRight className="w-3 h-3" />
+
+                {/* Comp banner */}
+                <div className={`px-5 py-2 flex items-center gap-2 ${featured.matchType === "gcc" ? "bg-amber-500/10 border-b border-amber-500/15" : "bg-primary/5 border-b border-primary/10"}`}>
+                  <span className={`text-[10px] font-black uppercase tracking-widest ${featured.matchType === "gcc" ? "text-amber-400" : "text-primary"}`}>
+                    {featured.matchType === "gcc" ? "🏆 Champions Cup" : "⚽ League Match"}
+                  </span>
+                </div>
+
+                <div className="p-5">
+                  {/* Scoreline */}
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className={`flex items-center gap-2 flex-1 min-w-0 justify-end ${homeWon ? "opacity-100" : isDraw ? "opacity-70" : "opacity-40"}`}>
+                      {featured.homeTeam?.logoUrl && <img src={featured.homeTeam.logoUrl} className="w-8 h-8 object-contain shrink-0" alt="" />}
+                      <span className="font-display font-black text-sm uppercase truncate">{featured.homeTeam?.name ?? "?"}</span>
+                    </div>
+                    <div className="text-center shrink-0 bg-secondary rounded-xl px-3 py-1.5 mx-1">
+                      <div className="text-xl font-black tabular-nums tracking-tighter">
+                        {featured.homeScore}<span className="text-muted-foreground mx-0.5">–</span>{featured.awayScore}
+                      </div>
+                      <div className="text-[9px] text-muted-foreground uppercase tracking-widest">{isDraw ? "Draw" : homeWon ? "Home Win" : "Away Win"}</div>
+                    </div>
+                    <div className={`flex items-center gap-2 flex-1 min-w-0 ${!homeWon && !isDraw ? "opacity-100" : isDraw ? "opacity-70" : "opacity-40"}`}>
+                      <span className="font-display font-black text-sm uppercase truncate">{featured.awayTeam?.name ?? "?"}</span>
+                      {featured.awayTeam?.logoUrl && <img src={featured.awayTeam.logoUrl} className="w-8 h-8 object-contain shrink-0" alt="" />}
+                    </div>
+                  </div>
+
+                  <h3 className="font-display font-black uppercase text-2xl sm:text-3xl leading-tight mb-3 group-hover:text-primary transition-colors">
+                    {featured.headline}
+                  </h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2">{featured.summary}</p>
+
+                  {featured.talkingPoint && (
+                    <div className="mt-3 bg-primary/5 border border-primary/15 rounded-xl p-3">
+                      <span className="text-[10px] font-black text-primary/60 uppercase tracking-widest">💬 Talking Point  </span>
+                      <span className="text-xs text-muted-foreground">{featured.talkingPoint}</span>
+                    </div>
+                  )}
+
+                  <div className="mt-4 text-xs font-black text-primary uppercase tracking-wider flex items-center gap-1 group-hover:gap-2 transition-all">
+                    Read full report <ArrowRight className="w-3.5 h-3.5" />
+                  </div>
                 </div>
               </motion.div>
             </Link>
           </div>
         )}
 
-        {/* Fan reactions */}
-        <div className={articles[0] ? "lg:col-span-2" : "lg:col-span-5"}>
-          <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
-            <MessageCircle className="w-3.5 h-3.5" /> Latest Reactions
+        {/* ── Fan reactions (2 cols) ── */}
+        <div className={featured ? "lg:col-span-2" : "lg:col-span-5"}>
+          <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
+            <MessageCircle className="w-3.5 h-3.5 text-violet-400" />
+            <span>Latest Reactions</span>
           </div>
           <div className="space-y-2.5">
-            {reactions.slice(0, 5).map((r: any, i: number) => (
-              <motion.div
-                key={r.id}
-                initial={{ opacity: 0, x: 8 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.05 }}
-                className={`bg-card border rounded-xl p-3 ${r.isRival ? "border-red-500/20" : "border-border"}`}
-              >
-                <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                  {r.team?.logoUrl && <img src={r.team.logoUrl} className="w-4 h-4 object-contain shrink-0" alt="" />}
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase truncate max-w-[100px]">{r.team?.name ?? "Fan"}</span>
-                  {r.isRival && <span className="text-[9px] text-red-400 font-bold">⚔️ Rival</span>}
-                  <span className="text-[10px] text-muted-foreground ml-auto">{PERSONALITY_EMOJI[r.fanPersonality] ?? "💬"}</span>
-                </div>
-                <p className="text-xs text-foreground leading-relaxed line-clamp-2">{r.comment}</p>
-              </motion.div>
-            ))}
+            {reactions.slice(0, 6).map((r: any, i: number) => {
+              const pcfg = PERSONALITY_CFG[r.fanPersonality] ?? PERSONALITY_CFG.neutral;
+              return (
+                <motion.div
+                  key={r.id}
+                  initial={{ opacity: 0, x: 10 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.05 }}
+                  className={`bg-card border rounded-xl p-3 transition-all hover:border-primary/20 ${r.isRival ? "border-red-500/20 bg-red-500/3" : r.isPinned ? "border-yellow-500/25 bg-yellow-500/3" : "border-border"}`}
+                >
+                  <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                    {r.team?.logoUrl
+                      ? <img src={r.team.logoUrl} className="w-4 h-4 object-contain shrink-0" alt="" />
+                      : null
+                    }
+                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wide truncate max-w-[90px]">
+                      {r.team?.name ?? "Fan"}
+                    </span>
+                    {r.isRival && <span className="text-[9px] text-red-400 font-black">⚔️ Rival</span>}
+                    {r.isPinned && <span className="text-[9px] text-yellow-400 font-black">⭐ Pinned</span>}
+                    <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full border ml-auto ${pcfg.color}`}>
+                      {pcfg.emoji} {pcfg.label}
+                    </span>
+                  </div>
+                  <p className="text-xs text-foreground leading-relaxed line-clamp-2 font-medium">{r.comment}</p>
+                </motion.div>
+              );
+            })}
           </div>
+
+          {/* Top fanbases mini list */}
+          {fanbase.length > 0 && (
+            <div className="mt-4 bg-card border border-border rounded-xl overflow-hidden">
+              <div className="px-4 py-2.5 border-b border-border flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Users className="w-3.5 h-3.5 text-primary" />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Top Fanbases</span>
+                </div>
+                <Link href="/fanbase">
+                  <span className="text-[10px] text-primary font-black uppercase tracking-wide hover:text-primary/80">Full table →</span>
+                </Link>
+              </div>
+              <div className="divide-y divide-border">
+                {fanbase.slice(0, 3).map((club: any, i: number) => (
+                  <div key={club.teamId} className="px-4 py-2.5 flex items-center gap-2.5">
+                    <span className="text-sm shrink-0">{i === 0 ? "🥇" : i === 1 ? "🥈" : "🥉"}</span>
+                    {club.logoUrl && <img src={club.logoUrl} className="w-5 h-5 object-contain shrink-0" alt="" />}
+                    <span className="text-xs font-bold flex-1 truncate">{club.teamName}</span>
+                    <span className="text-xs font-black text-primary">{club.currentFans.toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <Link href="/fan-community">
-            <button className="mt-3 w-full text-center text-xs text-primary hover:text-primary/80 font-bold py-2 border border-primary/20 rounded-xl hover:border-primary/40 transition-all">
-              View All Fan Reactions →
+            <button className="mt-3 w-full text-center text-xs font-black text-primary uppercase tracking-wider py-2.5 border border-primary/20 rounded-xl hover:border-primary/40 hover:bg-primary/5 transition-all">
+              Enter Fan Community →
             </button>
           </Link>
         </div>

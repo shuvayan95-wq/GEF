@@ -139,6 +139,12 @@ router.get("/budget/:teamId", async (req, res) => {
       return acc;
     }, {});
 
+    // Active players with salaries (for salary deduction preview)
+    const activePlayers = await db
+      .select({ id: playersTable.id, name: playersTable.name, salary: playersTable.salary })
+      .from(playersTable)
+      .where(and(eq(playersTable.teamId, teamId), eq(playersTable.status, "active")));
+
     res.json({
       teamId,
       teamName: team.name,
@@ -154,6 +160,11 @@ router.get("/budget/:teamId", async (req, res) => {
       currentBalance,
       season: fin?.season ?? "2025-26",
       byCategory,
+      activePlayers: activePlayers.map(p => ({
+        id: p.id,
+        name: p.name,
+        salary: p.salary ? Number(p.salary) : 10000,
+      })),
       transactions: txns.map(t => ({
         id: t.id,
         type: t.type,
@@ -319,6 +330,68 @@ router.post("/budget/:teamId/transaction", requireAdmin, async (req, res) => {
       description: txn.description,
       season: txn.season,
       createdAt: txn.createdAt.toISOString(),
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message });
+  }
+});
+
+// POST /budget/:teamId/deduct-salaries — deduct all active player salaries from wage budget
+router.post("/budget/:teamId/deduct-salaries", requireAdmin, async (req, res) => {
+  try {
+    const teamId = parseInt(req.params.teamId);
+    const { season } = req.body;
+
+    const [team] = await db.select().from(teamsTable).where(eq(teamsTable.id, teamId));
+    if (!team) return res.status(404).json({ error: "Team not found" });
+
+    const players = await db
+      .select({ id: playersTable.id, name: playersTable.name, salary: playersTable.salary })
+      .from(playersTable)
+      .where(and(eq(playersTable.teamId, teamId), eq(playersTable.status, "active")));
+
+    if (players.length === 0)
+      return res.status(400).json({ error: "No active players found for this team" });
+
+    const totalSalary = players.reduce((s, p) => s + (p.salary ? Number(p.salary) : 10000), 0);
+
+    const [fin] = await db.select().from(teamFinancialsTable).where(eq(teamFinancialsTable.teamId, teamId)).limit(1);
+    const prevWageBudget = fin ? Number(fin.wageBudget ?? 0) : 0;
+    const newWageBudget = prevWageBudget - totalSalary;
+
+    // Build description with up to 5 player names
+    const listed = players.slice(0, 5).map(p => p.name).join(", ");
+    const extra = players.length > 5 ? ` +${players.length - 5} more` : "";
+    const txnDesc = `Salary deduction — ${players.length} active player${players.length !== 1 ? "s" : ""}: ${listed}${extra}`;
+
+    const [txn] = await db.insert(budgetTransactionsTable).values({
+      teamId,
+      type: "expense",
+      category: "wages",
+      amount: String(totalSalary),
+      description: txnDesc,
+      season: season ?? fin?.season ?? "2025-26",
+    }).returning();
+
+    // Deduct from wageBudget — allowed to go negative; admin handles reallocation
+    if (fin) {
+      await db.update(teamFinancialsTable).set({
+        wageBudget: String(newWageBudget),
+        updatedAt: sql`now()`,
+      }).where(eq(teamFinancialsTable.teamId, teamId));
+    }
+
+    await syncTeamFinancials(teamId);
+
+    res.json({
+      success: true,
+      totalDeducted: totalSalary,
+      playerCount: players.length,
+      previousWageBudget: prevWageBudget,
+      newWageBudget,
+      isOverdrawn: newWageBudget < 0,
+      players: players.map(p => ({ id: p.id, name: p.name, salary: p.salary ? Number(p.salary) : 10000 })),
+      transaction: { id: txn.id, amount: totalSalary, description: txnDesc },
     });
   } catch (err: any) {
     res.status(500).json({ error: err?.message });

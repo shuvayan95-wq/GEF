@@ -5,6 +5,7 @@ import {
   Wallet, TrendingUp, TrendingDown, PlusCircle, Trash2,
   AlertTriangle, CheckCircle2, ShieldAlert, Loader2, RefreshCw,
   ArrowDownLeft, ArrowUpRight, Gavel, ArrowRightLeft, SplitSquareHorizontal,
+  Users, BadgeDollarSign, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -82,6 +83,9 @@ export function ManageBudget() {
   const [syncingTransfers, setSyncingTransfers] = useState(false);
   const [bonusSeason, setBonusSeason] = useState("2025-26");
   const [givingBonus, setGivingBonus] = useState(false);
+  const [deductingSalaries, setDeductingSalaries] = useState(false);
+  const [salaryPanelOpen, setSalaryPanelOpen] = useState(false);
+  const [lastDeductResult, setLastDeductResult] = useState<any>(null);
 
   useEffect(() => { loadAll(); }, []);
 
@@ -242,6 +246,44 @@ export function ManageBudget() {
       toast({ title: "Sync failed", description: err?.message, variant: "destructive" });
     } finally {
       setSyncingTransfers(false);
+    }
+  }
+
+  async function deductSalaries() {
+    if (!selectedTeamId) return;
+    const activePlayers = teamDetail?.activePlayers ?? [];
+    if (activePlayers.length === 0) {
+      toast({ title: "No active players", description: "This club has no active players to deduct salaries for.", variant: "destructive" });
+      return;
+    }
+    const total = activePlayers.reduce((s: number, p: any) => s + Number(p.salary ?? 10000), 0);
+    const wageBudget = teamDetail?.wageBudget ?? 0;
+    const msg = wageBudget < total
+      ? `Wage budget (${fmt(wageBudget)}) is less than total salaries (${fmt(total)}). The wage budget will go into deficit by ${fmt(total - wageBudget)}. Proceed?`
+      : `Deduct ${fmt(total)} from ${teamDetail?.teamName}'s wage budget for ${activePlayers.length} active players?`;
+    if (!confirm(msg)) return;
+    setDeductingSalaries(true);
+    try {
+      const res = await fetch(`/api/budget/${selectedTeamId}/deduct-salaries`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ season: txnSeason }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed");
+      setLastDeductResult(data);
+      toast({
+        title: `Salaries deducted — ${fmt(data.totalDeducted)}`,
+        description: data.isOverdrawn
+          ? `Wage budget is now in deficit: ${fmt(data.newWageBudget)}`
+          : `New wage budget: ${fmt(data.newWageBudget)}`,
+        variant: data.isOverdrawn ? "destructive" : "default",
+      });
+      await Promise.all([loadAll(), loadTeamDetail(selectedTeamId)]);
+    } catch (err: any) {
+      toast({ title: "Deduction failed", description: err.message, variant: "destructive" });
+    } finally {
+      setDeductingSalaries(false);
     }
   }
 
@@ -702,6 +744,122 @@ export function ManageBudget() {
                     );
                   })()}
                 </div>
+
+                {/* Salary Deduction */}
+                {(() => {
+                  const activePlayers: any[] = teamDetail?.activePlayers ?? [];
+                  const totalSalary = activePlayers.reduce((s: number, p: any) => s + Number(p.salary ?? 10000), 0);
+                  const wageBudget = teamDetail?.wageBudget ?? 0;
+                  const wouldOverdraw = totalSalary > wageBudget;
+
+                  return (
+                    <div className="bg-card border border-border rounded-xl overflow-hidden">
+                      {/* Header row — always visible */}
+                      <button
+                        className="w-full flex items-center justify-between gap-3 p-4 hover:bg-muted/20 transition-colors"
+                        onClick={() => { setSalaryPanelOpen(o => !o); setLastDeductResult(null); }}
+                      >
+                        <div className="flex items-center gap-2">
+                          <BadgeDollarSign className="w-4 h-4 text-violet-400" />
+                          <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Player Salary Deduction</h3>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-muted-foreground">
+                            {activePlayers.length} active · <span className="font-bold text-violet-400">{fmt(totalSalary)}</span> total
+                          </span>
+                          {salaryPanelOpen ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+                        </div>
+                      </button>
+
+                      {salaryPanelOpen && (
+                        <div className="border-t border-border p-4 space-y-4">
+                          {/* Summary row */}
+                          <div className="grid grid-cols-3 gap-3">
+                            <div className="bg-muted/30 rounded-lg p-3">
+                              <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1 flex items-center gap-1.5">
+                                <Users className="w-3 h-3" /> Active Players
+                              </div>
+                              <div className="text-xl font-black">{activePlayers.length}</div>
+                            </div>
+                            <div className="bg-muted/30 rounded-lg p-3">
+                              <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">Total Salaries</div>
+                              <div className="text-xl font-black text-violet-400">{fmt(totalSalary)}</div>
+                            </div>
+                            <div className="bg-muted/30 rounded-lg p-3">
+                              <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">Wage Budget</div>
+                              <div className={`text-xl font-black ${wouldOverdraw ? "text-red-400" : "text-green-400"}`}>{fmt(wageBudget)}</div>
+                            </div>
+                          </div>
+
+                          {/* Warning if overdraw */}
+                          {wouldOverdraw && (
+                            <div className="flex items-start gap-2 text-xs text-orange-400 bg-orange-500/10 border border-orange-500/20 rounded-lg px-3 py-2.5">
+                              <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                              <span>
+                                Wage budget is short by <strong>{fmt(totalSalary - wageBudget)}</strong>. The deduction will proceed and wage budget will go into deficit — adjust the allocation afterwards.
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Player breakdown table */}
+                          {activePlayers.length > 0 ? (
+                            <div className="rounded-lg border border-border overflow-hidden">
+                              <div className="max-h-52 overflow-y-auto divide-y divide-border">
+                                {activePlayers.map((p: any) => (
+                                  <div key={p.id} className="flex items-center justify-between px-3 py-2 text-sm hover:bg-muted/20">
+                                    <span className="font-medium truncate">{p.name}</span>
+                                    <span className="font-mono font-bold text-violet-400 shrink-0 ml-2">{fmt(Number(p.salary ?? 10000))}</span>
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="flex items-center justify-between px-3 py-2 border-t border-border bg-muted/20 text-xs font-bold">
+                                <span className="uppercase tracking-wider text-muted-foreground">Total</span>
+                                <span className="font-mono text-violet-400">{fmt(totalSalary)}</span>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-sm text-muted-foreground text-center py-4">No active players on this team.</p>
+                          )}
+
+                          {/* Last result */}
+                          {lastDeductResult && (
+                            <div className={`flex items-start gap-2 text-xs rounded-lg px-3 py-2.5 border ${lastDeductResult.isOverdrawn ? "text-orange-400 bg-orange-500/10 border-orange-500/20" : "text-green-400 bg-green-500/10 border-green-500/20"}`}>
+                              {lastDeductResult.isOverdrawn ? <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> : <CheckCircle2 className="w-3.5 h-3.5 shrink-0 mt-0.5" />}
+                              <span>
+                                Last deduction: <strong>{fmt(lastDeductResult.totalDeducted)}</strong> for {lastDeductResult.playerCount} players.
+                                New wage budget: <strong>{fmt(lastDeductResult.newWageBudget)}</strong>
+                                {lastDeductResult.isOverdrawn && " (in deficit)"}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Season picker + Deduct button */}
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-1.5 border border-border rounded-lg px-2.5 py-1.5">
+                              <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Season</span>
+                              <select
+                                className="bg-transparent text-xs text-foreground focus:outline-none"
+                                value={txnSeason}
+                                onChange={e => setTxnSeason(e.target.value)}
+                              >
+                                {["2024-25", "2025-26", "2026-27"].map(s => <option key={s} value={s}>{s}</option>)}
+                              </select>
+                            </div>
+                            <Button
+                              className="flex-1 bg-violet-600 hover:bg-violet-700 text-white"
+                              onClick={deductSalaries}
+                              disabled={deductingSalaries || activePlayers.length === 0}
+                            >
+                              {deductingSalaries
+                                ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Processing…</>
+                                : <><BadgeDollarSign className="w-4 h-4 mr-2" /> Deduct {fmt(totalSalary)} from Wage Budget</>}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Transaction History */}
                 <div className="bg-card border border-border rounded-xl overflow-hidden">

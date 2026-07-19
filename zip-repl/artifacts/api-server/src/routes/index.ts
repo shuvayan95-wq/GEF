@@ -32,6 +32,9 @@ import powerRankingsRouter from "./powerrankings";
 import cupsRouter from "./cups";
 import fanbaseRouter from "./fanbase";
 import fanCommunityRouter from "./fanCommunity";
+import captainAuthRouter from "./captainAuth";
+import captainPortalRouter from "./captainPortal";
+import captainAdminRouter from "./captainAdmin";
 
 const router: IRouter = Router();
 
@@ -68,5 +71,8 @@ router.use(powerRankingsRouter);
 router.use(cupsRouter);
 router.use(fanbaseRouter);
 router.use(fanCommunityRouter);
+router.use(captainAuthRouter);
+router.use(captainPortalRouter);
+router.use(captainAdminRouter);
 
 export default router;

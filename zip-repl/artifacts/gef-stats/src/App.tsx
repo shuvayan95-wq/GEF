@@ -74,6 +74,18 @@ import { Fanbase } from "@/pages/public/Fanbase";
 import { FanCommunity } from "@/pages/public/FanCommunity";
 import { ManageFanbase } from "@/pages/admin/ManageFanbase";
 
+// Captain Portal
+import { CaptainLogin } from "@/pages/captain/CaptainLogin";
+import { CaptainRegister } from "@/pages/captain/CaptainRegister";
+import { CaptainDashboard } from "@/pages/captain/CaptainDashboard";
+import { CaptainSquad } from "@/pages/captain/CaptainSquad";
+import { CaptainBudget } from "@/pages/captain/CaptainBudget";
+import { CaptainTransactions } from "@/pages/captain/CaptainTransactions";
+import { CaptainViolations } from "@/pages/captain/CaptainViolations";
+import { CaptainNotifications } from "@/pages/captain/CaptainNotifications";
+import { CaptainContracts } from "@/pages/captain/CaptainContracts";
+import { ManageCaptains } from "@/pages/admin/ManageCaptains";
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -158,6 +170,19 @@ function Router() {
       <Route path="/fanbase" component={Fanbase} />
       <Route path="/fan-community" component={FanCommunity} />
       <Route path="/admin/fanbase" component={ManageFanbase} />
+      <Route path="/admin/captains" component={ManageCaptains} />
+
+      {/* Captain Portal */}
+      <Route path="/captain/login" component={CaptainLogin} />
+      <Route path="/captain/register" component={CaptainRegister} />
+      <Route path="/captain/dashboard" component={CaptainDashboard} />
+      <Route path="/captain/squad" component={CaptainSquad} />
+      <Route path="/captain/budget" component={CaptainBudget} />
+      <Route path="/captain/transactions" component={CaptainTransactions} />
+      <Route path="/captain/violations" component={CaptainViolations} />
+      <Route path="/captain/notifications" component={CaptainNotifications} />
+      <Route path="/captain/contracts" component={CaptainContracts} />
+      <Route path="/captain" component={CaptainDashboard} />
 
       <Route component={NotFound} />
     </Switch>

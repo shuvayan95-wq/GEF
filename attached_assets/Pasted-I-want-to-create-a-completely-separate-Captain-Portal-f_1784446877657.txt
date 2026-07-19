@@ -1,0 +1,473 @@
+I want to create a completely separate Captain Portal for my GEF website.
+
+This is NOT an admin panel.
+
+This is a secure Club Management Portal where every approved captain can only access their own club.
+
+==========================================================
+SYSTEM OVERVIEW
+==========================================================
+
+Every club has one captain account.
+
+Captains log in using Email and Password.
+
+After registration the account is NOT automatically activated.
+
+Every new captain account enters a "Pending Approval" state.
+
+The Admin must manually approve every captain before they can access the portal.
+
+Until approval they cannot access anything.
+
+==========================================================
+REGISTRATION
+==========================================================
+
+Captain registration should ask for:
+
+Name
+
+Email
+
+Password
+
+Confirm Password
+
+(Optional) Phone Number
+
+DO NOT allow captains to choose their own club.
+
+Instead:
+
+After registration the account appears inside the Admin Panel.
+
+The Admin selects which club that captain belongs to.
+
+Example:
+
+Captain:
+John
+
+Assign Club:
+Moneyball FC
+
+Approve
+
+Only after approval can the captain log in.
+
+==========================================================
+PERMISSIONS
+==========================================================
+
+Captains must ONLY have access to THEIR OWN CLUB.
+
+They must NEVER be able to access:
+
+Other clubs
+
+League management
+
+Player database
+
+Other club budgets
+
+Other club transactions
+
+Admin tools
+
+Settings
+
+Database
+
+Admin Dashboard
+
+Everything must be isolated.
+
+If a captain belongs to Moneyball FC they should only ever see Moneyball FC.
+
+==========================================================
+CAPTAIN DASHBOARD
+==========================================================
+
+The dashboard should include only information related to their own club.
+
+Club Logo
+
+Club Name
+
+Current Budget
+
+Transfer Budget
+
+Wage Budget
+
+Current Squad
+
+Player Contracts
+
+Player Salaries
+
+Transfer History
+
+Budget History
+
+Club Violations
+
+League Position
+
+Champions Cup Position
+
+Fanbase
+
+Fan Division
+
+Recent Matches
+
+Club News
+
+Nothing else.
+
+==========================================================
+BUDGET ALLOCATION
+==========================================================
+
+Every club has one Total Budget.
+
+Example:
+
+10,000,000
+
+Captains CANNOT edit this number.
+
+Only the Admin can change the Total Budget.
+
+Captains can ONLY split the existing budget.
+
+Example:
+
+Total Budget
+
+10,000,000
+
+Transfer Budget
+
+4,000,000
+
+Wage Budget
+
+6,000,000
+
+The sum must ALWAYS equal the current Total Budget.
+
+The captain can change the allocation.
+
+Example
+
+Transfer Budget
+
+5,500,000
+
+Wage Budget
+
+4,500,000
+
+Valid.
+
+Example
+
+Transfer Budget
+
+8,000,000
+
+Wage Budget
+
+5,000,000
+
+INVALID
+
+because it exceeds the Total Budget.
+
+Never allow allocation greater than the Total Budget.
+
+==========================================================
+ADMIN AUTHORITY
+==========================================================
+
+Only the Admin can:
+
+Increase Budget
+
+Decrease Budget
+
+Award Prize Money
+
+Apply Fines
+
+Apply Financial Fair Play deductions
+
+Add Compensation
+
+Deduct Compensation
+
+Edit Total Budget
+
+The captain cannot perform any of these actions.
+
+==========================================================
+TRANSACTIONS
+==========================================================
+
+Captains can view every financial transaction involving their club.
+
+Examples
+
+Prize Money
+
+Transfer Fee
+
+Salary Payment
+
+Budget Increase
+
+Budget Deduction
+
+League Rewards
+
+Fine
+
+Penalty
+
+Every transaction should display
+
+Date
+
+Amount
+
+Type
+
+Reason
+
+Admin Note
+
+==========================================================
+PLAYER SALARIES
+==========================================================
+
+Captains can view
+
+Player Salary
+
+Contract Length
+
+Contract Status
+
+Salary History
+
+They CANNOT directly edit salaries unless allowed by future transfer features.
+
+==========================================================
+VIOLATIONS
+==========================================================
+
+Captains should see only violations related to THEIR CLUB.
+
+Examples
+
+Late Submission
+
+Rule Violation
+
+Walkover
+
+Financial Penalty
+
+Disciplinary Action
+
+Each violation should display
+
+Reason
+
+Date
+
+Penalty
+
+Admin Note
+
+==========================================================
+EMAIL NOTIFICATIONS
+==========================================================
+
+Every captain should receive automatic email notifications whenever important club events occur.
+
+Examples
+
+Budget Increased
+
+Budget Reduced
+
+Prize Money Added
+
+Financial Penalty Applied
+
+Player Salary Updated
+
+Player Signed
+
+Player Released
+
+Transfer Accepted
+
+Transfer Rejected
+
+Transfer Offer Received
+
+Transfer Window Open
+
+Transfer Window Closing
+
+Club Violation
+
+Contract Expiring
+
+Admin Announcement
+
+Champions Cup Qualification
+
+League Reward
+
+Emails should contain
+
+Club Name
+
+Subject
+
+Description
+
+Date
+
+Admin Signature
+
+Use professional HTML email templates matching the GEF branding.
+
+==========================================================
+NOTIFICATION CENTER
+==========================================================
+
+Inside the Captain Dashboard create a Notification Center.
+
+Every notification should remain stored.
+
+Unread
+
+Read
+
+Important
+
+Pinned
+
+==========================================================
+LOGIN SECURITY
+==========================================================
+
+Every captain account belongs to exactly ONE club.
+
+Never allow a captain to switch clubs.
+
+Never allow a captain to view another club.
+
+Every database query must automatically filter using the captain's assigned Club ID.
+
+Even if someone manually edits URLs they must NEVER gain access to another club.
+
+==========================================================
+ADMIN PANEL
+==========================================================
+
+Inside the Admin Panel create Captain Management.
+
+Features
+
+View Pending Registrations
+
+Assign Club
+
+Approve Captain
+
+Reject Captain
+
+Suspend Captain
+
+Deactivate Account
+
+Reset Password
+
+View Last Login
+
+View Login History
+
+See which club each captain controls.
+
+==========================================================
+AUDIT LOG
+==========================================================
+
+Record every captain action.
+
+Examples
+
+Budget Allocation Changed
+
+Viewed Transactions
+
+Viewed Violations
+
+Login
+
+Logout
+
+Timestamp
+
+IP Address
+
+==========================================================
+FUTURE SUPPORT
+==========================================================
+
+Design the system so future features can be added without changing the architecture.
+
+Future examples
+
+Transfer Negotiations
+
+Player Contract Renewal
+
+Transfer Requests
+
+Loan Requests
+
+Club Requests
+
+Budget Requests
+
+Board Messages
+
+Owner Messages
+
+Scouting Reports
+
+==========================================================
+UI
+==========================================================
+
+The Captain Portal should look premium.
+
+Modern football management style.
+
+Dark theme matching the GEF website.
+
+Everything should clearly indicate that this is a Club Management Portal.
+
+No admin functions should ever be visible.
+
+The captain should feel like they are managing their own club, while all league control remains exclusively with the Admin.

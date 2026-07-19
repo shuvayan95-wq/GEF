@@ -60,6 +60,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     { href: "/admin/cards", icon: Layers, label: "eFootball Cards" },
     { href: "/admin/contracts", icon: FileText, label: "Contracts" },
     { href: "/admin/salaries", icon: DollarSign, label: "Salary Management" },
+    { href: "/admin/captains", icon: ShieldAlert, label: "Captain Accounts" },
     { href: "/admin/cups", icon: Trophy, label: "Knockout Cups" },
     { href: "/admin/sports-desk", icon: Zap, label: "AI Sports Desk" },
     { href: "/admin/predictions", icon: Sparkles, label: "AI Predictions" },

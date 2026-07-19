@@ -14,6 +14,15 @@ import {
 } from "@workspace/db";
 import { eq, sql, and, isNull, inArray, or, desc } from "drizzle-orm";
 
+// Sum of active players' salaries for a team (used as the real wage bill)
+async function getTeamWageBill(teamId: number): Promise<number> {
+  const players = await db
+    .select({ salary: playersTable.salary })
+    .from(playersTable)
+    .where(and(eq(playersTable.teamId, teamId), eq(playersTable.status, "active")));
+  return players.reduce((s, p) => s + (p.salary ? Number(p.salary) : 10000), 0);
+}
+
 const router: IRouter = Router();
 
 function requireAdmin(req: any, res: any, next: any) {
@@ -21,7 +30,7 @@ function requireAdmin(req: any, res: any, next: any) {
   next();
 }
 
-// Recalculate team_financials from budget_transactions + match income logs
+// Recalculate team_financials from budget_transactions + match income logs + player salaries
 export async function syncTeamFinancials(teamId: number) {
   const txns = await db.select().from(budgetTransactionsTable).where(eq(budgetTransactionsTable.teamId, teamId));
   const matchIncomeLogs = await db.select().from(ffpIncomeLogTable).where(eq(ffpIncomeLogTable.teamId, teamId));
@@ -30,10 +39,12 @@ export async function syncTeamFinancials(teamId: number) {
   const budgetIncome = txns.filter(t => t.type === "income").reduce((s, t) => s + Number(t.amount), 0);
   const totalIncome = matchIncome + budgetIncome;
 
-  const wages = txns.filter(t => t.category === "wages").reduce((s, t) => s + Number(t.amount), 0);
+  // Wage bill = actual sum of active player salaries for this team (linked to player salary records)
+  const playerWageBill = await getTeamWageBill(teamId);
+
   const transferOut = txns.filter(t => t.category === "transfer_out").reduce((s, t) => s + Number(t.amount), 0);
   const operational = txns.filter(t => t.type === "expense" && !["wages", "transfer_out"].includes(t.category)).reduce((s, t) => s + Number(t.amount), 0);
-  const totalExpenses = wages + transferOut + operational;
+  const totalExpenses = playerWageBill + transferOut + operational;
 
   const existing = await db.select().from(teamFinancialsTable).where(eq(teamFinancialsTable.teamId, teamId));
 
@@ -41,7 +52,7 @@ export async function syncTeamFinancials(teamId: number) {
     await db.update(teamFinancialsTable).set({
       income: String(totalIncome),
       expenses: String(totalExpenses),
-      wagesExpense: String(wages),
+      wagesExpense: String(playerWageBill),
       transferExpense: String(transferOut),
       operationalExpense: String(operational),
       updatedAt: sql`now()`,
@@ -53,7 +64,9 @@ export async function syncTeamFinancials(teamId: number) {
       income: String(totalIncome),
       expenses: String(totalExpenses),
       budget: "0",
-      wagesExpense: String(wages),
+      wageBudget: "0",
+      transferBudget: "0",
+      wagesExpense: String(playerWageBill),
       transferExpense: String(transferOut),
       operationalExpense: String(operational),
     });
@@ -83,6 +96,10 @@ router.get("/budget", async (_req, res) => {
         teamName: team.name,
         logoUrl: team.logoUrl ?? null,
         startingBudget,
+        wageBudget: fin ? Number(fin.wageBudget ?? 0) : 0,
+        transferBudget: fin ? Number(fin.transferBudget ?? 0) : 0,
+        wagesExpense: fin ? Number(fin.wagesExpense ?? 0) : 0,
+        transferExpense: fin ? Number(fin.transferExpense ?? 0) : 0,
         matchIncome,
         budgetIncome,
         totalIncome: matchIncome + budgetIncome,
@@ -127,6 +144,10 @@ router.get("/budget/:teamId", async (req, res) => {
       teamName: team.name,
       logoUrl: team.logoUrl ?? null,
       startingBudget,
+      wageBudget: fin ? Number(fin.wageBudget ?? 0) : 0,
+      transferBudget: fin ? Number(fin.transferBudget ?? 0) : 0,
+      wagesExpense: fin ? Number(fin.wagesExpense ?? 0) : 0,
+      transferExpense: fin ? Number(fin.transferExpense ?? 0) : 0,
       matchIncome,
       budgetIncome,
       budgetExpenses,
@@ -156,7 +177,7 @@ router.get("/budget/:teamId", async (req, res) => {
   }
 });
 
-// PUT /budget/:teamId/starting — set starting budget
+// PUT /budget/:teamId/starting — set starting/total club budget
 router.put("/budget/:teamId/starting", requireAdmin, async (req, res) => {
   try {
     const teamId = parseInt(req.params.teamId);
@@ -164,9 +185,24 @@ router.put("/budget/:teamId/starting", requireAdmin, async (req, res) => {
     const existing = await db.select().from(teamFinancialsTable).where(eq(teamFinancialsTable.teamId, teamId));
 
     if (existing.length > 0) {
+      const prev = existing[0];
+      // Clamp existing allocations so they don't exceed the new total
+      const prevWage = Number(prev.wageBudget ?? 0);
+      const prevTransfer = Number(prev.transferBudget ?? 0);
+      const total = Number(amount);
+      let newWage = prevWage;
+      let newTransfer = prevTransfer;
+      if (newWage + newTransfer > total) {
+        // Scale down proportionally
+        const ratio = total / (newWage + newTransfer);
+        newWage = Math.floor(newWage * ratio);
+        newTransfer = total - newWage;
+      }
       await db.update(teamFinancialsTable).set({
         budget: String(amount),
-        season: season ?? existing[0].season,
+        wageBudget: String(newWage),
+        transferBudget: String(newTransfer),
+        season: season ?? prev.season,
         updatedAt: sql`now()`,
       }).where(eq(teamFinancialsTable.teamId, teamId));
     } else {
@@ -176,6 +212,8 @@ router.put("/budget/:teamId/starting", requireAdmin, async (req, res) => {
         income: "0",
         expenses: "0",
         budget: String(amount),
+        wageBudget: "0",
+        transferBudget: "0",
         wagesExpense: "0",
         transferExpense: "0",
         operationalExpense: "0",
@@ -183,6 +221,56 @@ router.put("/budget/:teamId/starting", requireAdmin, async (req, res) => {
     }
 
     res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message });
+  }
+});
+
+// PUT /budget/:teamId/allocation — set wage + transfer budget split (must sum to <= total budget)
+router.put("/budget/:teamId/allocation", requireAdmin, async (req, res) => {
+  try {
+    const teamId = parseInt(req.params.teamId);
+    const { wageBudget, transferBudget } = req.body as { wageBudget: number; transferBudget: number };
+
+    if (wageBudget === undefined || transferBudget === undefined) {
+      return res.status(400).json({ error: "wageBudget and transferBudget are required" });
+    }
+    if (Number(wageBudget) < 0 || Number(transferBudget) < 0) {
+      return res.status(400).json({ error: "Budget allocations cannot be negative" });
+    }
+
+    const existing = await db.select().from(teamFinancialsTable).where(eq(teamFinancialsTable.teamId, teamId));
+    const totalBudget = existing.length > 0 ? Number(existing[0].budget) : 0;
+    const totalAlloc = Number(wageBudget) + Number(transferBudget);
+
+    if (totalAlloc > totalBudget) {
+      return res.status(400).json({
+        error: `Allocation exceeds total club budget. Wage + Transfer (${totalAlloc.toLocaleString()}) > Total (${totalBudget.toLocaleString()})`,
+      });
+    }
+
+    if (existing.length > 0) {
+      await db.update(teamFinancialsTable).set({
+        wageBudget: String(wageBudget),
+        transferBudget: String(transferBudget),
+        updatedAt: sql`now()`,
+      }).where(eq(teamFinancialsTable.teamId, teamId));
+    } else {
+      await db.insert(teamFinancialsTable).values({
+        teamId,
+        season: "2025-26",
+        income: "0",
+        expenses: "0",
+        budget: "0",
+        wageBudget: String(wageBudget),
+        transferBudget: String(transferBudget),
+        wagesExpense: "0",
+        transferExpense: "0",
+        operationalExpense: "0",
+      });
+    }
+
+    res.json({ success: true, wageBudget: Number(wageBudget), transferBudget: Number(transferBudget), totalBudget });
   } catch (err: any) {
     res.status(500).json({ error: err?.message });
   }

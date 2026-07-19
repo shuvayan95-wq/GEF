@@ -21,6 +21,9 @@ export const teamFinancialsTable = pgTable("team_financials", {
   income: numeric("income", { precision: 15, scale: 2 }).notNull().default("0"),
   expenses: numeric("expenses", { precision: 15, scale: 2 }).notNull().default("0"),
   budget: numeric("budget", { precision: 15, scale: 2 }).notNull().default("0"),
+  // FIFA-style budget allocation: wageBudget + transferBudget must not exceed budget
+  wageBudget: numeric("wage_budget", { precision: 15, scale: 2 }).notNull().default("0"),
+  transferBudget: numeric("transfer_budget", { precision: 15, scale: 2 }).notNull().default("0"),
   wagesExpense: numeric("wages_expense", { precision: 15, scale: 2 }).notNull().default("0"),
   transferExpense: numeric("transfer_expense", { precision: 15, scale: 2 }).notNull().default("0"),
   operationalExpense: numeric("operational_expense", { precision: 15, scale: 2 }).notNull().default("0"),

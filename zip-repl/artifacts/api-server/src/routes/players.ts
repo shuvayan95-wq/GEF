@@ -405,7 +405,7 @@ router.post("/admin/salaries/recalculate", requireAdmin, async (req, res) => {
 
       // Base: 10,000 | win rate bonus | goals bonus | MVP bonus | OVR bonus
       const base = 10000;
-      const winRateBonus = stats.games > 0 ? Math.round((stats.wins / stats.games) * 5000) : 0;
+      const winRateBonus = stats.matchesPlayed > 0 ? Math.round((stats.wins / stats.matchesPlayed) * 5000) : 0;
       const goalsBonus = (stats.goalsScored ?? 0) * 80;
       const mvpBonus = mvpCount * 400;
       const ovrBonus = Math.max(0, ovr - 70) * 80;
@@ -449,7 +449,7 @@ router.get("/admin/salaries", requireAdmin, async (_req, res) => {
         status: p.status,
         cardOvr: p.cardOvr,
         salary: p.salary ? Number(p.salary) : null,
-        games: stats.games,
+        games: stats.matchesPlayed,
         wins: stats.wins,
         goals: stats.goalsScored,
       };

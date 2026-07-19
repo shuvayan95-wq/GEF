@@ -7,12 +7,25 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Shuvayan@11";
 
 router.post("/auth/login", (req, res) => {
   const { email, password } = req.body;
-  if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-    (req.session as any).isAdmin = true;
-    res.json({ success: true, isAdmin: true });
-  } else {
-    res.status(401).json({ error: "Invalid credentials" });
+  if (email !== ADMIN_EMAIL || password !== ADMIN_PASSWORD) {
+    return res.status(401).json({ error: "Invalid credentials" });
   }
+
+  // Regenerate session ID (prevents fixation), then persist isAdmin before responding
+  req.session.regenerate((regenErr) => {
+    if (regenErr) {
+      console.error("[auth] session regenerate error:", regenErr);
+      return res.status(500).json({ error: "Session error" });
+    }
+    (req.session as any).isAdmin = true;
+    req.session.save((saveErr) => {
+      if (saveErr) {
+        console.error("[auth] session save error:", saveErr);
+        return res.status(500).json({ error: "Session save error" });
+      }
+      res.json({ success: true, isAdmin: true });
+    });
+  });
 });
 
 router.post("/auth/logout", (req, res) => {

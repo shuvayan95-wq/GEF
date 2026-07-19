@@ -401,18 +401,32 @@ router.post("/admin/salaries/recalculate", requireAdmin, async (req, res) => {
     for (const player of targets) {
       const stats = aggregatePlayerStats(player.id, allMatchups);
       const mvpCount = allAwards.filter(a => a.playerId === player.id && a.awardType === "mvp").length;
-      const ovr = calcOVR(player) ?? 70;
 
-      // Base: 10,000 | win rate bonus | goals bonus | MVP bonus | OVR bonus
-      const base = 10000;
-      const winRateBonus = stats.matchesPlayed > 0 ? Math.round((stats.wins / stats.matchesPlayed) * 5000) : 0;
-      const goalsBonus = (stats.goalsScored ?? 0) * 80;
-      const mvpBonus = mvpCount * 400;
-      const ovrBonus = Math.max(0, ovr - 70) * 80;
+      // Use card OVR if available, otherwise compute from match stats
+      const cardOvr = player.cardOvr != null ? Number(player.cardOvr) : null;
+      const computedOvr = stats.matchesPlayed > 0
+        ? calcOVR(stats.matchesPlayed, stats.wins, stats.losses, stats.draws, stats.goalsScored, stats.goalsConceded, stats.mvpCount)
+        : null;
+      const ovr = cardOvr ?? computedOvr ?? 70;
 
-      const rawSalary = base + winRateBonus + goalsBonus + mvpBonus + ovrBonus;
-      // Round to nearest 500
-      const salary = Math.round(rawSalary / 500) * 500;
+      // Base: $10,000
+      // Win rate bonus:   up to $60,000 (win% × 60,000)
+      // Goals bonus:      $2,000 per goal scored
+      // MVP bonus:        $12,000 per MVP award
+      // OVR bonus:        $1,500 per OVR point above 70
+      // Activity bonus:   $800 per match played (caps at 25 matches = $20,000)
+      const base = 10_000;
+      const winRateBonus = stats.matchesPlayed > 0
+        ? Math.round((stats.wins / stats.matchesPlayed) * 60_000)
+        : 0;
+      const goalsBonus = (stats.goalsScored ?? 0) * 2_000;
+      const mvpBonus = mvpCount * 12_000;
+      const ovrBonus = Math.max(0, ovr - 70) * 1_500;
+      const activityBonus = Math.min(stats.matchesPlayed, 25) * 800;
+
+      const rawSalary = base + winRateBonus + goalsBonus + mvpBonus + ovrBonus + activityBonus;
+      // Cap at $500,000, round to nearest $500
+      const salary = Math.round(Math.min(rawSalary, 500_000) / 500) * 500;
 
       await db.update(playersTable)
         .set({ salary: String(salary) })
@@ -421,11 +435,11 @@ router.post("/admin/salaries/recalculate", requireAdmin, async (req, res) => {
       updated.push({ id: player.id, name: player.name, salary });
     }
 
-    res.json({ updated, count: updated.length });
-
-    // Sync wages_expense for all affected teams in the background
+    // Sync wages_expense for all affected teams (await so FFP data is fresh)
     const teamIds = [...new Set(targets.filter(p => p.teamId).map(p => p.teamId as number))];
-    Promise.all(teamIds.map(id => syncTeamFinancials(id))).catch(() => {});
+    await Promise.all(teamIds.map(id => syncTeamFinancials(id)));
+
+    res.json({ updated, count: updated.length });
   } catch (err: any) {
     res.status(500).json({ error: err?.message });
   }

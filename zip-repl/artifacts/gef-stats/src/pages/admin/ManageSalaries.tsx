@@ -286,7 +286,7 @@ export function ManageSalaries() {
         </div>
 
         <p className="text-xs text-muted-foreground">
-          Auto-calculate formula: Base $10,000 + win rate bonus + goals bonus + MVP bonus + OVR bonus · Rounded to nearest $500
+          Auto-calculate formula: Base $10,000 + win rate (up to $60K) + goals ($2K each) + MVP ($12K each) + OVR above 70 ($1.5K/pt) + activity ($800/game, max 25) · Capped at $500K · Rounded to nearest $500
         </p>
       </div>
     </AdminLayout>

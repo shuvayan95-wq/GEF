@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { ffpSettingsTable, teamFinancialsTable, teamsTable, ffpIncomeLogTable } from "@workspace/db";
-import { eq, sql } from "drizzle-orm";
+import { ffpSettingsTable, teamFinancialsTable, teamsTable, ffpIncomeLogTable, playersTable } from "@workspace/db";
+import { eq, sql, and } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -15,16 +15,31 @@ function calcStatus(
   expenses: number,
   wages: number,
   settings: any,
-): { status: "compliant" | "at_risk" | "high_risk" | "breach"; lossAmount: number; expenseRatio: number; wageRatio: number; lossPercent: number; ratioPercent: number } {
+): {
+  status: "compliant" | "at_risk" | "high_risk" | "breach";
+  lossAmount: number;
+  expenseRatio: number;
+  wageRatio: number;
+  lossPercent: number;
+  ratioPercent: number;
+  wageBreach: boolean;
+  wageCapLimit: number;
+  wageBreachReason: string | null;
+} {
   const maxLoss = Number(settings.maxLossAmount);
   const maxRatio = Number(settings.maxExpenseRatio);
-  const wageCap = Number(settings.wageCapPercent) / 100;
+  const wageCapPct = Number(settings.wageCapPercent) / 100;
   const atRisk = Number(settings.atRiskThreshold);
   const highRisk = Number(settings.highRiskThreshold);
 
   const lossAmount = expenses - income;
   const expenseRatio = income > 0 ? expenses / income : expenses > 0 ? 999 : 1;
+  // Wage cap: wages vs income — only meaningful when income > 0
   const wageRatio = income > 0 ? wages / income : wages > 0 ? 999 : 0;
+  // Wage cap limit in currency (max wages allowed by FFP)
+  const wageCapLimit = income > 0 ? income * wageCapPct : 0;
+  // Breach only when income > 0 (club has played matches and has revenue to measure against)
+  const wageBreach = income > 0 && wages > wageCapLimit;
 
   const lossPercent = maxLoss > 0 ? lossAmount / maxLoss : 0;
   const ratioPercent = maxRatio > 0 ? (expenseRatio - 1) / (maxRatio - 1) : 0;
@@ -32,8 +47,12 @@ function calcStatus(
   const worst = Math.max(lossPercent, ratioPercent);
 
   let status: "compliant" | "at_risk" | "high_risk" | "breach";
-  if (lossAmount > maxLoss || expenseRatio > maxRatio || wageRatio > wageCap) {
+  let wageBreachReason: string | null = null;
+  if (lossAmount > maxLoss || expenseRatio > maxRatio || wageBreach) {
     status = "breach";
+    if (wageBreach) {
+      wageBreachReason = `Wages (${Math.round(wages).toLocaleString()}) exceed ${Number(settings.wageCapPercent).toFixed(0)}% of income cap (${Math.round(wageCapLimit).toLocaleString()})`;
+    }
   } else if (worst >= highRisk) {
     status = "high_risk";
   } else if (worst >= atRisk) {
@@ -42,7 +61,7 @@ function calcStatus(
     status = "compliant";
   }
 
-  return { status, lossAmount, expenseRatio, wageRatio, lossPercent, ratioPercent };
+  return { status, lossAmount, expenseRatio, wageRatio, lossPercent, ratioPercent, wageBreach, wageCapLimit, wageBreachReason };
 }
 
 async function getOrCreateSettings() {
@@ -102,11 +121,25 @@ router.get("/ffp/teams", async (_req, res) => {
   const teams = await db.select().from(teamsTable);
   const financials = await db.select().from(teamFinancialsTable);
 
+  // Pull live player salaries to compute real wage bill per team
+  const allPlayers = await db
+    .select({ teamId: playersTable.teamId, salary: playersTable.salary, status: playersTable.status })
+    .from(playersTable);
+
+  const liveWageBillByTeam = new Map<number, number>();
+  for (const p of allPlayers) {
+    if (!p.teamId || p.status !== "active") continue;
+    const sal = p.salary ? Number(p.salary) : 10_000;
+    liveWageBillByTeam.set(p.teamId, (liveWageBillByTeam.get(p.teamId) ?? 0) + sal);
+  }
+
   const result = teams.map(team => {
     const fin = financials.find(f => f.teamId === team.id);
     const income = fin ? Number(fin.income) : 0;
     const expenses = fin ? Number(fin.expenses) : 0;
-    const wages = fin ? Number(fin.wagesExpense) : 0;
+    // Use live salary wage bill — always in sync with player records
+    const liveWageBill = liveWageBillByTeam.get(team.id) ?? 0;
+    const wages = liveWageBill; // authoritative wage figure
     const budget = fin ? Number(fin.budget) : 0;
     const transferExp = fin ? Number(fin.transferExpense) : 0;
     const opExp = fin ? Number(fin.operationalExpense) : 0;
@@ -122,6 +155,7 @@ router.get("/ffp/teams", async (_req, res) => {
       expenses,
       budget,
       wagesExpense: wages,
+      liveWageBill,
       transferExpense: transferExp,
       operationalExpense: opExp,
       netPosition: income - expenses,

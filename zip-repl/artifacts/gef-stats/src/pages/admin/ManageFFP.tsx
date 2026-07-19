@@ -169,6 +169,39 @@ export function ManageFFP() {
     compliant: "text-green-400", at_risk: "text-yellow-400", high_risk: "text-orange-400", breach: "text-red-400",
   };
 
+  function WageCapBar({ wages, capLimit, income }: { wages: number; capLimit: number; income: number }) {
+    if (income <= 0) {
+      return (
+        <div className="text-[10px] text-muted-foreground">
+          Wage cap check requires match income — no income recorded yet.
+        </div>
+      );
+    }
+    const pct = capLimit > 0 ? Math.min((wages / capLimit) * 100, 200) : 0;
+    const breach = wages > capLimit;
+    return (
+      <div className="space-y-1.5">
+        <div className="flex justify-between text-xs">
+          <span className="font-bold text-muted-foreground uppercase tracking-wider">Wage Cap Usage</span>
+          <span className={`font-bold font-mono ${breach ? "text-red-400" : "text-green-400"}`}>
+            {fmt(wages)} / {fmt(capLimit)}
+            {breach && <span className="ml-2 text-[10px] bg-red-500/20 border border-red-500/40 text-red-400 px-1.5 py-0.5 rounded font-black uppercase">BREACH</span>}
+          </span>
+        </div>
+        <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all ${breach ? "bg-red-500" : pct > 85 ? "bg-orange-500" : pct > 70 ? "bg-yellow-500" : "bg-green-500"}`}
+            style={{ width: `${Math.min(pct, 100)}%` }}
+          />
+        </div>
+        <div className="text-[10px] text-muted-foreground">
+          {pct.toFixed(0)}% of wage cap used
+          {breach && ` · Over by ${fmt(wages - capLimit)}`}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <AdminLayout>
       <div className="max-w-4xl space-y-10">
@@ -324,6 +357,25 @@ export function ManageFFP() {
 
                   {isOpen && (
                     <div className="border-t border-border px-5 py-5 space-y-5 bg-background/30">
+
+                      {/* Wage Cap Status — live from player salaries */}
+                      <div className={`rounded-xl p-4 space-y-3 border ${fin.wageBreach ? "bg-red-950/30 border-red-800/40" : "bg-secondary/30 border-border"}`}>
+                        <div className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                          <Scale className={`w-3.5 h-3.5 ${fin.wageBreach ? "text-red-400" : "text-blue-400"}`} />
+                          <span className={fin.wageBreach ? "text-red-400" : "text-blue-400"}>Wage Cap (Live)</span>
+                          <span className="text-muted-foreground font-normal normal-case tracking-normal">· auto-synced from player salaries</span>
+                        </div>
+                        <WageCapBar
+                          wages={fin.liveWageBill ?? fin.wagesExpense ?? 0}
+                          capLimit={fin.wageCapLimit ?? 0}
+                          income={Number(fin.income)}
+                        />
+                        {fin.wageBreachReason && (
+                          <p className="text-[11px] text-red-400 font-bold flex items-center gap-1">
+                            <AlertTriangle className="w-3 h-3 flex-shrink-0" /> {fin.wageBreachReason}
+                          </p>
+                        )}
+                      </div>
 
                       {/* Auto-Income Display */}
                       <div className="bg-green-950/30 border border-green-800/40 rounded-xl p-4 space-y-3">

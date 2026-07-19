@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { useAppAuth } from "@/hooks/use-app-auth";
 import { Button } from "@/components/ui/button";
-import { Gamepad2, ShieldAlert, LogOut, Menu, X, Zap } from "lucide-react";
+import { Gamepad2, ShieldAlert, LogOut, Menu, X, Zap, Shield } from "lucide-react";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -118,11 +118,18 @@ export function Navbar() {
               </Button>
             </div>
           ) : (
-            <Link href="/login">
-              <Button variant="outline" size="sm" className="text-xs gap-1.5 border-border/60 hover:border-primary/50 hover:text-primary transition-colors">
-                <Zap className="w-3 h-3" /> Admin
-              </Button>
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link href="/captain/login">
+                <Button variant="outline" size="sm" className="text-xs gap-1.5 border-border/60 hover:border-blue-500/50 hover:text-blue-400 transition-colors">
+                  <Shield className="w-3 h-3" /> Captain Portal
+                </Button>
+              </Link>
+              <Link href="/login">
+                <Button variant="outline" size="sm" className="text-xs gap-1.5 border-border/60 hover:border-primary/50 hover:text-primary transition-colors">
+                  <Zap className="w-3 h-3" /> Admin
+                </Button>
+              </Link>
+            </div>
           )}
         </div>
 
@@ -195,9 +202,14 @@ export function Navbar() {
                   </button>
                 </div>
               ) : (
-                <Link href="/login" className="p-3 rounded-md font-display font-semibold text-sm text-muted-foreground hover:bg-secondary flex items-center gap-2" onClick={() => setMobileMenuOpen(false)}>
-                  <Zap className="w-4 h-4" /> Admin Login
-                </Link>
+                <>
+                  <Link href="/captain/login" className="p-3 rounded-md font-display font-semibold text-sm text-blue-400 hover:bg-blue-950/20 flex items-center gap-2" onClick={() => setMobileMenuOpen(false)}>
+                    <Shield className="w-4 h-4" /> Captain Portal
+                  </Link>
+                  <Link href="/login" className="p-3 rounded-md font-display font-semibold text-sm text-muted-foreground hover:bg-secondary flex items-center gap-2" onClick={() => setMobileMenuOpen(false)}>
+                    <Zap className="w-4 h-4" /> Admin Login
+                  </Link>
+                </>
               )}
             </div>
           </motion.div>

@@ -226,7 +226,7 @@ router.put("/budget/:teamId/starting", requireAdmin, async (req, res) => {
   }
 });
 
-// PUT /budget/:teamId/allocation — set wage + transfer budget split (must sum to <= total budget)
+// PUT /budget/:teamId/allocation — set wage + transfer budget split (must sum to <= current balance)
 router.put("/budget/:teamId/allocation", requireAdmin, async (req, res) => {
   try {
     const teamId = parseInt(req.params.teamId);
@@ -239,13 +239,23 @@ router.put("/budget/:teamId/allocation", requireAdmin, async (req, res) => {
       return res.status(400).json({ error: "Budget allocations cannot be negative" });
     }
 
+    // Ceiling is current balance = startingBudget + income - expenses (from transactions + match logs)
     const existing = await db.select().from(teamFinancialsTable).where(eq(teamFinancialsTable.teamId, teamId));
-    const totalBudget = existing.length > 0 ? Number(existing[0].budget) : 0;
+    const txns = await db.select().from(budgetTransactionsTable).where(eq(budgetTransactionsTable.teamId, teamId));
+    const matchLogs = await db.select().from(ffpIncomeLogTable).where(eq(ffpIncomeLogTable.teamId, teamId));
+
+    const startingBudget = existing.length > 0 ? Number(existing[0].budget) : 0;
+    const matchIncome = matchLogs.reduce((s, l) => s + Number(l.amount), 0);
+    const budgetIncome = txns.filter(t => t.type === "income").reduce((s, t) => s + Number(t.amount), 0);
+    const budgetExpenses = txns.filter(t => t.type === "expense").reduce((s, t) => s + Number(t.amount), 0);
+    const currentBalance = startingBudget + matchIncome + budgetIncome - budgetExpenses;
+
     const totalAlloc = Number(wageBudget) + Number(transferBudget);
 
-    if (totalAlloc > totalBudget) {
+    if (totalAlloc > currentBalance) {
       return res.status(400).json({
-        error: `Allocation exceeds total club budget. Wage + Transfer (${totalAlloc.toLocaleString()}) > Total (${totalBudget.toLocaleString()})`,
+        error: `Allocation exceeds current balance. Wage + Transfer (${totalAlloc.toLocaleString()}) > Balance (${Math.round(currentBalance).toLocaleString()})`,
+        currentBalance,
       });
     }
 
@@ -270,7 +280,7 @@ router.put("/budget/:teamId/allocation", requireAdmin, async (req, res) => {
       });
     }
 
-    res.json({ success: true, wageBudget: Number(wageBudget), transferBudget: Number(transferBudget), totalBudget });
+    res.json({ success: true, wageBudget: Number(wageBudget), transferBudget: Number(transferBudget), currentBalance });
   } catch (err: any) {
     res.status(500).json({ error: err?.message });
   }

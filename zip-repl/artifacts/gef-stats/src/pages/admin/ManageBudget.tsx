@@ -126,14 +126,14 @@ export function ManageBudget() {
     if (!selectedTeamId) return;
     const wage = Number(wageBudgetInput);
     const transfer = Number(transferBudgetInput);
-    const total = Number(startingBudget);
+    const currentBalance = teamDetail?.currentBalance ?? 0;
     if (isNaN(wage) || isNaN(transfer) || wage < 0 || transfer < 0) {
       toast({ title: "Enter valid amounts", variant: "destructive" }); return;
     }
-    if (wage + transfer > total) {
+    if (wage + transfer > currentBalance) {
       toast({
-        title: "Exceeds club budget",
-        description: `Wage (${fmt(wage)}) + Transfer (${fmt(transfer)}) = ${fmt(wage + transfer)} but total is only ${fmt(total)}`,
+        title: "Exceeds current balance",
+        description: `Wage (${fmt(wage)}) + Transfer (${fmt(transfer)}) = ${fmt(wage + transfer)} but balance is only ${fmt(currentBalance)}`,
         variant: "destructive",
       }); return;
     }
@@ -569,13 +569,13 @@ export function ManageBudget() {
                   <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                     <SplitSquareHorizontal className="w-4 h-4 text-primary" /> Budget Allocation
                     <span className="ml-auto text-[10px] font-normal text-muted-foreground normal-case tracking-normal">
-                      Total: <span className="font-bold text-foreground">{fmt(Number(startingBudget) || 0)}</span>
+                      Current Balance: <span className="font-bold text-foreground">{fmt(teamDetail?.currentBalance ?? 0)}</span>
                     </span>
                   </h3>
 
                   {/* Visual bar showing the split */}
                   {(() => {
-                    const total = Number(startingBudget) || 0;
+                    const total = teamDetail?.currentBalance ?? 0;
                     const wage = Number(wageBudgetInput) || 0;
                     const transfer = Number(transferBudgetInput) || 0;
                     const allocated = wage + transfer;
@@ -686,11 +686,11 @@ export function ManageBudget() {
                         </div>
                         <div className="flex items-center justify-between gap-3">
                           <p className="text-[10px] text-muted-foreground">
-                            Wage + Transfer ({fmt((Number(wageBudgetInput) || 0) + (Number(transferBudgetInput) || 0))}) must not exceed total budget ({fmt(Number(startingBudget) || 0)})
+                            Wage + Transfer ({fmt((Number(wageBudgetInput) || 0) + (Number(transferBudgetInput) || 0))}) must not exceed current balance ({fmt(teamDetail?.currentBalance ?? 0)})
                           </p>
                           <Button
                             onClick={saveAllocation}
-                            disabled={savingAllocation || (Number(wageBudgetInput) + Number(transferBudgetInput) > Number(startingBudget) && Number(startingBudget) > 0)}
+                            disabled={savingAllocation || (Number(wageBudgetInput) + Number(transferBudgetInput) > (teamDetail?.currentBalance ?? 0) && (teamDetail?.currentBalance ?? 0) > 0)}
                             size="sm"
                             className="shrink-0"
                           >

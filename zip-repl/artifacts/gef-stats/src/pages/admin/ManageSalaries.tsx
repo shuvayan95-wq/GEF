@@ -235,11 +235,11 @@ export function ManageSalaries() {
                         />
                       ) : (
                         <div className="flex flex-col items-end">
-                          <span className={`font-bold font-mono ${isDefault ? "text-muted-foreground" : "text-primary"}`}>
+                          <span className="font-bold font-mono text-primary">
                             {fmt(displaySalary)}
                           </span>
-                          {isDefault && (
-                            <span className="text-[9px] text-yellow-500 font-bold uppercase">Base (unset)</span>
+                          {displaySalary === 10000 && (
+                            <span className="text-[9px] text-muted-foreground font-bold uppercase">Base</span>
                           )}
                         </div>
                       )}

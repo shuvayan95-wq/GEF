@@ -520,6 +520,7 @@ export function TeamProfile() {
               </div>
             ) : budget ? (
               <>
+                {/* Top-line balance cards */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   {[
                     { label: "Starting Budget", value: budget.startingBudget,                         color: "text-blue-400",  icon: Wallet },
@@ -536,6 +537,85 @@ export function TeamProfile() {
                     </div>
                   ))}
                 </div>
+
+                {/* Budget allocation split (wage / transfer) */}
+                {(budget.wageBudget > 0 || budget.transferBudget > 0) && (() => {
+                  const total = budget.currentBalance;
+                  const wage = budget.wageBudget ?? 0;
+                  const transfer = budget.transferBudget ?? 0;
+                  const wageSpend = budget.wagesExpense ?? 0;
+                  const transferSpend = budget.transferExpense ?? 0;
+                  const wagePct = total > 0 ? Math.min((wage / total) * 100, 100) : 0;
+                  const transferPct = total > 0 ? Math.min((transfer / total) * 100, 100) : 0;
+                  const freePct = Math.max(0, 100 - wagePct - transferPct);
+                  return (
+                    <div className="bg-card border border-border rounded-xl p-5 space-y-4">
+                      <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                        <Wallet className="w-4 h-4 text-primary" /> Budget Allocation
+                        <span className="ml-auto text-[11px] font-normal text-muted-foreground normal-case tracking-normal">
+                          Balance: <span className="font-bold text-foreground">{fmt(total)}</span>
+                        </span>
+                      </h3>
+                      {/* Split bar */}
+                      <div className="h-7 flex rounded-lg overflow-hidden border border-border text-[10px] font-bold">
+                        {wagePct > 0 && (
+                          <div className="flex items-center justify-center bg-violet-500/70 text-white transition-all" style={{ width: `${wagePct}%` }}>
+                            {wagePct > 10 ? `Wages ${wagePct.toFixed(0)}%` : ""}
+                          </div>
+                        )}
+                        {transferPct > 0 && (
+                          <div className="flex items-center justify-center bg-sky-500/70 text-white transition-all" style={{ width: `${transferPct}%` }}>
+                            {transferPct > 10 ? `Transfer ${transferPct.toFixed(0)}%` : ""}
+                          </div>
+                        )}
+                        {freePct > 0 && (
+                          <div className="flex items-center justify-center bg-muted/40 text-muted-foreground transition-all" style={{ width: `${freePct}%` }}>
+                            {freePct > 10 ? `Free ${freePct.toFixed(0)}%` : ""}
+                          </div>
+                        )}
+                      </div>
+                      {/* Detail rows */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="bg-violet-500/5 border border-violet-500/20 rounded-lg p-3 space-y-1.5">
+                          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-bold text-violet-400">
+                            <div className="w-2 h-2 rounded-sm bg-violet-500/70" /> Wage Budget
+                          </div>
+                          <div className="text-xl font-black text-violet-400">{fmt(wage)}</div>
+                          <div className="text-[11px] text-muted-foreground flex items-center justify-between">
+                            <span>Actual wage bill</span>
+                            <span className={wageSpend > wage ? "text-red-400 font-bold" : "text-green-400 font-semibold"}>{fmt(wageSpend)}</span>
+                          </div>
+                          {wageSpend > 0 && (
+                            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all ${wageSpend > wage ? "bg-red-500" : "bg-violet-500"}`}
+                                style={{ width: `${Math.min((wageSpend / (wage || 1)) * 100, 100)}%` }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                        <div className="bg-sky-500/5 border border-sky-500/20 rounded-lg p-3 space-y-1.5">
+                          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-bold text-sky-400">
+                            <div className="w-2 h-2 rounded-sm bg-sky-500/70" /> Transfer Budget
+                          </div>
+                          <div className="text-xl font-black text-sky-400">{fmt(transfer)}</div>
+                          <div className="text-[11px] text-muted-foreground flex items-center justify-between">
+                            <span>Actual transfer spend</span>
+                            <span className={transferSpend > transfer ? "text-red-400 font-bold" : "text-sky-400 font-semibold"}>{fmt(transferSpend)}</span>
+                          </div>
+                          {transferSpend > 0 && (
+                            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all ${transferSpend > transfer ? "bg-red-500" : "bg-sky-500"}`}
+                                style={{ width: `${Math.min((transferSpend / (transfer || 1)) * 100, 100)}%` }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {ffp && (
                   <div className={`rounded-xl border p-5 ${ffpStatus?.bg} ${ffpStatus?.border}`}>

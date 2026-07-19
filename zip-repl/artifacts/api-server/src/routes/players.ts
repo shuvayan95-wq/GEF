@@ -431,7 +431,7 @@ router.post("/admin/salaries/recalculate", requireAdmin, async (req, res) => {
   }
 });
 
-// GET /api/admin/salaries — all players with salary info
+// GET /api/admin/salaries — all players with salary info (auto-initializes null → $10,000)
 router.get("/admin/salaries", requireAdmin, async (_req, res) => {
   try {
     const players = await db.select().from(playersTable).orderBy(sql`name ASC`);
@@ -439,8 +439,17 @@ router.get("/admin/salaries", requireAdmin, async (_req, res) => {
     const allMatchups = await db.select().from(playerMatchupsTable);
     const teamMap = new Map(teams.map(t => [t.id, t.name]));
 
+    // Auto-set base salary of $10,000 for any player that has never had one set
+    const nullSalaryIds = players.filter(p => p.salary === null).map(p => p.id);
+    if (nullSalaryIds.length > 0) {
+      await db.update(playersTable)
+        .set({ salary: "10000" })
+        .where(inArray(playersTable.id, nullSalaryIds));
+    }
+
     const result = players.map(p => {
       const stats = aggregatePlayerStats(p.id, allMatchups);
+      const salary = p.salary !== null ? Number(p.salary) : 10000;
       return {
         id: p.id,
         name: p.name,
@@ -448,7 +457,7 @@ router.get("/admin/salaries", requireAdmin, async (_req, res) => {
         teamName: p.teamId ? (teamMap.get(p.teamId) ?? "Free Agent") : "Free Agent",
         status: p.status,
         cardOvr: p.cardOvr,
-        salary: p.salary ? Number(p.salary) : null,
+        salary,
         games: stats.matchesPlayed,
         wins: stats.wins,
         goals: stats.goalsScored,

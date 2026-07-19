@@ -2,10 +2,12 @@ import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import session from "express-session";
+import ConnectPgSimple from "connect-pg-simple";
 import path from "path";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { registerObjectStorageRoutes } from "./lib/objectStorage/routes.js";
+import { pool } from "@workspace/db";
 
 const app: Express = express();
 
@@ -32,8 +34,15 @@ app.use(cors({ credentials: true, origin: true }));
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
+const PgSession = ConnectPgSimple(session);
+
 app.use(
   session({
+    store: new PgSession({
+      pool,
+      tableName: "session",
+      createTableIfMissing: true,
+    }),
     secret: process.env.SESSION_SECRET || "gef-stats-secret-key-2024",
     resave: false,
     saveUninitialized: false,

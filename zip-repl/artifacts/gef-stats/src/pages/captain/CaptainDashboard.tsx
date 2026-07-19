@@ -36,16 +36,18 @@ export function CaptainDashboard() {
   }
 
   const fin = data?.financials;
-  const totalBudget = Number(fin?.budget ?? 0);
+  const initialBudget = Number(fin?.budget ?? 0);
   const transferBudget = Number(fin?.transferBudget ?? 0);
   const wageBudget = Number(fin?.wageBudget ?? 0);
   const income = Number(fin?.income ?? 0);
   const expenses = Number(fin?.expenses ?? 0);
+  // Current spendable balance = initial allocation + income − expenses
+  const currentBalance = initialBudget + income - expenses;
 
   const STAT_CARDS = [
     {
-      label: "Total Budget",
-      value: fmt(totalBudget),
+      label: "Current Balance",
+      value: fmt(currentBalance),
       icon: Wallet,
       color: "text-green-400",
       bg: "bg-green-950/20 border-green-800/30",

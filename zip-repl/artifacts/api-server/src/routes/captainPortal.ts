@@ -237,9 +237,10 @@ router.patch("/captain/budget/allocation", requireCaptain, async (req, res) => {
   const [fin] = await db.select().from(teamFinancialsTable).where(eq(teamFinancialsTable.teamId, tid)).limit(1);
   if (!fin) return res.status(404).json({ error: "No financials found for your club" });
 
-  const total = Number(fin.budget);
-  if (tb + wb > total)
-    return res.status(400).json({ error: `Allocation (${(tb + wb).toLocaleString()}) exceeds total budget (${total.toLocaleString()})` });
+  // Current balance = initial budget + all income earned − all expenses incurred
+  const currentBalance = Number(fin.budget) + Number(fin.income ?? 0) - Number(fin.expenses ?? 0);
+  if (tb + wb > currentBalance)
+    return res.status(400).json({ error: `Allocation (${(tb + wb).toLocaleString()}) exceeds current balance (${Math.round(currentBalance).toLocaleString()})` });
 
   await db.update(teamFinancialsTable).set({
     transferBudget: String(tb),

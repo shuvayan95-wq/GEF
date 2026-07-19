@@ -53,14 +53,18 @@ export function CaptainBudget() {
     onError: (err: any) => toast({ variant: "destructive", title: "Error", description: err.message }),
   });
 
-  const totalBudget = Number(fin?.budget ?? 0);
+  const initialBudget = Number(fin?.budget ?? 0);
+  const income = Number(fin?.income ?? 0);
+  const expenses = Number(fin?.expenses ?? 0);
+  // Current spendable balance = initial allocation + income earned − expenses incurred
+  const currentBalance = initialBudget + income - expenses;
   const tb = Number(transfer) || 0;
   const wb = Number(wage) || 0;
   const allocated = tb + wb;
-  const unallocated = totalBudget - allocated;
-  const isOver = allocated > totalBudget;
-  const pctTransfer = totalBudget > 0 ? Math.min((tb / totalBudget) * 100, 100) : 0;
-  const pctWage = totalBudget > 0 ? Math.min((wb / totalBudget) * 100, 100) : 0;
+  const unallocated = currentBalance - allocated;
+  const isOver = allocated > currentBalance;
+  const pctTransfer = currentBalance > 0 ? Math.min((tb / currentBalance) * 100, 100) : 0;
+  const pctWage = currentBalance > 0 ? Math.min((wb / currentBalance) * 100, 100) : 0;
 
   if (isLoading) {
     return <CaptainLayout><div className="flex items-center justify-center h-48"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div></CaptainLayout>;
@@ -71,17 +75,21 @@ export function CaptainBudget() {
       <div className="space-y-6 max-w-2xl">
         <div>
           <h1 className="font-display text-2xl font-black uppercase tracking-wide">Budget Allocation</h1>
-          <p className="text-sm text-muted-foreground mt-1">Split your club's budget between transfers and wages. Total must not exceed the budget set by admin.</p>
+          <p className="text-sm text-muted-foreground mt-1">Split your current balance between transfers and wages. Your balance reflects your initial budget plus any income earned and minus expenses incurred.</p>
         </div>
 
-        {/* Total budget (read-only) */}
+        {/* Current balance (read-only) */}
         <div className="bg-card border border-border rounded-xl p-5">
           <div className="flex items-center gap-2 mb-1">
             <Lock className="w-4 h-4 text-muted-foreground" />
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Total Budget (Admin-Set · Read Only)</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Current Balance · Read Only</span>
           </div>
-          <p className="font-display text-3xl font-black text-green-400 font-mono">{fmt(totalBudget)}</p>
-          <p className="text-xs text-muted-foreground mt-1">Only the admin can change this number.</p>
+          <p className="font-display text-3xl font-black text-green-400 font-mono">{fmt(currentBalance)}</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Initial budget {fmt(initialBudget)}
+            {income > 0 && <> + income {fmt(income)}</>}
+            {expenses > 0 && <> − expenses {fmt(expenses)}</>}
+          </p>
         </div>
 
         {/* Visual bar */}
@@ -98,7 +106,7 @@ export function CaptainBudget() {
           <div className={`text-xs font-bold font-mono px-3 py-1.5 rounded-lg flex items-center gap-2 ${isOver ? "bg-red-950/30 border border-red-800/40 text-red-400" : "bg-green-950/20 border border-green-800/30 text-green-400"}`}>
             {isOver ? <AlertTriangle className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
             {isOver
-              ? `Over by ${fmt(allocated - totalBudget)} — reduce allocations`
+              ? `Over by ${fmt(allocated - currentBalance)} — reduce allocations`
               : `Unallocated: ${fmt(unallocated)}`}
           </div>
         </div>

@@ -2,9 +2,7 @@ import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-// Sender address — uses Resend's shared domain for testing.
-// Once you verify a custom domain at resend.com, swap this to your own.
-const FROM = "GEF Stats <onboarding@resend.dev>";
+const FROM = "GEF Stats <notifications@gef-1--shuvayan992.replit.app>";
 
 export interface NotificationEmailPayload {
   to: string;

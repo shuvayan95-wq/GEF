@@ -10,6 +10,7 @@ import {
   teamsTable,
 } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
+import { sendNotificationEmail } from "../lib/email.js";
 
 const router = Router();
 
@@ -221,6 +222,24 @@ router.post("/admin/captains/:id/notify", requireAdmin, async (req, res) => {
     })
     .returning();
 
+  // Send email delivery (fire-and-forget — don't block the response)
+  const [captain] = await db
+    .select({ email: captainUsersTable.email, name: captainUsersTable.name })
+    .from(captainUsersTable)
+    .where(eq(captainUsersTable.id, captainId))
+    .limit(1);
+
+  if (captain?.email) {
+    sendNotificationEmail({
+      to: captain.email,
+      captainName: captain.name,
+      title,
+      body,
+      type: type ?? "announcement",
+      isImportant: !!isImportant,
+    }).catch((err) => console.error("[Notify] Email failed:", err));
+  }
+
   res.json({ success: true, notification: notif });
 });
 
@@ -249,20 +268,31 @@ router.post("/admin/violations", requireAdmin, async (req, res) => {
 
   // Notify the captain of this team
   const [captain] = await db
-    .select({ id: captainUsersTable.id })
+    .select({ id: captainUsersTable.id, email: captainUsersTable.email, name: captainUsersTable.name })
     .from(captainUsersTable)
     .where(eq(captainUsersTable.teamId, teamId))
     .limit(1);
   if (captain) {
+    const notifBody = `Your club has received a violation: ${reason}${penaltyDescription ? ` · ${penaltyDescription}` : ""}`;
     await db.insert(captainNotificationsTable).values({
       captainId: captain.id,
       teamId,
       title: "Club Violation Issued",
-      body: `Your club has received a violation: ${reason}${penaltyDescription ? ` · ${penaltyDescription}` : ""}`,
+      body: notifBody,
       type: "violation",
       isImportant: true,
       sentByAdmin: true,
     });
+    if (captain.email) {
+      sendNotificationEmail({
+        to: captain.email,
+        captainName: captain.name,
+        title: "Club Violation Issued",
+        body: notifBody,
+        type: "violation",
+        isImportant: true,
+      }).catch((err) => console.error("[Violation] Email failed:", err));
+    }
   }
 
   res.status(201).json(v);

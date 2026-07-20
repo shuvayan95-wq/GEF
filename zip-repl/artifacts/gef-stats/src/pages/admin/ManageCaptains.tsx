@@ -35,6 +35,7 @@ export function ManageCaptains() {
   const [suspendReason, setSuspendReason] = useState("");
   const [notifyDialog, setNotifyDialog] = useState<any>(null);
   const [notifyForm, setNotifyForm] = useState({ title: "", body: "", type: "announcement", isImportant: false });
+  const [templateLoading, setTemplateLoading] = useState<string | null>(null);
   const [resetPwDialog, setResetPwDialog] = useState<any>(null);
   const [newPassword, setNewPassword] = useState("");
   const [historyDialog, setHistoryDialog] = useState<any>(null);
@@ -135,6 +136,82 @@ export function ManageCaptains() {
     });
     const d = await res.json(); if (!res.ok) throw new Error(d.error);
   }, "Notification sent", () => { setNotifyDialog(null); setNotifyForm({ title: "", body: "", type: "announcement", isImportant: false }); });
+
+  async function applyTemplate(tpl: string) {
+    const teamId = notifyDialog?.captain?.teamId;
+    const teamName = notifyDialog?.captain?.team?.name ?? "your club";
+    setTemplateLoading(tpl);
+    try {
+      const fmt = (n: number) => `£${Math.abs(n).toLocaleString()}`;
+      if (tpl === "budget") {
+        const res = await fetch(getApiUrl(`/api/budget/${teamId}`), { credentials: "include" });
+        const d = await res.json();
+        setNotifyForm({
+          title: `Budget Update — ${teamName}`,
+          body: `Here is your club's current financial summary:\n\n• Current Balance: ${fmt(d.currentBalance)}\n• Starting Budget: ${fmt(d.startingBudget)}\n• Transfer Budget: ${fmt(d.transferBudget)}\n• Wage Budget: ${fmt(d.wageBudget)}\n• Total Income: ${fmt(d.totalIncome)}\n• Total Expenses: ${fmt(d.budgetExpenses)}\n• Season: ${d.season}`,
+          type: "budget_change",
+          isImportant: false,
+        });
+      } else if (tpl === "ffp") {
+        const res = await fetch(getApiUrl("/api/ffp/teams"), { credentials: "include" });
+        const teams: any[] = await res.json();
+        const team = teams.find((t: any) => t.teamId === teamId);
+        if (!team) throw new Error("Team not found in FFP data");
+        const statusLabel: string = team.status ?? "compliant";
+        setNotifyForm({
+          title: `FFP Status Report — ${teamName}`,
+          body: `Your club's Financial Fair Play standing for the ${team.season} season:\n\n• Status: ${statusLabel.toUpperCase()}\n• Net Position: ${team.netPosition >= 0 ? "+" : "-"}${fmt(team.netPosition)}\n• Total Income: ${fmt(team.income)}\n• Total Expenses: ${fmt(team.expenses)}\n• Wage Bill: ${fmt(team.liveWageBill)}\n• Transfer Spend: ${fmt(team.transferExpense)}`,
+          type: "announcement",
+          isImportant: statusLabel !== "compliant",
+        });
+      } else if (tpl === "ffp_warning") {
+        const res = await fetch(getApiUrl("/api/ffp/teams"), { credentials: "include" });
+        const teams: any[] = await res.json();
+        const team = teams.find((t: any) => t.teamId === teamId);
+        if (!team) throw new Error("Team not found in FFP data");
+        setNotifyForm({
+          title: `FFP Compliance Warning — ${teamName}`,
+          body: `Your club is currently flagged under Financial Fair Play regulations for the ${team.season} season.\n\n• Net Position: ${team.netPosition >= 0 ? "+" : "-"}${fmt(team.netPosition)}\n• Wage Bill: ${fmt(team.liveWageBill)}\n• Transfer Spend: ${fmt(team.transferExpense)}\n\nImmediate action is required to bring your club into compliance. Failure to address this may result in further penalties.`,
+          type: "violation",
+          isImportant: true,
+        });
+      } else if (tpl === "transfers") {
+        const res = await fetch(getApiUrl("/api/transfers"), { credentials: "include" });
+        const all: any[] = await res.json();
+        const relevant = all
+          .filter((t: any) => t.fromTeamId === teamId || t.toTeamId === teamId)
+          .slice(-5)
+          .reverse();
+        if (relevant.length === 0) {
+          setNotifyForm({
+            title: `Transfer Activity — ${teamName}`,
+            body: `There are no recorded transfers for ${teamName} this season.`,
+            type: "transfer",
+            isImportant: false,
+          });
+        } else {
+          const fmtFee = (n: string | null) => n ? `£${Number(n).toLocaleString()}` : "Free";
+          const lines = relevant.map((t: any) => {
+            const direction = t.toTeamId === teamId ? "IN ↓" : "OUT ↑";
+            const counterpart = t.toTeamId === teamId
+              ? (t.fromTeamName ? `← ${t.fromTeamName}` : "← Free Agent")
+              : `→ ${t.toTeamName}`;
+            return `• ${direction}  ${t.playerName}  (${fmtFee(t.fee)})  ${counterpart}`;
+          });
+          setNotifyForm({
+            title: `Transfer Activity — ${teamName}`,
+            body: `Recent transfer activity for your club:\n\n${lines.join("\n")}`,
+            type: "transfer",
+            isImportant: false,
+          });
+        }
+      }
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Template error", description: err.message });
+    } finally {
+      setTemplateLoading(null);
+    }
+  }
 
   const resetPwMutation = apiMutation(async () => {
     const res = await fetch(getApiUrl(`/api/admin/captains/${resetPwDialog.captain.id}/reset-password`), {
@@ -348,10 +425,43 @@ export function ManageCaptains() {
 
       {/* ── Notify Dialog ── */}
       <Dialog open={!!notifyDialog} onOpenChange={() => setNotifyDialog(null)}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>Send Notification</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">Send to <strong>{notifyDialog?.captain?.name}</strong> ({notifyDialog?.captain?.team?.name ?? "no club"})</p>
+            <p className="text-sm text-muted-foreground">
+              Send to <strong className="text-foreground">{notifyDialog?.captain?.name}</strong>
+              {notifyDialog?.captain?.team?.name && <span> · {notifyDialog.captain.team.name}</span>}
+            </p>
+
+            {/* ── Smart Templates ── */}
+            {notifyDialog?.captain?.teamId && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Quick Templates</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { key: "budget",      label: "💰 Budget Update",    desc: "Current balance & allocations" },
+                    { key: "ffp",         label: "📊 FFP Status",        desc: "Compliance report with numbers" },
+                    { key: "ffp_warning", label: "⚠️ FFP Warning",       desc: "Violation alert — pre-marked important" },
+                    { key: "transfers",   label: "🔁 Transfer Activity", desc: "Recent transfers in/out" },
+                  ].map(({ key, label, desc }) => (
+                    <button
+                      key={key}
+                      onClick={() => applyTemplate(key)}
+                      disabled={!!templateLoading}
+                      className="text-left rounded-lg border border-border bg-secondary/40 hover:bg-secondary/80 hover:border-primary/40 px-3 py-2 transition-colors disabled:opacity-50"
+                    >
+                      <div className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                        {templateLoading === key ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                        {label}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-0.5">{desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── Form ── */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Title</label>
               <Input value={notifyForm.title} onChange={e => setNotifyForm(f => ({ ...f, title: e.target.value }))} placeholder="Notification title…" className="bg-background" />
@@ -361,9 +471,9 @@ export function ManageCaptains() {
               <textarea
                 value={notifyForm.body}
                 onChange={e => setNotifyForm(f => ({ ...f, body: e.target.value }))}
-                placeholder="Notification message…"
-                rows={3}
-                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm resize-none"
+                placeholder="Notification message… or pick a template above to auto-fill"
+                rows={5}
+                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm resize-none font-mono"
               />
             </div>
             <div className="flex items-center gap-4">
@@ -383,8 +493,9 @@ export function ManageCaptains() {
             </div>
             <div className="flex gap-2 justify-end">
               <Button variant="outline" onClick={() => setNotifyDialog(null)}>Cancel</Button>
-              <Button onClick={() => notifyMutation.mutate()} disabled={!notifyForm.title || !notifyForm.body || notifyMutation.isPending}>
-                {notifyMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Send"}
+              <Button onClick={() => notifyMutation.mutate()} disabled={!notifyForm.title || !notifyForm.body || notifyMutation.isPending || !!templateLoading}>
+                {notifyMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Send className="w-4 h-4 mr-1" />}
+                Send
               </Button>
             </div>
           </div>

@@ -4,25 +4,43 @@ import nodemailer from "nodemailer";
 
 let _transporter: nodemailer.Transporter | null = null;
 
-function getTransporter(): nodemailer.Transporter {
-  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+async function getTransporter(): Promise<nodemailer.Transporter> {
+  const user = process.env.GMAIL_USER;
+  const pass = process.env.GMAIL_APP_PASSWORD;
+
+  console.log(`[Email] GMAIL_USER = ${user ?? "(not set)"}`);
+  console.log(`[Email] GMAIL_APP_PASSWORD is ${pass ? "set ✓" : "NOT SET ✗"}`);
+
+  if (!user || !pass) {
     throw new Error(
-      "GMAIL_USER and GMAIL_APP_PASSWORD must be set to send emails."
+      "[Email] GMAIL_USER and GMAIL_APP_PASSWORD must be set to send emails."
     );
   }
+
   if (!_transporter) {
+    console.log("[Email] Creating new Nodemailer transporter…");
     _transporter = nodemailer.createTransport({
       service: "gmail",
-      auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_APP_PASSWORD,
-      },
+      auth: { user, pass },
     });
+
+    // Verify SMTP connection & credentials once on first use
+    try {
+      await _transporter.verify();
+      console.log("[Email] Transporter verified — SMTP connection OK ✓");
+    } catch (verifyErr: any) {
+      // Reset so next call retries
+      _transporter = null;
+      console.error("[Email] Transporter verification FAILED ✗");
+      console.error(`[Email] Error code   : ${verifyErr?.code ?? "n/a"}`);
+      console.error(`[Email] Error message: ${verifyErr?.message ?? verifyErr}`);
+      console.error(`[Email] Error response: ${verifyErr?.response ?? "n/a"}`);
+      throw verifyErr;
+    }
   }
+
   return _transporter;
 }
-
-const FROM = `GEF Stats <${process.env.GMAIL_USER ?? "noreply@gmail.com"}>`;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -42,6 +60,22 @@ export async function sendNotificationEmail(
 ): Promise<void> {
   const { to, captainName, title, body, type, isImportant } = payload;
 
+  // ── Pre-flight checks ──────────────────────────────────────────────────────
+  console.log(`[Email] sendNotificationEmail called`);
+  console.log(`[Email] Recipient : ${to || "(empty — WILL FAIL)"}`);
+  console.log(`[Email] Captain   : ${captainName}`);
+  console.log(`[Email] Subject   : ${isImportant ? "⚠️ " : ""}[GEF] ${title}`);
+
+  if (!to || !to.includes("@")) {
+    console.error(`[Email] Invalid or missing recipient address: "${to}" — skipping send.`);
+    return;
+  }
+
+  // FROM is resolved at send time (not module init) so env vars are always fresh
+  const from = `GEF Stats <${process.env.GMAIL_USER ?? "noreply@gmail.com"}>`;
+  console.log(`[Email] From      : ${from}`);
+
+  // ── Build HTML ─────────────────────────────────────────────────────────────
   const importantBadge = isImportant
     ? `<span style="background:#ef4444;color:#fff;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;">Important</span>&nbsp;`
     : "";
@@ -115,16 +149,28 @@ export async function sendNotificationEmail(
 </html>
   `.trim();
 
+  // ── Send ───────────────────────────────────────────────────────────────────
   try {
-    const info = await getTransporter().sendMail({
-      from: FROM,
+    console.log("[Email] Acquiring transporter…");
+    const transporter = await getTransporter();
+
+    console.log("[Email] Calling sendMail…");
+    const info = await transporter.sendMail({
+      from,
       to,
       subject: `${isImportant ? "⚠️ " : ""}[GEF] ${title}`,
       html,
     });
-    console.log(`[Email] Sent to ${to} — messageId: ${info.messageId}`);
-  } catch (err) {
-    // Never crash the server — log and continue
-    console.error("[Email] Failed to send notification email:", err);
+
+    console.log(`[Email] ✓ Sent successfully to ${to}`);
+    console.log(`[Email] messageId : ${info.messageId}`);
+    console.log(`[Email] response  : ${info.response ?? "n/a"}`);
+  } catch (err: any) {
+    // Never crash the server — log full error and continue
+    console.error(`[Email] ✗ Failed to send to ${to}`);
+    console.error(`[Email] Error code     : ${err?.code ?? "n/a"}`);
+    console.error(`[Email] Error message  : ${err?.message ?? err}`);
+    console.error(`[Email] Error response : ${err?.response ?? "n/a"}`);
+    console.error(`[Email] Error command  : ${err?.command ?? "n/a"}`);
   }
 }

@@ -1,6 +1,15 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let _resend: Resend | null = null;
+function getResend(): Resend {
+  if (!process.env.RESEND_API_KEY) {
+    throw new Error("RESEND_API_KEY is not set — email sending is disabled.");
+  }
+  if (!_resend) {
+    _resend = new Resend(process.env.RESEND_API_KEY);
+  }
+  return _resend;
+}
 
 const FROM = "GEF Stats <notifications@gef-1--shuvayan992.replit.app>";
 
@@ -89,7 +98,7 @@ export async function sendNotificationEmail(payload: NotificationEmailPayload) {
 </html>
   `.trim();
 
-  const result = await resend.emails.send({
+  const result = await getResend().emails.send({
     from: FROM,
     to,
     subject: `${isImportant ? "⚠️ " : ""}[GEF] ${title}`,

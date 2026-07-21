@@ -1,17 +1,30 @@
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 
-let _resend: Resend | null = null;
-function getResend(): Resend {
-  if (!process.env.RESEND_API_KEY) {
-    throw new Error("RESEND_API_KEY is not set — email sending is disabled.");
+// ─── Email Service ────────────────────────────────────────────────────────────
+
+let _transporter: nodemailer.Transporter | null = null;
+
+function getTransporter(): nodemailer.Transporter {
+  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+    throw new Error(
+      "GMAIL_USER and GMAIL_APP_PASSWORD must be set to send emails."
+    );
   }
-  if (!_resend) {
-    _resend = new Resend(process.env.RESEND_API_KEY);
+  if (!_transporter) {
+    _transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_APP_PASSWORD,
+      },
+    });
   }
-  return _resend;
+  return _transporter;
 }
 
-const FROM = "GEF Stats <notifications@gef-1--shuvayan992.replit.app>";
+const FROM = `GEF Stats <${process.env.GMAIL_USER ?? "noreply@gmail.com"}>`;
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface NotificationEmailPayload {
   to: string;
@@ -22,7 +35,11 @@ export interface NotificationEmailPayload {
   isImportant?: boolean;
 }
 
-export async function sendNotificationEmail(payload: NotificationEmailPayload) {
+// ─── Send ─────────────────────────────────────────────────────────────────────
+
+export async function sendNotificationEmail(
+  payload: NotificationEmailPayload
+): Promise<void> {
   const { to, captainName, title, body, type, isImportant } = payload;
 
   const importantBadge = isImportant
@@ -98,18 +115,16 @@ export async function sendNotificationEmail(payload: NotificationEmailPayload) {
 </html>
   `.trim();
 
-  const result = await getResend().emails.send({
-    from: FROM,
-    to,
-    subject: `${isImportant ? "⚠️ " : ""}[GEF] ${title}`,
-    html,
-  });
-
-  if (result.error) {
-    console.error("[Email] Resend error:", result.error);
-    throw new Error(result.error.message);
+  try {
+    const info = await getTransporter().sendMail({
+      from: FROM,
+      to,
+      subject: `${isImportant ? "⚠️ " : ""}[GEF] ${title}`,
+      html,
+    });
+    console.log(`[Email] Sent to ${to} — messageId: ${info.messageId}`);
+  } catch (err) {
+    // Never crash the server — log and continue
+    console.error("[Email] Failed to send notification email:", err);
   }
-
-  console.log(`[Email] Sent to ${to} — id: ${result.data?.id}`);
-  return result.data;
 }

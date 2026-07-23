@@ -41,6 +41,8 @@ export function CaptainDashboard() {
   const wageBudget = Number(fin?.wageBudget ?? 0);
   const income = Number(fin?.income ?? 0);
   const expenses = Number(fin?.expenses ?? 0);
+  // Total budget = the initial allocation (transfer + wage are sub-allocations of this)
+  const totalBudget = initialBudget;
   // Current spendable balance = initial allocation + income − expenses
   const currentBalance = initialBudget + income - expenses;
 

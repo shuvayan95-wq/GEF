@@ -1,29 +1,16 @@
 import { CWCLayout } from "./CWCLayout";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { Link } from "wouter";
-import { Shield, ChevronRight, Globe2, Trophy, Star, Swords, PlayCircle } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { ChevronRight, Trophy, Star, Swords, PlayCircle } from "lucide-react";
 import { useRef } from "react";
 
 // Fake Data
-const MATCHES = [
-  { id: 1, teamA: "NEXUS", teamB: "INVICTUS", scoreA: 3, scoreB: 1, stage: "QUARTER FINAL", date: "25.05.2025", time: "9:00 PM GMT", status: "FT" },
-  { id: 2, teamA: "VANGUARD", teamB: "ROYAL", scoreA: 2, scoreB: 2, stage: "QUARTER FINAL", date: "31.05.2025", time: "9:30 PM GMT", status: "LIVE" },
-  { id: 3, teamA: "PHOENIX", teamB: "STORM", scoreA: null, scoreB: null, stage: "QUARTER FINAL", date: "02.06.2025", time: "8:00 PM GMT", status: "UPCOMING" },
-];
-
 const NEWS = [
   { id: 1, title: "NEXUS DOMINATES GROUP STAGE, SETS SIGHTS ON THE CROWN", category: "RECAP", date: "MAY 20" },
   { id: 2, title: "THE RISE OF VANGUARD: A TACTICAL MASTERCLASS", category: "ANALYSIS", date: "MAY 22" },
   { id: 3, title: "ROYAL SECURES QUARTER FINAL SPOT IN DRAMATIC FASHION", category: "BREAKING", date: "MAY 24" },
 ];
 
-const REGIONS = [
-  { name: "EUROPE", crews: 8, status: "DOMINATING" },
-  { name: "AMERICAS", crews: 6, status: "RISING" },
-  { name: "ASIA", crews: 6, status: "CONTENDERS" },
-  { name: "MENA", crews: 4, status: "WILD CARD" },
-];
 
 const FadeIn = ({ children, delay = 0, className = "" }: { children: React.ReactNode, delay?: number, className?: string }) => (
   <motion.div
@@ -52,11 +39,22 @@ export function CWCHome() {
             {/* Background grid */}
             <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:64px_64px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,#000_10%,transparent_100%)]" />
             
-            {/* Center glowing orb/globe representation */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60vw] max-w-[800px] aspect-square rounded-full border border-white/5 border-dashed flex items-center justify-center">
-              <div className="absolute w-[80%] h-[80%] rounded-full border border-[#0066FF]/20 border-dotted animate-[spin_60s_linear_infinite]" />
-              <div className="absolute w-[60%] h-[60%] rounded-full border border-[#FFB800]/20 animate-[spin_40s_linear_infinite_reverse]" />
-              <div className="w-[40%] h-[40%] rounded-full bg-gradient-to-tr from-[#0066FF]/20 to-[#FFB800]/20 blur-3xl" />
+            {/* CWC Logo — blended behind text */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[55vw] max-w-[680px] aspect-square pointer-events-none select-none">
+              <img
+                src="/cwc-logo.png"
+                alt=""
+                className="w-full h-full object-contain"
+                style={{ opacity: 0.18, filter: "blur(1px) drop-shadow(0 0 60px rgba(0,102,255,0.4)) drop-shadow(0 0 40px rgba(255,184,0,0.3))", mixBlendMode: "luminosity" }}
+              />
+              {/* Radial fade so edges dissolve into black */}
+              <div className="absolute inset-0 rounded-full" style={{ background: "radial-gradient(ellipse 70% 70% at 50% 50%, transparent 40%, #050505 100%)" }} />
+            </div>
+
+            {/* Subtle spin rings on top of logo */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60vw] max-w-[800px] aspect-square rounded-full flex items-center justify-center">
+              <div className="absolute w-[80%] h-[80%] rounded-full border border-[#0066FF]/15 border-dotted animate-[spin_60s_linear_infinite]" />
+              <div className="absolute w-[60%] h-[60%] rounded-full border border-[#FFB800]/15 animate-[spin_40s_linear_infinite_reverse]" />
             </div>
           </motion.div>
 
@@ -109,102 +107,14 @@ export function CWCHome() {
             </div>
           </FadeIn>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {MATCHES.map((match, i) => (
-              <FadeIn key={match.id} delay={i * 0.2}>
-                <div className={cn(
-                  "relative bg-[#0a0a0a] border overflow-hidden group transition-all duration-500",
-                  match.status === "LIVE" ? "border-[#FFB800]/50 shadow-[0_0_30px_rgba(255,184,0,0.15)]" : "border-white/10 hover:border-[#0066FF]/50"
-                )}>
-                  {/* Decorative corner accents */}
-                  <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
-
-                  <div className="p-6">
-                    <div className="flex justify-between items-center mb-6">
-                      <span className="font-display text-xs font-bold tracking-widest text-white/40">{match.date} | {match.time}</span>
-                      <span className={cn(
-                        "font-display text-xs font-black tracking-widest px-2 py-0.5 rounded",
-                        match.status === "LIVE" ? "bg-[#FFB800] text-black animate-pulse" :
-                        match.status === "FT" ? "bg-white/10 text-white/80" : "bg-[#0066FF]/20 text-[#0066FF]"
-                      )}>
-                        {match.status}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      {/* Team A */}
-                      <div className="flex flex-col items-center gap-3 w-1/3">
-                        <div className="w-16 h-16 rounded border border-[#0066FF]/40 bg-[#0066FF]/10 flex items-center justify-center shadow-[0_0_15px_rgba(0,102,255,0.2)]">
-                          <Shield className="w-8 h-8 text-[#0066FF]" />
-                        </div>
-                        <span className="font-display font-bold text-lg tracking-wider text-white text-center">{match.teamA}</span>
-                      </div>
-
-                      {/* Score / VS */}
-                      <div className="flex flex-col items-center justify-center w-1/3">
-                        {match.scoreA !== null ? (
-                          <div className="font-display font-black text-5xl tracking-tighter flex items-center gap-3">
-                            <span className="text-[#0066FF] drop-shadow-[0_0_10px_rgba(0,102,255,0.5)]">{match.scoreA}</span>
-                            <span className="text-white/20 text-2xl">-</span>
-                            <span className="text-[#FFB800] drop-shadow-[0_0_10px_rgba(255,184,0,0.5)]">{match.scoreB}</span>
-                          </div>
-                        ) : (
-                          <span className="font-display font-black text-3xl text-white/20 tracking-widest">VS</span>
-                        )}
-                      </div>
-
-                      {/* Team B */}
-                      <div className="flex flex-col items-center gap-3 w-1/3">
-                        <div className="w-16 h-16 rounded border border-[#FFB800]/40 bg-[#FFB800]/10 flex items-center justify-center shadow-[0_0_15px_rgba(255,184,0,0.2)]">
-                          <Shield className="w-8 h-8 text-[#FFB800]" />
-                        </div>
-                        <span className="font-display font-bold text-lg tracking-wider text-white text-center">{match.teamB}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </FadeIn>
-            ))}
-          </div>
-        </section>
-
-        {/* THE GLOBAL STAGE (Regions) */}
-        <section className="py-24 bg-[#0a0a0a] border-y border-white/5 relative overflow-hidden">
-          <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1/2 h-[800px] opacity-20 pointer-events-none">
-             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,102,255,0.2)_0%,transparent_70%)] mix-blend-screen" />
-          </div>
-          
-          <div className="container mx-auto px-4 relative z-10">
-            <FadeIn>
-              <div className="text-center mb-16">
-                <Globe2 className="w-12 h-12 text-white/20 mx-auto mb-4" />
-                <h2 className="font-display font-black text-4xl md:text-5xl tracking-widest text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">THE GLOBAL STAGE</h2>
-                <p className="text-white/40 font-display font-bold tracking-widest mt-4">EVERY REGION. ONE DESTINATION.</p>
-              </div>
-            </FadeIn>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
-              {REGIONS.map((region, i) => (
-                <FadeIn key={region.name} delay={i * 0.1}>
-                  <div className="p-6 border border-white/5 bg-black hover:border-white/20 transition-colors group">
-                    <h3 className="font-display font-bold text-2xl tracking-widest text-white group-hover:text-[#0066FF] transition-colors">{region.name}</h3>
-                    <div className="mt-4 flex items-center justify-between border-t border-white/10 pt-4">
-                      <div className="flex flex-col">
-                        <span className="text-white/40 text-[10px] font-display tracking-widest font-bold">CREWS</span>
-                        <span className="text-xl font-display font-black text-white">{region.crews}</span>
-                      </div>
-                      <div className="flex flex-col text-right">
-                        <span className="text-white/40 text-[10px] font-display tracking-widest font-bold">STATUS</span>
-                        <span className="text-xs font-display font-bold text-[#FFB800] tracking-wider">{region.status}</span>
-                      </div>
-                    </div>
-                  </div>
-                </FadeIn>
-              ))}
+          <FadeIn delay={0.2}>
+            <div className="border border-white/5 bg-[#0a0a0a] py-20 flex flex-col items-center justify-center gap-4">
+              <Swords className="w-10 h-10 text-white/10" />
+              <p className="font-display font-bold tracking-widest text-white/20 text-sm">FIXTURES WILL APPEAR HERE AS THE TOURNAMENT BEGINS</p>
             </div>
-          </div>
+          </FadeIn>
         </section>
+
 
         {/* STAR PLAYER MOTM */}
         <section className="py-32 container mx-auto px-4">

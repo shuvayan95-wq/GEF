@@ -62,6 +62,8 @@ import { GCCDraw } from "@/pages/public/GCCDraw";
 import { GCCStandings } from "@/pages/public/GCCStandings";
 import { GCCFixtures } from "@/pages/public/GCCFixtures";
 import { GCCBracket } from "@/pages/public/GCCBracket";
+import { CWCHome } from "@/pages/cwc/CWCHome";
+import { CWCPlaceholder } from "@/pages/cwc/CWCPlaceholder";
 import { PartnerDetail } from "@/pages/public/PartnerDetail";
 import { AISportsDesk } from "@/pages/public/AISportsDesk";
 import { AIPredictions } from "@/pages/public/AIPredictions";
@@ -134,6 +136,10 @@ function Router() {
       <Route path="/gcc/:id/standings" component={GCCStandings} />
       <Route path="/gcc/:id/fixtures" component={GCCFixtures} />
       <Route path="/gcc/:id/bracket" component={GCCBracket} />
+
+      {/* Crew World Cup */}
+      <Route path="/cwc" component={CWCHome} />
+      <Route path="/cwc/:section" component={CWCPlaceholder} />
       
       {/* Admin Routes */}
       <Route path="/login" component={Login} />

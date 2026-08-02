@@ -31,6 +31,7 @@ const NAV_LINKS = [
   { href: "/power-rankings", label: "📊 Power Rankings" },
   { href: "/fan-community", label: "🔥 Fan Hub" },
   { href: "/fanbase", label: "👥 Fanbase" },
+  { href: "/cwc", label: "🏆 Crew World Cup", isCWC: true },
 ];
 
 export function Navbar() {
@@ -73,13 +74,14 @@ export function Navbar() {
         <div className="hidden md:flex items-center space-x-0.5 overflow-x-auto max-w-full scrollbar-hide">
           {NAV_LINKS.map((link) => {
             const isActive = location === link.href;
+            const isCWC = (link as any).isCWC;
             return (
               <Link key={link.href} href={link.href} className="relative px-3 py-2 shrink-0">
                 <span className={cn(
                   "relative z-10 font-display font-semibold text-[13px] tracking-wide transition-all duration-200",
                   isActive
-                    ? "text-primary neon-text-pulse"
-                    : "text-muted-foreground hover:text-foreground"
+                    ? isCWC ? "text-[#FFB800]" : "text-primary neon-text-pulse"
+                    : isCWC ? "text-[#FFB800]/80 hover:text-[#FFB800] drop-shadow-[0_0_8px_rgba(255,184,0,0.5)]" : "text-muted-foreground hover:text-foreground"
                 )}>
                   {link.label}
                 </span>
@@ -89,10 +91,13 @@ export function Navbar() {
                     className="absolute inset-0 z-0 rounded-t-md overflow-hidden"
                     transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
                   >
-                    <div className="absolute inset-0 bg-primary/8" />
+                    <div className={cn("absolute inset-0", isCWC ? "bg-[#FFB800]/10" : "bg-primary/8")} />
                     <div
                       className="absolute bottom-0 left-0 right-0 h-0.5"
-                      style={{
+                      style={isCWC ? {
+                        background: "#FFB800",
+                        boxShadow: "0 0 10px rgba(255,184,0,0.9), 0 0 20px rgba(255,184,0,0.5), 0 -1px 8px rgba(255,184,0,0.3)",
+                      } : {
                         background: "hsl(var(--primary))",
                         boxShadow: "0 0 10px hsl(var(--primary)/0.9), 0 0 20px hsl(var(--primary)/0.5), 0 -1px 8px hsl(var(--primary)/0.3)",
                       }}
@@ -166,31 +171,38 @@ export function Navbar() {
             {/* Top accent line */}
             <div className="h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
             <div className="flex flex-col py-4 px-4 gap-1">
-              {NAV_LINKS.map((link, i) => (
-                <motion.div
-                  key={link.href}
-                  initial={{ opacity: 0, x: -12 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.03 }}
-                >
-                  <Link
-                    href={link.href}
-                    className={cn(
-                      "flex items-center gap-2 p-3 rounded-md font-display font-semibold text-sm tracking-wide transition-all",
-                      location === link.href
-                        ? "bg-primary/10 text-primary border border-primary/20"
-                        : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                    )}
-                    onClick={() => setMobileMenuOpen(false)}
+              {NAV_LINKS.map((link, i) => {
+                const isActive = location === link.href;
+                const isCWC = (link as any).isCWC;
+                return (
+                  <motion.div
+                    key={link.href}
+                    initial={{ opacity: 0, x: -12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.03 }}
                   >
-                    {location === link.href && (
-                      <span className="w-1 h-1 rounded-full bg-primary shrink-0"
-                        style={{ boxShadow: "0 0 6px hsl(var(--primary))" }} />
-                    )}
-                    {link.label}
-                  </Link>
-                </motion.div>
-              ))}
+                    <Link
+                      href={link.href}
+                      className={cn(
+                        "flex items-center gap-2 p-3 rounded-md font-display font-semibold text-sm tracking-wide transition-all",
+                        isActive
+                          ? isCWC ? "bg-[#FFB800]/10 text-[#FFB800] border border-[#FFB800]/20" : "bg-primary/10 text-primary border border-primary/20"
+                          : isCWC ? "text-[#FFB800] hover:bg-[#FFB800]/10" : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                      )}
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      {isActive && (
+                        <span className="w-1 h-1 rounded-full shrink-0"
+                          style={{ 
+                            backgroundColor: isCWC ? "#FFB800" : "hsl(var(--primary))",
+                            boxShadow: isCWC ? "0 0 6px #FFB800" : "0 0 6px hsl(var(--primary))" 
+                          }} />
+                      )}
+                      {link.label}
+                    </Link>
+                  </motion.div>
+                );
+              })}
               <div className="h-px bg-border my-2" />
               {isAuthenticated ? (
                 <div className="flex flex-col gap-1">

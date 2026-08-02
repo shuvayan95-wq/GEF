@@ -1,0 +1,423 @@
+I want to create a completely separate experience inside my existing GEF website called the GEF Crew World Cup (CWC).
+
+IMPORTANT
+
+I have attached the official CWC visual identity reference image.
+
+Use this image as the primary inspiration for the entire homepage.
+
+Do NOT recreate the image literally.
+
+Instead, extract the visual language from it.
+
+The colors, atmosphere, premium styling, glow effects, typography, spacing, lighting, particle effects and futuristic esports presentation should all be inspired by the attached image.
+
+The CWC homepage should immediately feel like the biggest international tournament inside GEF.
+
+It should NOT resemble the normal GEF website.
+
+======================================================
+GENERAL GOAL
+======================================================
+
+When the user clicks "Crew World Cup" on the main GEF website, they should feel like they have entered a completely different application.
+
+Think:
+
+FIFA World Cup
+
+League of Legends Worlds
+
+Valorant Champions
+
+The International
+
+combined into one premium esports event.
+
+Everything should feel cinematic and premium.
+
+======================================================
+COLOR PALETTE
+======================================================
+
+Strictly use the official CWC branding.
+
+Primary
+
+Electric Blue
+
+Secondary
+
+Royal Gold
+
+Accent
+
+White / Silver
+
+Background
+
+Deep Black
+
+Use soft blue and gold neon glows throughout.
+
+Absolutely DO NOT use the standard GEF green theme anywhere inside the CWC pages.
+
+======================================================
+OPENING EXPERIENCE
+======================================================
+
+When entering CWC for the first time, play a smooth intro animation.
+
+Sequence
+
+Black screen
+
+↓
+
+Tiny blue particles begin appearing
+
+↓
+
+Gold particles appear
+
+↓
+
+Digital world map slowly fades in
+
+↓
+
+Blue and gold energy lines travel around the globe
+
+↓
+
+The globe slowly rotates into place
+
+↓
+
+Orbit rings assemble around the globe
+
+↓
+
+The official GEF Crew World Cup logo fades into the center
+
+↓
+
+Tagline appears
+
+ONE CREW.
+ONE FLAG.
+ONE WORLD.
+
+↓
+
+The homepage fades in.
+
+Allow users to skip the intro after the first viewing.
+
+======================================================
+BACKGROUND
+======================================================
+
+The homepage background should never feel static.
+
+Use:
+
+Animated world map
+
+Blue and gold energy streaks
+
+Moving particles
+
+Light rays
+
+Digital grid
+
+Subtle orbit animations
+
+Stadium atmosphere
+
+Moving light reflections
+
+Everything should move slowly.
+
+Nothing should feel distracting.
+
+The attached image should be the artistic inspiration.
+
+======================================================
+HOME HERO SECTION
+======================================================
+
+The hero section should contain
+
+Large animated official CWC globe/logo
+
+Tournament Name
+
+GEF CREW WORLD CUP
+
+Subtitle
+
+GLOBAL E-FOOTBALL FEDERATION
+
+Official slogan
+
+ONE CREW.
+ONE FLAG.
+ONE WORLD.
+
+Large animated buttons
+
+Explore Tournament
+
+View Crews
+
+Latest News
+
+Below the hero place a subtle countdown to the tournament if enabled.
+
+======================================================
+LIVE INFORMATION STRIP
+======================================================
+
+Under the hero create a premium live information strip.
+
+Examples
+
+Latest Match
+
+Upcoming Match
+
+Transfer Window Status
+
+Current Champion
+
+Most Valuable Crew
+
+Latest News
+
+The strip should animate smoothly.
+
+======================================================
+FEATURED NEWS
+======================================================
+
+Create a premium Featured News section.
+
+Large featured story.
+
+Several smaller news cards.
+
+Each card should support
+
+Image
+
+Headline
+
+Category
+
+Date
+
+Short description
+
+Hover animations.
+
+======================================================
+FEATURED CREWS
+======================================================
+
+Create a section showcasing participating crews.
+
+Display beautiful animated Crew Cards.
+
+Each card should contain
+
+Crew Logo
+
+Crew Name
+
+Region
+
+Current Fanbase
+
+Power Ranking
+
+Hover animation only.
+
+Do NOT build the individual crew pages yet.
+
+Clicking a crew can temporarily lead to a placeholder page until Phase 2.
+
+======================================================
+LATEST MATCHES
+======================================================
+
+Create a Latest Results section.
+
+Premium fixture cards.
+
+Display
+
+Crew Logos
+
+Score
+
+Tournament
+
+Round
+
+Date
+
+Hover animations.
+
+======================================================
+TOURNAMENT HIGHLIGHTS
+======================================================
+
+Create a premium highlight section.
+
+Examples
+
+Player of the Week
+
+Top Performer
+
+Biggest Upset
+
+Highest Scoring Match
+
+Best Transfer
+
+Best Crew Form
+
+These should be represented using beautiful animated cards.
+
+======================================================
+POWER MOMENT
+======================================================
+
+Create one full-width cinematic section.
+
+Large background.
+
+Blue and Gold lighting.
+
+Headline example
+
+THE WORLD'S BEST CREWS ARE HERE.
+
+Subtext.
+
+This section exists only for visual impact.
+
+======================================================
+MEDIA SECTION
+======================================================
+
+Create a media area.
+
+Latest Articles
+
+Latest Videos
+
+Tournament Gallery
+
+No backend functionality yet.
+
+Only premium placeholders.
+
+======================================================
+FOOTER
+======================================================
+
+Premium footer matching the CWC branding.
+
+Navigation
+
+Socials
+
+GEF Branding
+
+Copyright
+
+======================================================
+ANIMATIONS
+======================================================
+
+Every card should have
+
+Glow
+
+Lift
+
+Border animation
+
+Particle animation
+
+Smooth transitions
+
+Buttons should feel premium.
+
+Page sections should fade upward while scrolling.
+
+======================================================
+DESIGN STYLE
+======================================================
+
+The attached image is the official design language.
+
+Everything should match its visual identity.
+
+Blue and Gold lighting.
+
+Luxury esports atmosphere.
+
+Broadcast-quality presentation.
+
+Never use flat cards.
+
+Never use boring dashboards.
+
+Everything should feel like a FIFA World Cup broadcast mixed with a modern esports championship.
+
+======================================================
+IMPORTANT
+======================================================
+
+For this phase ONLY build:
+
+1. Intro Animation
+
+2. Homepage
+
+3. Navigation
+
+4. Hero
+
+5. News
+
+6. Featured Crews
+
+7. Latest Matches
+
+8. Tournament Highlights
+
+9. Footer
+
+DO NOT create
+
+Crew Pages
+
+Player Pages
+
+Standings
+
+Power Rankings
+
+Statistics
+
+Admin
+
+Those will be built later.
+
+Focus only on making the most beautiful and immersive homepage possible.

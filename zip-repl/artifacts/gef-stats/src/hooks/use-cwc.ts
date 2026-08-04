@@ -176,13 +176,17 @@ export function useGetCwcPlayerAwards(playerId?: number) {
 async function uploadFile(file: File) {
   const formData = new FormData();
   formData.append("file", file);
-  const res = await fetch(getApiUrl("/api/upload"), {
+  const res = await fetch(getApiUrl("/api/upload/image"), {
     method: "POST",
+    credentials: "include",
     body: formData,
   });
-  if (!res.ok) throw new Error("Failed to upload image");
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(err.error || "Failed to upload image");
+  }
   const data = await res.json();
-  return data.url;
+  return { url: data.url };
 }
 
 export function useUploadImage() {

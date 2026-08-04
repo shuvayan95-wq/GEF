@@ -18,8 +18,9 @@ export function CWCLayout({ children }: { children: ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
+    const skip = new URLSearchParams(window.location.search).get("preview");
     const hasPlayed = sessionStorage.getItem("cwc_intro_played");
-    if (!hasPlayed) {
+    if (!hasPlayed && !skip) {
       setShowIntro(true);
     }
   }, []);

@@ -55,6 +55,8 @@ export function CWCCrewHQ() {
   // Play intro once per crew slug
   useEffect(() => {
     if (!slug) return;
+    const skipPreview = new URLSearchParams(window.location.search).get("preview");
+    if (skipPreview) { setIntroPlayed(true); return; }
     const sessionKey = `cwc_hq_intro_${slug}`;
     if (!sessionStorage.getItem(sessionKey)) {
       setIntroPlayed(false);

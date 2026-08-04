@@ -1,0 +1,625 @@
+I am now building Phase 2 of my GEF Crew World Cup (CWC) website.
+
+IMPORTANT
+
+I have attached TWO reference images.
+
+REFERENCE 1
+The Manchester United / Paul Pogba page.
+
+This image is ONLY the layout and page structure reference.
+
+Study:
+
+• Hero layout
+• Information placement
+• Player navigation
+• Spacing
+• Composition
+• Large blended background number
+• Previous / Next player navigation
+
+DO NOT copy:
+
+• Manchester United branding
+• Colors
+• Fonts
+• Football terminology
+
+REFERENCE 2
+
+The official GEF Crew World Cup branding.
+
+This is the OFFICIAL design language.
+
+Use its
+
+• Blue & Gold colors
+• Background atmosphere
+• Glow
+• World map
+• Digital grid
+• Particles
+• Lighting
+• Typography style
+• Premium esports presentation
+
+The final result must feel like a premium international esports tournament.
+
+=========================================================
+GENERAL CONCEPT
+=========================================================
+
+When a visitor clicks a crew from the Teams page, they should NOT immediately see the players.
+
+Instead they should enter the Crew Headquarters.
+
+The experience should feel cinematic.
+
+The Crew itself is the main character.
+
+The players represent that crew.
+
+The page should be divided into two premium sections.
+
+SECTION 1
+
+Crew Profile
+
+SECTION 2
+
+Player Showcase
+
+=========================================================
+ENTRY ANIMATION
+=========================================================
+
+When a crew is opened
+
+Fade screen
+
+↓
+
+Blue energy sweeps across
+
+↓
+
+Gold energy follows
+
+↓
+
+Crew logo appears
+
+↓
+
+Background changes into the crew identity
+
+↓
+
+Crew profile fades in
+
+The transition should take roughly one second.
+
+Very smooth.
+
+=========================================================
+BACKGROUND
+=========================================================
+
+The background should never be static.
+
+Build layered backgrounds.
+
+Layer 1
+
+Deep black gradient
+
+Layer 2
+
+Animated digital world map
+
+Layer 3
+
+Huge transparent crew logo
+
+Layer 4
+
+Blue and gold energy streaks
+
+Layer 5
+
+Floating particles
+
+Layer 6
+
+Light rays
+
+Layer 7
+
+Glow overlay
+
+Very subtle movement.
+
+=========================================================
+SECTION 1
+
+CREW PROFILE
+=========================================================
+
+This section appears FIRST.
+
+Do NOT show players yet.
+
+Hero Layout
+
+LEFT
+
+Crew Name
+
+Region
+
+Tagline
+
+Large faded crew initials behind the text
+
+CENTER
+
+Large animated Crew Logo
+
+Blue & Gold energy
+
+Digital effects
+
+Floating particles
+
+Premium lighting
+
+RIGHT
+
+CREW INFORMATION
+
+Display
+
+Founded
+
+Founder
+
+Captain
+
+Manager
+
+Owner / Investor
+
+Country
+
+Region
+
+Current Fanbase
+
+Power Ranking
+
+Current Division
+
+Total Market Value
+
+Total Wage Bill
+
+Roster Size
+
+Champions Cup Titles
+
+League Titles
+
+Crew World Cup Titles
+
+Super Cup Titles
+
+Overall Record
+
+Everything above should be editable ONLY by the Admin.
+
+=========================================================
+TROPHY CABINET
+=========================================================
+
+Below Crew Information
+
+Build a beautiful Trophy Cabinet.
+
+Use premium trophy icons.
+
+Hover effects.
+
+Each trophy should display
+
+Name
+
+Times Won
+
+Winning Seasons
+
+Everything entered manually by Admin.
+
+=========================================================
+CREW STORY
+=========================================================
+
+Below the Trophy Cabinet
+
+Create
+
+OUR STORY
+
+A rich text section.
+
+The Admin should be able to write the complete history of the crew.
+
+Example
+
+Formation
+
+Legacy
+
+Historic moments
+
+Famous players
+
+Achievements
+
+Future vision
+
+This should NOT be generated.
+
+It should be editable only by the Admin.
+
+=========================================================
+SECTION 2
+
+PLAYER SHOWCASE
+=========================================================
+
+After scrolling
+
+Begin the Player Showcase.
+
+This section should use the Paul Pogba layout.
+
+Do NOT use a boring player list.
+
+Display ONE PLAYER AT A TIME.
+
+The user navigates through the roster using
+
+Previous Player
+
+Next Player
+
+Exactly like the reference.
+
+No page reload.
+
+Smooth transitions.
+
+=========================================================
+PLAYER HERO
+=========================================================
+
+LEFT
+
+Large blended jersey number
+
+Player Name
+
+Nationality
+
+CENTER
+
+Large Player Render
+
+Subtle floating animation
+
+Crew logo behind
+
+Blue & Gold lighting
+
+Digital particles
+
+RIGHT
+
+PLAYER PROFILE
+
+Display
+
+Real Name
+
+IGN
+
+Nationality
+
+Age
+
+eFootball ID
+
+WhatsApp Number
+
+Joined Crew
+
+Contract Until
+
+Current Market Value
+
+Current Wage
+
+Matches Played
+
+Wins
+
+Losses
+
+Goals Scored
+
+Goals Conceded
+
+Goal Difference
+
+Win %
+
+Average Rating
+
+Player Rating
+
+Current Form
+
+Everything should automatically update from match results except profile details.
+
+=========================================================
+PLAYER AWARDS
+=========================================================
+
+Below the profile
+
+Display premium badges.
+
+Examples
+
+Player of the Week
+
+MVP
+
+Golden Boot
+
+Best Goalkeeper
+
+Hall of Fame
+
+Most Valuable Player
+
+Each badge should display
+
+Award
+
+Times Won
+
+Season
+
+These should update automatically whenever the Admin awards them.
+
+=========================================================
+PLAYER BIO
+=========================================================
+
+Below the hero
+
+Create
+
+PLAYER BIO
+
+Rich text
+
+Editable by Admin.
+
+=========================================================
+PLAYER NAVIGATION
+=========================================================
+
+At the bottom of every player
+
+LEFT
+
+Previous Player
+
+RIGHT
+
+Next Player
+
+Clicking them should
+
+Slide player away
+
+Animate blue energy
+
+Fade new player
+
+Count statistics upward
+
+Very smooth.
+
+=========================================================
+ADMIN CONTROLS
+=========================================================
+
+The Admin must have full management control.
+
+Crew Management
+
+Create Crew
+
+Edit Crew
+
+Delete Crew
+
+Upload Crew Logo
+
+Upload Crew Banner
+
+Edit Story
+
+Edit Founder
+
+Edit Captain
+
+Edit Manager
+
+Edit Owner
+
+Edit Fanbase
+
+Edit Trophy Cabinet
+
+Edit Region
+
+Edit Identity
+
+Everything.
+
+=========================================================
+PLAYER MANAGEMENT
+=========================================================
+
+Admin should be able to
+
+Create Player
+
+Edit Player
+
+Delete Player
+
+Upload Player Image
+
+Edit Name
+
+Edit IGN
+
+Edit Age
+
+Edit Nationality
+
+Edit eFootball ID
+
+Edit WhatsApp
+
+Edit Contract
+
+Edit Market Value
+
+Edit Wage
+
+Move Player to another Crew
+
+Release Player
+
+Archive Player
+
+Every player should belong to exactly one crew.
+
+=========================================================
+DELETE SAFETY
+=========================================================
+
+Never instantly delete.
+
+Always display confirmation.
+
+Deleting a Crew
+
+"Deleting this Crew will permanently remove all associated players, trophies, history and media.
+
+This action cannot be undone."
+
+Deleting a Player
+
+"Are you sure you want to permanently remove this player?"
+
+Admin must confirm before deletion.
+
+=========================================================
+AUTOMATIC STATISTICS
+=========================================================
+
+Statistics must NEVER require manual updates.
+
+Whenever official CWC match results are entered
+
+Automatically update
+
+Matches Played
+
+Wins
+
+Losses
+
+Goals
+
+Goals Conceded
+
+Goal Difference
+
+Average Rating
+
+Current Form
+
+Win %
+
+Awards
+
+Player Records
+
+Everything.
+
+=========================================================
+RESPONSIVE
+=========================================================
+
+Desktop
+
+Tablet
+
+Mobile
+
+No horizontal scrolling.
+
+Maintain premium presentation.
+
+=========================================================
+ANIMATIONS
+=========================================================
+
+Use Framer Motion.
+
+Smooth fades.
+
+Blue and Gold energy sweeps.
+
+Particle effects.
+
+Count-up animations.
+
+Hover glows.
+
+Card lift.
+
+Parallax backgrounds.
+
+Nothing should feel static.
+
+=========================================================
+FINAL GOAL
+=========================================================
+
+The finished result should NOT feel like a database or admin dashboard.
+
+It should feel like entering the official headquarters of an international esports organisation.
+
+Visitors should feel like they are browsing the official website of a world-class Crew competing in the GEF Crew World Cup.
+
+Presentation quality should be comparable to major international esports events while preserving the unique GEF Crew World Cup identity.

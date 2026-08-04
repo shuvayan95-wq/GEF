@@ -22,3 +22,4 @@ export * from "./captains";
 export * from "./fanbase";
 export * from "./fanReactions";
 export * from "./captainPortal";
+export * from "./cwc";

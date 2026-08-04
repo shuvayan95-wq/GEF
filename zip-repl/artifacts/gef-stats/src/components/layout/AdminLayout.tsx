@@ -53,6 +53,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     { href: "/admin/ffp", icon: Scale, label: "Financial Fair Play" },
     { href: "/admin/budget", icon: Wallet, label: "Club Budgets" },
     { href: "/admin/gcc", icon: Medal, label: "Champions Cup" },
+    { href: "/admin/cwc", icon: Trophy, label: "Crew World Cup" },
     { href: "/admin/ballon-dor", icon: Award, label: "Ballon d'Or" },
     { href: "/admin/hall-of-fame", icon: Trophy, label: "Hall of Fame" },
     { href: "/admin/ceremony", icon: Tv2, label: "Live Ceremony" },

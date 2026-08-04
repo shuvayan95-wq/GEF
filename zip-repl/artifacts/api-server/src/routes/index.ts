@@ -35,6 +35,7 @@ import fanCommunityRouter from "./fanCommunity";
 import captainAuthRouter from "./captainAuth";
 import captainPortalRouter from "./captainPortal";
 import captainAdminRouter from "./captainAdmin";
+import cwcRouter from "./cwc";
 
 const router: IRouter = Router();
 
@@ -74,5 +75,6 @@ router.use(fanCommunityRouter);
 router.use(captainAuthRouter);
 router.use(captainPortalRouter);
 router.use(captainAdminRouter);
+router.use(cwcRouter);
 
 export default router;

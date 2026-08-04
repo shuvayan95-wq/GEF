@@ -63,7 +63,10 @@ import { GCCStandings } from "@/pages/public/GCCStandings";
 import { GCCFixtures } from "@/pages/public/GCCFixtures";
 import { GCCBracket } from "@/pages/public/GCCBracket";
 import { CWCHome } from "@/pages/cwc/CWCHome";
+import { CWCCrewsList } from "@/pages/cwc/CWCCrewsList";
+import { CWCCrewHQ } from "@/pages/cwc/CWCCrewHQ";
 import { CWCPlaceholder } from "@/pages/cwc/CWCPlaceholder";
+import { ManageCWC } from "@/pages/admin/ManageCWC";
 import { PartnerDetail } from "@/pages/public/PartnerDetail";
 import { AISportsDesk } from "@/pages/public/AISportsDesk";
 import { AIPredictions } from "@/pages/public/AIPredictions";
@@ -75,6 +78,7 @@ import { MatchAnalysis } from "@/pages/public/MatchAnalysis";
 import { Fanbase } from "@/pages/public/Fanbase";
 import { FanCommunity } from "@/pages/public/FanCommunity";
 import { ManageFanbase } from "@/pages/admin/ManageFanbase";
+
 
 // Captain Portal
 import { CaptainLogin } from "@/pages/captain/CaptainLogin";
@@ -139,11 +143,14 @@ function Router() {
 
       {/* Crew World Cup */}
       <Route path="/cwc" component={CWCHome} />
+      <Route path="/cwc/crews" component={CWCCrewsList} />
+      <Route path="/cwc/crews/:slug" component={CWCCrewHQ} />
       <Route path="/cwc/:section" component={CWCPlaceholder} />
       
       {/* Admin Routes */}
       <Route path="/login" component={Login} />
       <Route path="/admin" component={Dashboard} />
+      <Route path="/admin/cwc" component={ManageCWC} />
       <Route path="/admin/players" component={ManagePlayers} />
       <Route path="/admin/teams" component={ManageTeams} />
       <Route path="/admin/matches" component={ManageMatches} />

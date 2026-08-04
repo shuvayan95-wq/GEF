@@ -7,16 +7,6 @@ import { formatOvr, getOvrColorClass } from "@/lib/utils";
 import { Trophy, Activity, Target, ShieldAlert, Award as AwardIcon, TrendingUp, TrendingDown, Repeat2, DollarSign, Layers, Cpu, Loader2, Crown, Star, Zap, AlertTriangle, Eye, BarChart2, Swords, CheckCircle2, RefreshCw } from "lucide-react"; // eslint-disable-line
 import { PlayerCard } from "@/components/PlayerCard";
 import { format } from "date-fns";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  ReferenceLine,
-} from "recharts";
 
 interface TeamStats {
   teamId: number;
@@ -52,31 +42,12 @@ interface StatsByTeamData {
   statsByTeam: TeamStats[];
 }
 
-function formatValue(v: number): string {
-  if (v >= 1_000_000) return `€${(v / 1_000_000).toFixed(2)}M`;
-  if (v >= 1_000) return `€${(v / 1_000).toFixed(0)}K`;
-  return `€${v}`;
-}
-
-interface MVHistory {
-  id: number;
-  value: number;
-  reason: string | null;
-  recordedAt: string;
-}
-
-interface MVData {
-  playerId: number;
-  currentValue: number | null;
-  history: MVHistory[];
-}
 
 export function PlayerProfile() {
   const params = useParams();
   const id = parseInt(params.id || "0");
 
   const { data: stats, isLoading, error } = useGetPlayerStats(id, { query: { enabled: id > 0 } });
-  const [mvData, setMvData] = useState<MVData | null>(null);
   const [statsView, setStatsView] = useState<"total" | "by-team">("total");
 
   const { data: statsByTeamData } = useQuery<StatsByTeamData>({
@@ -85,36 +56,10 @@ export function PlayerProfile() {
     enabled: id > 0,
   });
 
-  useEffect(() => {
-    if (!id) return;
-    fetch(`/api/players/${id}/market-value-history`)
-      .then(r => r.json())
-      .then(setMvData)
-      .catch(() => {});
-  }, [id]);
-
   if (isLoading) return <div className="min-h-screen bg-background"><Navbar /><div className="p-20 text-center animate-pulse text-xl">Loading dossier...</div></div>;
   if (error || !stats) return <div className="min-h-screen bg-background"><Navbar /><div className="p-20 text-center text-destructive">Player not found.</div></div>;
 
-  const currentMV = (stats as any).marketValue as number | null;
-  const history = mvData?.history ?? [];
-  const chartData = history.map(h => ({
-    date: format(new Date(h.recordedAt), "MMM d"),
-    value: h.value,
-    fullDate: format(new Date(h.recordedAt), "MMM d, yyyy HH:mm"),
-    reason: h.reason,
-  }));
-
-  const firstVal = history.length > 0 ? history[0].value : null;
-  const lastVal = history.length > 0 ? history[history.length - 1].value : null;
-  const prevVal = history.length > 1 ? history[history.length - 2].value : null;
-  const change = lastVal && firstVal ? lastVal - firstVal : null;
-  const changePct = change && firstVal ? (change / firstVal) * 100 : null;
-  const lastChange = lastVal && prevVal ? lastVal - prevVal : null;
-  const trend = lastChange === null ? "flat" : lastChange > 0 ? "up" : lastChange < 0 ? "down" : "flat";
-
-  const minVal = history.length > 0 ? Math.min(...history.map(h => h.value)) : 0;
-  const maxVal = history.length > 0 ? Math.max(...history.map(h => h.value)) : 0;
+  const highestScoringMatch = (stats as any).highestScoringMatch as { goals: number; opponentGoals: number } | null;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -173,24 +118,6 @@ export function PlayerProfile() {
             </div>
 
             <div className="flex gap-4 items-stretch">
-              {/* Market Value Card */}
-              {currentMV && (
-                <div className="bg-background border border-emerald-500/30 rounded-xl p-4 text-center min-w-[140px] shadow-lg shadow-emerald-500/10">
-                  <div className="text-xs uppercase text-muted-foreground font-bold mb-1 tracking-widest flex items-center justify-center gap-1">
-                    <DollarSign className="w-3 h-3 text-emerald-400" /> Market Value
-                  </div>
-                  <div className="text-2xl font-display font-black text-emerald-400 leading-tight">
-                    {formatValue(currentMV)}
-                  </div>
-                  {lastChange !== null && lastChange !== 0 && (
-                    <div className={`text-xs font-bold mt-1 flex items-center justify-center gap-1 ${lastChange > 0 ? "text-green-400" : "text-red-400"}`}>
-                      {lastChange > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                      {lastChange > 0 ? "+" : ""}{formatValue(Math.abs(lastChange))}
-                    </div>
-                  )}
-                </div>
-              )}
-
               {/* Salary Card */}
               <div className="bg-background border border-yellow-500/30 rounded-xl p-4 text-center min-w-[130px] shadow-lg shadow-yellow-500/10">
                 <div className="text-xs uppercase text-muted-foreground font-bold mb-1 tracking-widest flex items-center justify-center gap-1">
@@ -253,6 +180,12 @@ export function PlayerProfile() {
                 <StatBox label="Draws" value={stats.draws} color="text-yellow-500" />
                 <StatBox label="Losses" value={stats.losses} color="text-red-500" />
                 <StatBox label="Goal Diff" value={(stats.goalDiff > 0 ? "+" : "") + stats.goalDiff} />
+                <StatBox label="Conceded" value={(stats as any).goalsConceded ?? 0} color="text-red-400" />
+                <StatBox label="Conceded/Match" value={((stats as any).goalsConcededPerMatch ?? 0).toFixed(2)} color="text-red-400" />
+                <StatBox label="MVPs" value={stats.mvpCount} color="text-amber-400" />
+                {highestScoringMatch && (
+                  <StatBox label="Best Scoreline" value={`${highestScoringMatch.goals}-${highestScoringMatch.opponentGoals}`} color="text-primary" />
+                )}
               </div>
             ) : (
               <div className="space-y-4">
@@ -303,115 +236,6 @@ export function PlayerProfile() {
                 </div>
               </div>
             )}
-
-            {/* Market Value Chart */}
-            <div>
-              <h2 className="text-2xl font-display font-bold uppercase flex items-center gap-2 border-b border-border pb-2">
-                <TrendingUp className="text-emerald-400 w-6 h-6" /> Market Valuation
-              </h2>
-
-              {history.length < 2 ? (
-                <div className="mt-4 p-6 text-center text-muted-foreground bg-card rounded-lg border border-border">
-                  {currentMV
-                    ? `Current valuation: ${formatValue(currentMV)}. More data points will appear as matches are played.`
-                    : "Market value data will appear after the first match is recorded."}
-                </div>
-              ) : (
-                <div className="mt-4 space-y-4">
-                  {/* Summary Cards */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <MiniCard
-                      label="Current Value"
-                      value={currentMV ? formatValue(currentMV) : "—"}
-                      color="text-emerald-400"
-                    />
-                    <MiniCard
-                      label="Season Change"
-                      value={change !== null ? `${change >= 0 ? "+" : ""}${formatValue(Math.abs(change))}` : "—"}
-                      color={change === null ? undefined : change >= 0 ? "text-green-400" : "text-red-400"}
-                    />
-                    <MiniCard
-                      label="Change %"
-                      value={changePct !== null ? `${changePct >= 0 ? "+" : ""}${changePct.toFixed(1)}%` : "—"}
-                      color={changePct === null ? undefined : changePct >= 0 ? "text-green-400" : "text-red-400"}
-                    />
-                    <MiniCard
-                      label="Trend"
-                      value={trend === "up" ? "Rising ↑" : trend === "down" ? "Falling ↓" : "Stable →"}
-                      color={trend === "up" ? "text-green-400" : trend === "down" ? "text-red-400" : "text-yellow-400"}
-                    />
-                  </div>
-
-                  {/* Line Chart */}
-                  <div className="bg-card border border-border rounded-xl p-4">
-                    <ResponsiveContainer width="100%" height={240}>
-                      <LineChart data={chartData} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-                        <XAxis
-                          dataKey="date"
-                          tick={{ fill: "#6b7280", fontSize: 11 }}
-                          axisLine={false}
-                          tickLine={false}
-                        />
-                        <YAxis
-                          tick={{ fill: "#6b7280", fontSize: 11 }}
-                          axisLine={false}
-                          tickLine={false}
-                          tickFormatter={(v) => formatValue(v)}
-                          width={70}
-                        />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: "#1a1a2e",
-                            border: "1px solid #ffffff20",
-                            borderRadius: 8,
-                            fontSize: 12,
-                          }}
-                          labelFormatter={(_, payload) => payload?.[0]?.payload?.fullDate ?? ""}
-                          formatter={(v: any, _, payload) => [
-                            formatValue(Number(v)),
-                            payload?.payload?.reason ?? "Valuation",
-                          ]}
-                        />
-                        {maxVal > 0 && <ReferenceLine y={maxVal} stroke="#22c55e30" strokeDasharray="4 4" />}
-                        {minVal > 0 && minVal !== maxVal && <ReferenceLine y={minVal} stroke="#ef444430" strokeDasharray="4 4" />}
-                        <Line
-                          type="monotone"
-                          dataKey="value"
-                          stroke="#10b981"
-                          strokeWidth={2.5}
-                          dot={{ fill: "#10b981", r: 4, strokeWidth: 0 }}
-                          activeDot={{ fill: "#34d399", r: 6, strokeWidth: 0 }}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-
-                  {/* Value History Log */}
-                  <div className="bg-card border border-border rounded-xl p-4">
-                    <div className="text-xs font-bold uppercase text-muted-foreground mb-3 tracking-wider">Valuation History</div>
-                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                      {[...history].reverse().map((h, i) => {
-                        const prev = history[history.length - 2 - i];
-                        const diff = prev ? h.value - prev.value : 0;
-                        return (
-                          <div key={h.id} className="flex items-center justify-between text-sm">
-                            <div className="text-muted-foreground w-32 shrink-0">{format(new Date(h.recordedAt), "MMM d, yyyy")}</div>
-                            <div className="flex-1 text-xs text-muted-foreground px-2 truncate">{h.reason ?? "—"}</div>
-                            <div className="font-bold text-emerald-400 w-20 text-right">{formatValue(h.value)}</div>
-                            {diff !== 0 && (
-                              <div className={`w-16 text-right text-xs font-bold ${diff > 0 ? "text-green-400" : "text-red-400"}`}>
-                                {diff > 0 ? "+" : ""}{formatValue(Math.abs(diff))}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
 
             {/* Recent Form */}
             <h2 className="text-2xl font-display font-bold uppercase flex items-center gap-2 border-b border-border pb-2">
@@ -468,34 +292,6 @@ export function PlayerProfile() {
                     }}
                     size="lg"
                   />
-                </div>
-              </div>
-            )}
-
-            {/* Valuation Analysis */}
-            {currentMV && (
-              <div className="bg-card border border-emerald-500/20 rounded-xl p-6 shadow-lg">
-                <h3 className="font-display text-xl font-bold uppercase mb-4 flex items-center gap-2">
-                  <DollarSign className="text-emerald-400 w-5 h-5" /> Valuation Analysis
-                </h3>
-                <div className="space-y-3 text-sm">
-                  <AnalysisRow label="Current Value" value={formatValue(currentMV)} color="text-emerald-400" />
-                  {minVal > 0 && <AnalysisRow label="Season Low" value={formatValue(minVal)} color="text-red-400" />}
-                  {maxVal > 0 && <AnalysisRow label="Season High" value={formatValue(maxVal)} color="text-green-400" />}
-                  {changePct !== null && (
-                    <AnalysisRow
-                      label="Season Growth"
-                      value={`${changePct >= 0 ? "+" : ""}${changePct.toFixed(1)}%`}
-                      color={changePct >= 0 ? "text-green-400" : "text-red-400"}
-                    />
-                  )}
-                  <div className="pt-3 border-t border-border text-xs text-muted-foreground leading-relaxed">
-                    {trend === "up"
-                      ? "Market value is on the rise. Strong form and consistent goal-scoring are driving the valuation upward."
-                      : trend === "down"
-                      ? "Market value has dipped recently. Recovery is possible with improved match performance."
-                      : "Market value is holding steady. Consistent performances keep valuation stable."}
-                  </div>
                 </div>
               </div>
             )}

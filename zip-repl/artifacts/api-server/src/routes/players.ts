@@ -16,6 +16,7 @@ function requireAdmin(req: any, res: any, next: any) {
 
 function aggregatePlayerStats(playerId: number, allMatchups: any[]) {
   let wins = 0, losses = 0, draws = 0, goalsScored = 0, goalsConceded = 0, mvpCount = 0;
+  let highestScoringMatch: { goals: number; opponentGoals: number } | null = null;
   for (const m of allMatchups) {
     const isP1 = m.player1Id === playerId;
     const isP2 = m.player2Id === playerId;
@@ -28,10 +29,13 @@ function aggregatePlayerStats(playerId: number, allMatchups: any[]) {
     else if (myGoals < theirGoals) losses++;
     else draws++;
     if (m.mvpPlayerId === playerId) mvpCount++;
+    if (!highestScoringMatch || myGoals > highestScoringMatch.goals) {
+      highestScoringMatch = { goals: myGoals, opponentGoals: theirGoals };
+    }
   }
   const matchesPlayed = wins + losses + draws;
   const overallRating = calcOVR(matchesPlayed, wins, losses, draws, goalsScored, goalsConceded, mvpCount);
-  return { wins, losses, draws, goalsScored, goalsConceded, mvpCount, matchesPlayed, overallRating };
+  return { wins, losses, draws, goalsScored, goalsConceded, mvpCount, matchesPlayed, overallRating, highestScoringMatch };
 }
 
 async function buildPlayerData(player: any) {
@@ -230,6 +234,7 @@ router.get("/players/:id/stats", async (req, res) => {
       goalDiff: stats.goalsScored - stats.goalsConceded,
       goalsPerMatch: Math.round(goalsPerMatch * 100) / 100,
       goalsConcededPerMatch: Math.round(goalsConcededPerMatch * 100) / 100,
+      highestScoringMatch: stats.highestScoringMatch,
       mvpCount: stats.mvpCount,
       overallRating: stats.overallRating,
       recentMatches,

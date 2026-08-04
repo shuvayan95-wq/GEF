@@ -143,8 +143,8 @@ function CrewsTab() {
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'logoUrl' | 'bannerUrl') => {
     if (!e.target.files?.[0]) return;
     try {
-      const url = await uploadImage.mutateAsync(e.target.files[0]);
-      setEditingCrew(prev => prev ? { ...prev, [field]: url } : prev);
+      const result = await uploadImage.mutateAsync(e.target.files[0]);
+      setEditingCrew(prev => prev ? { ...prev, [field]: result.url } : prev);
       toast({ title: "Success", description: "Image uploaded." });
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -403,8 +403,8 @@ function PlayersTab() {
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files?.[0]) return;
     try {
-      const url = await uploadImage.mutateAsync(e.target.files[0]);
-      setEditingPlayer(prev => prev ? { ...prev, imageUrl: url } : prev);
+      const result = await uploadImage.mutateAsync(e.target.files[0]);
+      setEditingPlayer(prev => prev ? { ...prev, imageUrl: result.url } : prev);
       toast({ title: "Success", description: "Image uploaded." });
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });

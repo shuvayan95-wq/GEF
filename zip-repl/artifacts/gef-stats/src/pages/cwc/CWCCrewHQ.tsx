@@ -234,7 +234,7 @@ export function CWCCrewHQ() {
                   <div className="absolute inset-4 rounded-full border border-dashed border-[#FFB800]/20 animate-[spin_15s_linear_infinite_reverse]" />
                   
                   {crew.logoUrl ? (
-                    <img src={crew.logoUrl} alt={crew.name} className="w-48 h-48 md:w-60 md:h-60 object-contain drop-shadow-[0_0_40px_rgba(0,102,255,0.5)]" />
+                    <img src={crew.logoUrl} alt={crew.name} className="w-56 h-56 md:w-72 md:h-72 object-contain drop-shadow-[0_0_40px_rgba(0,102,255,0.5)]" />
                   ) : (
                     <div className="w-48 h-48 rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-display font-black text-5xl text-white/30 shadow-[0_0_30px_rgba(0,102,255,0.3)]">
                       {crew.name.substring(0,2).toUpperCase()}

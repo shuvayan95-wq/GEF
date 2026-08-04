@@ -424,7 +424,7 @@ export function CWCCrewHQ() {
                              { label: "AGE", value: player.age },
                              { label: "JOINED", value: player.joinedCrew },
                              { label: "CONTRACT", value: player.contractUntil },
-                             { label: "MARKET VAL", value: player.marketValue },
+                             { label: "GOALS CONCEDED", value: player.goalsConceded },
                              { label: "APPEARANCES", value: player.matchesPlayed },
                              { label: "WIN RATE", value: player.matchesPlayed && player.matchesPlayed > 0 && player.wins !== null 
                                 ? `${Math.round((player.wins / player.matchesPlayed)*100)}%` 

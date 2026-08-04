@@ -351,7 +351,7 @@ export function CWCCrewHQ() {
                     {/* LEFT: Huge Number + Name */}
                     <div className="w-full lg:w-1/3 flex flex-col justify-center relative lg:pl-10 order-2 lg:order-1 pt-8 lg:pt-0 z-20">
                       {player.jerseyNumber !== null && (
-                        <div className="absolute left-0 lg:-left-20 top-1/2 -translate-y-1/2 text-[150px] lg:text-[300px] font-display font-black text-white opacity-[0.03] select-none leading-none z-0">
+                        <div className="absolute left-0 lg:-left-20 top-1/2 -translate-y-1/2 text-[150px] lg:text-[300px] font-display font-black text-white opacity-[0.12] select-none leading-none z-0">
                           {player.jerseyNumber}
                         </div>
                       )}
@@ -394,7 +394,7 @@ export function CWCCrewHQ() {
                         <motion.img 
                           src={player.imageUrl} 
                           alt={player.realName} 
-                          className="h-[120%] lg:h-[110%] w-auto max-w-none object-contain relative z-10 bottom-0 filter drop-shadow-[0_10px_30px_rgba(0,0,0,0.8)]"
+                          className="h-[85%] lg:h-[90%] w-auto max-w-none object-contain relative z-10 bottom-0 filter drop-shadow-[0_10px_30px_rgba(0,0,0,0.8)]"
                           animate={{ y: [-5, 5, -5] }}
                           transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
                         />

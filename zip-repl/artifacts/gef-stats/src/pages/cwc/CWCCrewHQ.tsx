@@ -327,9 +327,46 @@ export function CWCCrewHQ() {
         {/* ========================================================================= */}
         {/* SECTION 2: PLAYER SHOWCASE (Man Utd / Paul Pogba style) */}
         {/* ========================================================================= */}
-        <section className="relative min-h-screen bg-black flex flex-col pb-24 overflow-hidden border-t border-[#0066FF]/20">
-          
-          <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-[#0066FF]/10 to-transparent pointer-events-none" />
+        <section className="relative min-h-screen bg-[#060810] flex flex-col pb-24 overflow-hidden border-t border-[#0066FF]/20">
+
+          {/* Stadium background — crew banner blurred if available, else synthetic */}
+          {crew.bannerUrl ? (
+            <img
+              src={crew.bannerUrl}
+              alt=""
+              className="absolute inset-0 w-full h-full object-cover opacity-[0.12] blur-[3px] scale-105 pointer-events-none select-none"
+            />
+          ) : null}
+
+          {/* Synthetic stadium floor light — centre-bottom sweep */}
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[140%] h-[55%] pointer-events-none"
+            style={{ background: "radial-gradient(ellipse 70% 60% at 50% 100%, rgba(0,102,255,0.18) 0%, rgba(0,102,255,0.06) 40%, transparent 70%)" }} />
+
+          {/* Left accent spotlight */}
+          <div className="absolute top-1/2 -translate-y-1/2 left-0 w-[45%] h-[70%] pointer-events-none"
+            style={{ background: "radial-gradient(ellipse 80% 80% at 0% 50%, rgba(0,60,180,0.13) 0%, transparent 70%)" }} />
+
+          {/* Right accent spotlight */}
+          <div className="absolute top-1/2 -translate-y-1/2 right-0 w-[45%] h-[70%] pointer-events-none"
+            style={{ background: "radial-gradient(ellipse 80% 80% at 100% 50%, rgba(255,184,0,0.07) 0%, transparent 70%)" }} />
+
+          {/* Top vignette */}
+          <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-b from-[#060810] to-transparent pointer-events-none" />
+          {/* Bottom vignette */}
+          <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[#060810] to-transparent pointer-events-none" />
+
+          {/* Faint horizontal scanlines for esports HUD feel */}
+          <div className="absolute inset-0 pointer-events-none opacity-[0.025]"
+            style={{ backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(255,255,255,0.6) 3px, rgba(255,255,255,0.6) 4px)" }} />
+
+          {/* Crew logo watermark — centre background */}
+          {crew.logoUrl && (
+            <img
+              src={crew.logoUrl}
+              alt=""
+              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[420px] object-contain opacity-[0.06] pointer-events-none select-none blur-[1px]"
+            />
+          )}
           
           <div className="container mx-auto px-4 py-8 flex-1 flex flex-col">
             <h2 className="font-display font-black text-3xl tracking-[0.3em] text-[#0066FF] text-center mb-16 uppercase drop-shadow-[0_0_10px_rgba(0,102,255,0.3)]">
@@ -358,7 +395,7 @@ export function CWCCrewHQ() {
                       
                       <div className="relative z-10">
                         {crew.logoUrl && (
-                          <img src={crew.logoUrl} alt="" className="w-8 h-8 md:w-12 md:h-12 mb-4 opacity-50 grayscale" />
+                          <img src={crew.logoUrl} alt="" className="w-12 h-12 md:w-16 md:h-16 mb-4 opacity-80 drop-shadow-[0_0_8px_rgba(0,102,255,0.6)]" />
                         )}
                         <h2 className="font-display font-black text-5xl md:text-7xl uppercase leading-[0.85] tracking-tight text-white mb-2 drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">
                           {player.realName.split(" ").map((part, i, arr) => (
